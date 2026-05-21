@@ -26,6 +26,10 @@ This document captures the intended relational model for the Laravel migrations.
 - `employee_onboarding_cases`: one onboarding workflow per employee.
 - `employee_onboarding_tasks`: generated workflow tasks.
 
+## Attendance
+
+- `attendance_records`: company-scoped daily employee attendance with date, check-in, check-out, break minutes, status, source, notes, creator/updater, soft deletes, and one record per employee per date.
+
 ## Compliance And Leave
 
 - `legal_rule_sets`: versioned UAE legal rule sets by effective date.

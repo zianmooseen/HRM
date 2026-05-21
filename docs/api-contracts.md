@@ -142,4 +142,182 @@ Planned onboarding endpoints:
 - `POST /api/employees/{employee}/onboarding/start`
 - `POST /api/employees/{employee}/onboarding/complete`
 
+## Attendance
+
+Implemented endpoints:
+
+- `GET /api/attendance-records`
+- `POST /api/attendance-records`
+- `GET /api/attendance-records/{attendance_record}`
+- `PUT /api/attendance-records/{attendance_record}`
+- `DELETE /api/attendance-records/{attendance_record}`
+
+Supported list filters:
+
+- `employee_id`
+- `date_from`
+- `date_to`
+
+Create/update request:
+
+```json
+{
+  "employee_id": 1,
+  "date": "2026-05-20",
+  "check_in": "09:00",
+  "check_out": "18:00",
+  "break_minutes": 60,
+  "status": "present",
+  "source": "manual",
+  "notes": "Created by HR."
+}
+```
+
+Rules:
+
+- All attendance endpoints are scoped to the authenticated user's company.
+- `employee_id` must belong to the current company.
+- One attendance record is allowed per employee per date.
+- Create, update, and delete operations create audit logs.
+- Manual attendance entry is ready for future web, mobile, biometric, and import sources.
+
+## Leave Management
+
+Implemented endpoints:
+
+- `GET /api/leave-types`
+- `GET /api/leave-balances`
+- `GET /api/leave-requests`
+- `POST /api/leave-requests`
+- `GET /api/leave-requests/{leave_request}`
+- `POST /api/leave-requests/{leave_request}/approve`
+- `POST /api/leave-requests/{leave_request}/reject`
+
+Supported leave request filters:
+
+- `employee_id`
+- `status`
+
+Create request:
+
+```json
+{
+  "employee_id": 1,
+  "leave_type_id": 1,
+  "start_date": "2026-05-20",
+  "end_date": "2026-05-22",
+  "reason": "Family travel."
+}
+```
+
+Reject request:
+
+```json
+{
+  "rejection_reason": "Insufficient handover coverage."
+}
+```
+
+Rules:
+
+- All leave endpoints are scoped to the authenticated user's company.
+- `employee_id` must belong to the current company.
+- Leave types can be global statutory types or company-specific active types.
+- New leave requests start as `pending` and reserve `pending_days` on the employee balance.
+- Approval moves pending days to used days.
+- Rejection releases pending days and stores a rejection reason.
+- Create, approve, and reject operations create audit logs.
+
+## Payroll Foundation
+
+Implemented endpoints:
+
+- `GET /api/salary-components`
+- `POST /api/salary-components`
+- `PUT /api/salary-components/{salary_component}`
+- `GET /api/employee-salary-components`
+- `POST /api/employee-salary-components`
+- `PUT /api/employee-salary-components/{employee_salary_component}`
+- `GET /api/payroll-periods`
+- `POST /api/payroll-periods`
+- `GET /api/payroll-periods/{payroll_period}`
+- `POST /api/payroll-periods/{payroll_period}/run`
+- `POST /api/payroll-periods/{payroll_period}/approve`
+
+Salary component request:
+
+```json
+{
+  "code": "HRA",
+  "name": "Housing Allowance",
+  "type": "earning",
+  "is_taxable": false,
+  "is_recurring": true,
+  "status": "active"
+}
+```
+
+Employee salary component request:
+
+```json
+{
+  "employee_id": 1,
+  "salary_component_id": 1,
+  "amount": 2000,
+  "effective_from": "2026-05-01",
+  "effective_to": null,
+  "status": "active"
+}
+```
+
+Payroll period request:
+
+```json
+{
+  "period_start": "2026-05-01",
+  "period_end": "2026-05-31",
+  "pay_date": "2026-06-01"
+}
+```
+
+Rules:
+
+- Payroll endpoints are scoped to the authenticated user's company.
+- Salary component codes are unique per company.
+- Salary assignments require both the employee and component to belong to the current company.
+- Running payroll regenerates draft payslips for active employees only.
+- Payslips include employee basic salary plus active recurring salary assignments effective during the period.
+- Deductions reduce net pay; earnings increase gross pay.
+- Approved payroll periods cannot be rerun.
+- Salary setup, payroll runs, and payroll approvals create audit logs.
+
+## Compliance Calculations
+
+Implemented endpoints:
+
+- `GET /api/compliance/legal-rules`
+- `POST /api/compliance/gratuity`
+
+Gratuity calculation request:
+
+```json
+{
+  "employee_id": 1,
+  "termination_date": "2026-12-31",
+  "basic_salary": 12000,
+  "unpaid_leave_days": 0
+}
+```
+
+Rules:
+
+- The employee must belong to the authenticated user's current company.
+- Employee `hire_date` and a positive basic salary are required.
+- `basic_salary` is optional; if omitted, the employee record value is used.
+- Service days exclude submitted unpaid leave days.
+- UAE private-sector default gratuity uses 21 days per year for the first 5 years, then 30 days per year after that.
+- Gratuity is capped at 24 months of basic salary.
+- The response includes the legal rule snapshot used for the estimate.
+- Results are compliance guidance and should be reviewed before final settlement.
+
 Every write endpoint must validate input, authorize server-side, and write audit logs for sensitive changes.

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LeaveRequest extends Model
 {
@@ -21,6 +22,7 @@ class LeaveRequest extends Model
         'requested_by',
         'approved_by',
         'approved_at',
+        'approval_note',
         'rejected_by',
         'rejected_at',
         'rejection_reason',
@@ -53,5 +55,15 @@ class LeaveRequest extends Model
     public function requester(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function payCalculationItems(): HasMany
+    {
+        return $this->hasMany(LeavePayCalculationItem::class);
+    }
+
+    public function statusEvents(): HasMany
+    {
+        return $this->hasMany(LeaveRequestStatusEvent::class)->orderBy('created_at')->orderBy('id');
     }
 }

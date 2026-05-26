@@ -19,6 +19,30 @@
         <input v-model="form.work_email" type="email">
       </label>
       <label>
+        Hire date
+        <input v-model="form.hire_date" type="date">
+      </label>
+      <label>
+        Probation end date
+        <input v-model="form.probation_end_date" type="date">
+      </label>
+      <label>
+        Contract start date
+        <input v-model="form.contract_start_date" type="date">
+      </label>
+      <label>
+        Contract end date
+        <input v-model="form.contract_end_date" type="date">
+      </label>
+      <label>
+        Employment type
+        <input v-model="form.employment_type">
+      </label>
+      <label>
+        Contract type
+        <input v-model="form.contract_type">
+      </label>
+      <label>
         Branch
         <select v-model="form.branch_id">
           <option :value="null">No branch</option>
@@ -72,6 +96,12 @@ const form = reactive({
   first_name: '',
   last_name: '',
   work_email: '',
+  hire_date: '',
+  probation_end_date: '',
+  contract_start_date: '',
+  contract_end_date: '',
+  employment_type: '',
+  contract_type: '',
   branch_id: null as number | null,
   department_id: null as number | null,
   job_title_id: null as number | null,

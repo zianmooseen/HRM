@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\EmployeeServicePeriod;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleAndPermissionSeeder;
@@ -55,6 +56,9 @@ class EmployeeManagementTest extends TestCase
             'first_name' => 'Aisha',
             'last_name' => 'Khan',
             'work_email' => 'aisha@example.com',
+            'hire_date' => '2026-01-01',
+            'contract_start_date' => '2026-01-01',
+            'contract_end_date' => '2026-12-31',
             'status' => 'draft',
             'basic_salary' => 12000,
         ])->assertCreated()
@@ -69,6 +73,12 @@ class EmployeeManagementTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'employee.created',
             'company_id' => $company->id,
+        ]);
+        $this->assertDatabaseHas('employee_service_periods', [
+            'company_id' => $company->id,
+            'start_date' => '2026-01-01 00:00:00',
+            'end_date' => '2026-12-31 00:00:00',
+            'status' => 'active',
         ]);
     }
 
@@ -102,5 +112,110 @@ class EmployeeManagementTest extends TestCase
             'last_name' => 'Ali',
             'status' => 'draft',
         ])->assertUnprocessable();
+    }
+
+    public function test_company_admin_can_extend_employee_contract(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'EMP-EXT',
+            'first_name' => 'Extend',
+            'last_name' => 'Employee',
+            'display_name' => 'Extend Employee',
+            'status' => 'active',
+            'hire_date' => '2026-01-01',
+            'contract_start_date' => '2026-01-01',
+            'contract_end_date' => '2026-12-31',
+        ]);
+        EmployeeServicePeriod::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+            'status' => 'active',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/employees/{$employee->id}/service-periods/extend", [
+            'end_date' => '2027-12-31',
+            'change_reason' => 'Renewed fixed-term contract.',
+        ])->assertOk()
+            ->assertJsonPath('data.service_period.end_date', '2027-12-31');
+
+        $this->assertDatabaseHas('employees', [
+            'id' => $employee->id,
+            'contract_end_date' => '2027-12-31 00:00:00',
+        ]);
+        $this->assertDatabaseHas('audit_logs', ['company_id' => $company->id, 'action' => 'employee_contract.extended']);
+    }
+
+    public function test_company_admin_can_rehire_terminated_employee(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'EMP-REHIRE',
+            'first_name' => 'Rehire',
+            'last_name' => 'Employee',
+            'display_name' => 'Rehire Employee',
+            'status' => 'terminated',
+            'hire_date' => '2024-01-01',
+            'contract_start_date' => '2024-01-01',
+            'contract_end_date' => '2025-01-01',
+            'basic_salary' => 8000,
+        ]);
+        EmployeeServicePeriod::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'start_date' => '2024-01-01',
+            'end_date' => '2025-01-01',
+            'status' => 'terminated',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/employees/{$employee->id}/service-periods/rehire", [
+            'start_date' => '2026-02-01',
+            'end_date' => '2027-02-01',
+            'contract_type' => 'fixed_term',
+            'employment_type' => 'full_time',
+            'basic_salary' => 10000,
+            'change_reason' => 'Rehired for new role.',
+        ])->assertCreated()
+            ->assertJsonPath('data.employee.status', 'active')
+            ->assertJsonPath('data.service_period.start_date', '2026-02-01');
+
+        $this->assertDatabaseHas('employees', [
+            'id' => $employee->id,
+            'status' => 'active',
+            'hire_date' => '2026-02-01 00:00:00',
+            'basic_salary' => 10000,
+        ]);
+        $this->assertDatabaseHas('employee_service_periods', [
+            'employee_id' => $employee->id,
+            'start_date' => '2026-02-01 00:00:00',
+            'status' => 'active',
+        ]);
+        $this->assertDatabaseHas('audit_logs', ['company_id' => $company->id, 'action' => 'employee.rehired']);
+    }
+
+    private function companyAdmin(): array
+    {
+        $company = Company::query()->create(['name' => 'Demo Company']);
+        $user = User::factory()->create();
+        $role = Role::query()->where('slug', 'company_admin')->firstOrFail();
+
+        $user->roles()->attach($role->id, [
+            'company_id' => $company->id,
+            'scope' => 'company',
+        ]);
+
+        return [$company, $user];
     }
 }

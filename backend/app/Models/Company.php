@@ -84,4 +84,14 @@ class Company extends Model
     {
         return $this->hasMany(Payslip::class);
     }
+
+    public function employeeTerminations(): HasMany
+    {
+        return $this->hasMany(EmployeeTermination::class);
+    }
+
+    public function employeeServicePeriods(): HasMany
+    {
+        return $this->hasMany(EmployeeServicePeriod::class);
+    }
 }

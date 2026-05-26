@@ -51,10 +51,22 @@ const navigationGroups = [
       { label: 'Departments', to: '/settings/departments', permission: 'companies.view' },
       { label: 'Job titles', to: '/settings/job-titles', permission: 'companies.view' },
       { label: 'Employees', to: '/employees', permission: 'employees.view' },
+      { label: 'Onboarding', to: '/onboarding', permission: 'employees.view' },
       { label: 'Leave', to: '/leave', permission: 'leave.view' },
       { label: 'Attendance', to: '/attendance', permission: 'attendance.view' },
       { label: 'Payroll', to: '/payroll', permission: 'payroll.view' },
       { label: 'Compliance', to: '/settings/compliance', permission: 'settings.view' },
+      { label: 'Leave policies', to: '/settings/leave-policies', permission: 'settings.view' },
+    ],
+  },
+  {
+    label: 'Self service',
+    roles: ['employee'],
+    items: [
+      { label: 'My profile', to: '/my/profile', permission: null },
+      { label: 'My documents', to: '/my/documents', permission: 'documents.view' },
+      { label: 'My leave', to: '/my/leave', permission: 'leave.view' },
+      { label: 'My attendance', to: '/my/attendance', permission: 'attendance.view' },
     ],
   },
 ] as const

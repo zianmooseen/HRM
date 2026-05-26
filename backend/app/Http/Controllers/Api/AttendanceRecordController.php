@@ -26,10 +26,12 @@ class AttendanceRecordController extends Controller
     public function index(Request $request): JsonResponse
     {
         $company = $this->company($request, 'attendance.view');
+        $selfEmployeeId = $this->selfEmployeeId($request);
 
         $records = AttendanceRecord::query()
             ->with('employee')
             ->where('company_id', $company->id)
+            ->when($selfEmployeeId, fn ($query, $employeeId) => $query->where('employee_id', $employeeId))
             ->when($request->query('employee_id'), fn ($query, $employeeId) => $query->where('employee_id', $employeeId))
             ->when($request->query('date_from'), fn ($query, $date) => $query->whereDate('date', '>=', $date))
             ->when($request->query('date_to'), fn ($query, $date) => $query->whereDate('date', '<=', $date))
@@ -76,6 +78,7 @@ class AttendanceRecordController extends Controller
     {
         $company = $this->company($request, 'attendance.view');
         $this->ensureOwned($attendanceRecord, $company->id);
+        $this->ensureSelfEmployee($request, $attendanceRecord->employee_id);
 
         return $this->success('Attendance record retrieved.', [
             'attendance_record' => new AttendanceRecordResource($attendanceRecord->load('employee')),
@@ -132,16 +135,53 @@ class AttendanceRecordController extends Controller
     private function validated(StoreAttendanceRecordRequest $request, int $companyId): array
     {
         $data = $request->validated();
+        $employee = Employee::query()->whereKey($data['employee_id'])->where('company_id', $companyId)->first();
 
-        abort_unless(Employee::query()->whereKey($data['employee_id'])->where('company_id', $companyId)->exists(), 422, 'Selected employee is invalid.');
+        abort_unless($employee, 422, 'Selected employee is invalid.');
+        $this->ensureAttendanceDateAllowed($employee, $data['date']);
 
         $data['break_minutes'] = $data['break_minutes'] ?? 0;
 
         return $data;
     }
 
+    private function ensureAttendanceDateAllowed(Employee $employee, string $date): void
+    {
+        if ($employee->status !== 'terminated') {
+            return;
+        }
+
+        if (! $employee->contract_end_date || $employee->contract_end_date->lt($date)) {
+            throw ValidationException::withMessages([
+                'date' => ['Attendance cannot be recorded after the employee termination date.'],
+            ]);
+        }
+    }
+
     private function ensureOwned(AttendanceRecord $record, int $companyId): void
     {
         abort_unless($record->company_id === $companyId, 403, 'You are not authorized to perform this action.');
+    }
+
+    private function selfEmployeeId(Request $request): ?int
+    {
+        $user = $request->user()->loadMissing('roles.permissions', 'employeeRecord');
+
+        if (! $this->access->isSelfService($user)) {
+            return null;
+        }
+
+        return $this->access->employeeFor($user)?->id;
+    }
+
+    private function ensureSelfEmployee(Request $request, int $employeeId): void
+    {
+        $selfEmployeeId = $this->selfEmployeeId($request);
+
+        if ($selfEmployeeId === null) {
+            return;
+        }
+
+        abort_unless($selfEmployeeId === $employeeId, 403, 'You are not authorized to perform this action.');
     }
 }

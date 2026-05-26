@@ -23,11 +23,14 @@ class LeaveRequestResource extends JsonResource
             'requested_by' => $this->requested_by,
             'approved_by' => $this->approved_by,
             'approved_at' => optional($this->approved_at)->toIso8601String(),
+            'approval_note' => $this->approval_note,
             'rejected_by' => $this->rejected_by,
             'rejected_at' => optional($this->rejected_at)->toIso8601String(),
             'rejection_reason' => $this->rejection_reason,
             'employee' => $this->whenLoaded('employee', fn () => new EmployeeResource($this->employee)),
             'leave_type' => $this->whenLoaded('leaveType', fn () => new LeaveTypeResource($this->leaveType)),
+            'pay_calculation_items' => $this->whenLoaded('payCalculationItems', fn () => LeavePayCalculationItemResource::collection($this->payCalculationItems)),
+            'status_events' => $this->whenLoaded('statusEvents', fn () => LeaveRequestStatusEventResource::collection($this->statusEvents)),
         ];
     }
 }

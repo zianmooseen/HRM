@@ -34,6 +34,15 @@
         End date
         <input v-model="form.end_date" type="date" required>
       </label>
+      <label v-if="selectedLeaveType?.code === 'sick_leave' || selectedLeaveType?.requires_document">
+        Medical certificate
+        <select v-model="form.medical_certificate_document_id">
+          <option value="">Select uploaded certificate</option>
+          <option v-for="document in medicalCertificates" :key="document.id" :value="String(document.id)">
+            {{ document.title }} · {{ document.original_file_name }}
+          </option>
+        </select>
+      </label>
       <label class="full">
         Reason
         <textarea v-model="form.reason" rows="3" />
@@ -41,6 +50,50 @@
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="saving">{{ saving ? 'Submitting...' : 'Submit leave request' }}</button>
     </form>
+
+    <section>
+      <h2>Pending approvals</h2>
+      <p v-if="pendingRequests.length === 0" class="muted">No leave requests are waiting for approval.</p>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Type</th>
+            <th>Dates</th>
+            <th>Requested</th>
+            <th>Available before approval</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="request in pendingRequests" :key="`pending-${request.id}`">
+            <td>{{ request.employee?.display_name || '-' }}</td>
+            <td>{{ request.leave_type?.name || '-' }}</td>
+            <td>{{ request.start_date }} to {{ request.end_date }}</td>
+            <td>{{ request.working_days }} days</td>
+            <td>{{ availableBeforeApproval(request) }}</td>
+            <td class="table-actions">
+              <button
+                v-if="auth.hasPermission('leave.approve')"
+                type="button"
+                class="secondary"
+                @click="approve(request)"
+              >
+                Approve
+              </button>
+              <button
+                v-if="auth.hasPermission('leave.reject')"
+                type="button"
+                class="danger"
+                @click="reject(request)"
+              >
+                Reject
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
     <section>
       <h2>Requests</h2>
@@ -65,6 +118,7 @@
         </label>
       </section>
 
+      <p v-if="actionError" class="error">{{ actionError }}</p>
       <p v-if="loading">Loading leave requests...</p>
       <p v-else-if="loadError" class="error">{{ loadError }}</p>
       <table v-else>
@@ -75,6 +129,7 @@
             <th>Dates</th>
             <th>Days</th>
             <th>Status</th>
+            <th>Latest note</th>
             <th></th>
           </tr>
         </thead>
@@ -85,7 +140,16 @@
             <td>{{ request.start_date }} to {{ request.end_date }}</td>
             <td>{{ request.working_days }} working / {{ request.total_days }} total</td>
             <td>{{ label(request.status) }}</td>
+            <td>{{ latestNote(request) }}</td>
             <td class="table-actions">
+              <button
+                v-if="request.leave_type?.code === 'sick_leave'"
+                type="button"
+                class="secondary"
+                @click="previewSickPay(request)"
+              >
+                Preview pay
+              </button>
               <button
                 v-if="request.status === 'pending' && auth.hasPermission('leave.approve')"
                 type="button"
@@ -105,7 +169,41 @@
             </td>
           </tr>
           <tr v-if="requests.length === 0">
-            <td colspan="6">No leave requests found.</td>
+            <td colspan="7">No leave requests found.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section v-if="sickPayPreview" class="pay-preview">
+      <header>
+        <div>
+          <h2>Sick Pay Preview</h2>
+          <p class="muted">
+            Request #{{ sickPayPreview.requestId }} · {{ sickPayPreview.calculation.eligible ? 'Eligible' : sickPayPreview.calculation.reason }}
+          </p>
+        </div>
+      </header>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Tier</th>
+            <th>Days</th>
+            <th>Pay %</th>
+            <th>Daily wage</th>
+            <th>Gross pay</th>
+            <th>Deduction</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in sickPayPreview.calculation.items" :key="`${sickPayPreview.requestId}-${item.pay_tier}`">
+            <td>{{ label(item.pay_tier) }}</td>
+            <td>{{ item.days }}</td>
+            <td>{{ item.pay_percentage }}</td>
+            <td>{{ money(item.daily_wage) }}</td>
+            <td>{{ money(item.gross_pay_amount) }}</td>
+            <td>{{ money(item.deduction_amount) }}</td>
           </tr>
         </tbody>
       </table>
@@ -166,8 +264,51 @@ interface LeaveRequestRow {
   working_days: string
   status: string
   reason: string | null
+  approval_note: string | null
+  rejection_reason: string | null
+  medical_certificate_document_id: number | null
   employee?: EmployeeOption | null
   leave_type?: LeaveType | null
+  pay_calculation_items?: LeavePayCalculationItem[]
+  status_events?: LeaveStatusEvent[]
+}
+
+interface LeaveStatusEvent {
+  id: number
+  status: string
+  actor_user_id: number | null
+  note: string | null
+  created_at: string
+}
+
+interface LeavePayCalculationItem {
+  pay_tier: string
+  days: string | number
+  pay_percentage: string | number
+  daily_wage: string | number
+  gross_pay_amount: string | number
+  deduction_amount: string | number
+  calculation_basis?: string
+}
+
+interface SickPayPreview {
+  requestId: number
+  calculation: {
+    eligible: boolean
+    reason: string
+    previously_used_days: number
+    items: LeavePayCalculationItem[]
+  }
+  stored_items: LeavePayCalculationItem[]
+}
+
+interface EmployeeDocument {
+  id: number
+  employee_id: number
+  document_type: string
+  title: string
+  original_file_name: string
+  expiry_date: string | null
 }
 
 interface LeaveBalance {
@@ -175,8 +316,13 @@ interface LeaveBalance {
   employee_id: number
   leave_type_id: number
   leave_year: number
+  opening_balance: string
+  accrued_days: string
   used_days: string
   pending_days: string
+  carried_forward_days: string
+  encashed_days: string
+  adjusted_days: string
   closing_balance: string
   employee?: EmployeeOption | null
   leave_type?: LeaveType | null
@@ -188,25 +334,43 @@ const employees = ref<EmployeeOption[]>([])
 const leaveTypes = ref<LeaveType[]>([])
 const requests = ref<LeaveRequestRow[]>([])
 const balances = ref<LeaveBalance[]>([])
+const medicalCertificates = ref<EmployeeDocument[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const loadError = ref('')
+const actionError = ref('')
+const sickPayPreview = ref<SickPayPreview | null>(null)
 const form = reactive({
   employee_id: 0,
   leave_type_id: 0,
   start_date: new Date().toISOString().slice(0, 10),
   end_date: new Date().toISOString().slice(0, 10),
+  medical_certificate_document_id: '',
   reason: '',
 })
 const filters = reactive({
   employee_id: 0,
   status: '',
 })
+const selectedLeaveType = computed(() => leaveTypes.value.find((leaveType) => leaveType.id === form.leave_type_id) || null)
+const pendingRequests = computed(() => requests.value.filter((request) => request.status === 'pending'))
 
 onMounted(async () => {
   await Promise.all([loadSetup(), loadRequests(), loadBalances()])
 })
+
+watch(
+  () => [form.employee_id, form.leave_type_id],
+  async () => {
+    form.medical_certificate_document_id = ''
+    if ((selectedLeaveType.value?.code === 'sick_leave' || selectedLeaveType.value?.requires_document) && form.employee_id) {
+      await loadMedicalCertificates()
+    } else {
+      medicalCertificates.value = []
+    }
+  },
+)
 
 async function loadSetup() {
   const [employeeResponse, leaveTypeResponse] = await Promise.all([
@@ -241,6 +405,15 @@ async function loadBalances() {
   balances.value = response.data.leave_balances
 }
 
+async function loadMedicalCertificates() {
+  const query = new URLSearchParams({
+    employee_id: String(form.employee_id),
+    document_type: 'medical_certificate',
+  })
+  const response = await api.get<{ documents: EmployeeDocument[] }>(`/documents?${query.toString()}`)
+  medicalCertificates.value = response.data.documents
+}
+
 async function submit() {
   saving.value = true
   error.value = ''
@@ -248,6 +421,9 @@ async function submit() {
   try {
     await api.post('/leave-requests', {
       ...form,
+      medical_certificate_document_id: form.medical_certificate_document_id
+        ? Number(form.medical_certificate_document_id)
+        : null,
       reason: form.reason || null,
     })
     resetForm()
@@ -260,8 +436,18 @@ async function submit() {
 }
 
 async function approve(request: LeaveRequestRow) {
-  await api.post(`/leave-requests/${request.id}/approve`, {})
-  await Promise.all([loadRequests(), loadBalances()])
+  const approvalNote = window.prompt('Approval note (optional)') || ''
+  actionError.value = ''
+
+  try {
+    await api.post(`/leave-requests/${request.id}/approve`, { approval_note: approvalNote || null })
+    await Promise.all([loadRequests(), loadBalances()])
+    if (request.leave_type?.code === 'sick_leave') {
+      await previewSickPay(request)
+    }
+  } catch (err) {
+    actionError.value = apiErrorMessage(err, 'Unable to approve leave request.')
+  }
 }
 
 async function reject(request: LeaveRequestRow) {
@@ -270,8 +456,25 @@ async function reject(request: LeaveRequestRow) {
     return
   }
 
-  await api.post(`/leave-requests/${request.id}/reject`, { rejection_reason: reason })
-  await Promise.all([loadRequests(), loadBalances()])
+  actionError.value = ''
+
+  try {
+    await api.post(`/leave-requests/${request.id}/reject`, { rejection_reason: reason })
+    await Promise.all([loadRequests(), loadBalances()])
+  } catch (err) {
+    actionError.value = apiErrorMessage(err, 'Unable to reject leave request.')
+  }
+}
+
+async function previewSickPay(request: LeaveRequestRow) {
+  actionError.value = ''
+
+  try {
+    const response = await api.get<Omit<SickPayPreview, 'requestId'>>(`/leave-requests/${request.id}/sick-pay`)
+    sickPayPreview.value = { requestId: request.id, ...response.data }
+  } catch (err) {
+    actionError.value = apiErrorMessage(err, 'Unable to calculate sick leave pay.')
+  }
 }
 
 function resetForm() {
@@ -279,11 +482,49 @@ function resetForm() {
   form.leave_type_id = 0
   form.start_date = new Date().toISOString().slice(0, 10)
   form.end_date = new Date().toISOString().slice(0, 10)
+  form.medical_certificate_document_id = ''
   form.reason = ''
 }
 
 function label(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function money(value: string | number) {
+  return Number(value).toFixed(2)
+}
+
+function balanceFor(request: LeaveRequestRow) {
+  const year = new Date(request.start_date).getFullYear()
+
+  return balances.value.find((balance) => (
+    balance.employee_id === request.employee_id
+    && balance.leave_type_id === request.leave_type_id
+    && balance.leave_year === year
+  ))
+}
+
+function availableBeforeApproval(request: LeaveRequestRow) {
+  const balance = balanceFor(request)
+
+  if (!balance) return 'No balance configured'
+
+  const requestedDays = Number(request.working_days)
+  const pendingDays = Math.max(0, Number(balance.pending_days) - requestedDays)
+  const entitlement = Number(balance.opening_balance)
+    + Number(balance.accrued_days)
+    + Number(balance.carried_forward_days)
+    + Number(balance.adjusted_days)
+
+  if (entitlement <= 0) return 'Not configured'
+
+  return (entitlement - Number(balance.used_days) - pendingDays - Number(balance.encashed_days)).toFixed(2)
+}
+
+function latestNote(request: LeaveRequestRow) {
+  const eventNote = request.status_events?.slice().reverse().find((event) => event.note)?.note
+
+  return eventNote || request.approval_note || request.rejection_reason || '-'
 }
 </script>
 

@@ -16,12 +16,18 @@ class AuthenticatedSessionController extends Controller
 
     public function store(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validated();
+        $data = $request->validated();
+        $login = $data['login'] ?? $data['email'];
+        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        $credentials = [
+            $field => $login,
+            'password' => $data['password'],
+        ];
 
-        // Feature flow step 1: validate credentials before a session is regenerated.
+        // Feature flow step 1: validate username/email credentials before a session is regenerated.
         if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+                'login' => ['The provided credentials are incorrect.'],
             ]);
         }
 

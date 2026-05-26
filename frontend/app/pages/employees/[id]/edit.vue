@@ -19,6 +19,30 @@
         <input v-model="form.work_email" type="email">
       </label>
       <label>
+        Hire date
+        <input v-model="form.hire_date" type="date">
+      </label>
+      <label>
+        Probation end date
+        <input v-model="form.probation_end_date" type="date">
+      </label>
+      <label>
+        Contract start date
+        <input v-model="form.contract_start_date" type="date">
+      </label>
+      <label>
+        Contract end date
+        <input v-model="form.contract_end_date" type="date">
+      </label>
+      <label>
+        Employment type
+        <input v-model="form.employment_type">
+      </label>
+      <label>
+        Contract type
+        <input v-model="form.contract_type">
+      </label>
+      <label>
         Branch
         <select v-model="form.branch_id">
           <option :value="null">No branch</option>

@@ -139,6 +139,43 @@ class AttendanceManagementTest extends TestCase
             ->assertJsonPath('errors.date.0', 'Attendance already exists for this employee and date.');
     }
 
+    public function test_attendance_allows_terminated_employee_on_last_working_date_only(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'EMP-TERM',
+            'first_name' => 'Terminated',
+            'last_name' => 'Employee',
+            'display_name' => 'Terminated Employee',
+            'status' => 'terminated',
+            'contract_end_date' => '2026-05-20',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/attendance-records', [
+            'employee_id' => $employee->id,
+            'date' => '2026-05-20',
+            'check_in' => '09:00',
+            'check_out' => '18:00',
+            'status' => 'present',
+            'source' => 'manual',
+        ])->assertCreated();
+
+        $this->postJson('/api/attendance-records', [
+            'employee_id' => $employee->id,
+            'date' => '2026-05-21',
+            'check_in' => '09:00',
+            'check_out' => '18:00',
+            'status' => 'present',
+            'source' => 'manual',
+        ])->assertUnprocessable()
+            ->assertJsonPath('errors.date.0', 'Attendance cannot be recorded after the employee termination date.');
+    }
+
     private function companyAdmin(): array
     {
         $company = Company::query()->create(['name' => 'Demo Company']);

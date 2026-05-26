@@ -31,6 +31,9 @@ class RoleAndPermissionSeeder extends Seeder
             ['name' => 'Run payroll', 'slug' => 'payroll.run', 'module' => 'payroll'],
             ['name' => 'Approve payroll', 'slug' => 'payroll.approve', 'module' => 'payroll'],
             ['name' => 'Export payroll', 'slug' => 'payroll.export', 'module' => 'payroll'],
+            ['name' => 'View documents', 'slug' => 'documents.view', 'module' => 'documents'],
+            ['name' => 'Upload documents', 'slug' => 'documents.upload', 'module' => 'documents'],
+            ['name' => 'Delete documents', 'slug' => 'documents.delete', 'module' => 'documents'],
             ['name' => 'View settings', 'slug' => 'settings.view', 'module' => 'settings'],
             ['name' => 'Update settings', 'slug' => 'settings.update', 'module' => 'settings'],
             ['name' => 'View audit logs', 'slug' => 'audit_logs.view', 'module' => 'audit_logs'],
@@ -44,10 +47,10 @@ class RoleAndPermissionSeeder extends Seeder
         $roles = [
             'super_admin' => $permissions->keys()->all(),
             'company_admin' => $permissions->keys()->reject(fn ($slug) => $slug === 'companies.create')->values()->all(),
-            'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject'],
+            'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject', 'documents.view', 'documents.upload', 'documents.delete'],
             'payroll_manager' => ['employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export'],
             'department_manager' => ['employees.view', 'leave.view', 'leave.approve', 'leave.reject'],
-            'employee' => ['leave.view', 'leave.create'],
+            'employee' => ['attendance.view', 'leave.view', 'leave.create', 'documents.view', 'documents.upload'],
         ];
 
         foreach ($roles as $slug => $rolePermissions) {

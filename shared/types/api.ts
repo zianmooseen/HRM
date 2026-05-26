@@ -18,6 +18,7 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 export interface AuthUser {
   id: number
   name: string
+  username: string | null
   email: string
   roles: RoleSlug[]
   permissions: Permission[]

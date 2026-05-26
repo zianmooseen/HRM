@@ -18,11 +18,12 @@ export function useApiClient() {
 
   async function request<T>(path: string, options: RequestInit = {}): Promise<ApiSuccess<T>> {
     const token = xsrfToken()
+    const isFormData = options.body instanceof FormData
     const response = await fetch(`${baseURL}${path}`, {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
-        'Content-Type': 'application/json',
+        ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { 'X-XSRF-TOKEN': token } : {}),
         ...(options.headers || {}),
       },
@@ -44,7 +45,7 @@ export function useApiClient() {
     post: <T>(path: string, body: unknown) =>
       request<T>(path, {
         method: 'POST',
-        body: JSON.stringify(body),
+        body: body instanceof FormData ? body : JSON.stringify(body),
       }),
     put: <T>(path: string, body: unknown) =>
       request<T>(path, {

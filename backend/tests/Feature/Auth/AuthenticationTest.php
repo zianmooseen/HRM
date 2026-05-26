@@ -15,6 +15,7 @@ class AuthenticationTest extends TestCase
     {
         User::query()->create([
             'name' => 'Admin User',
+            'username' => 'sys.admin',
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
             'status' => 'active',
@@ -23,12 +24,13 @@ class AuthenticationTest extends TestCase
         $response = $this
             ->withHeader('Origin', 'http://localhost:3000')
             ->postJson('/api/login', [
-                'email' => 'admin@example.com',
+                'login' => 'sys.admin',
                 'password' => 'password',
             ]);
 
         $response->assertOk()
             ->assertJsonPath('success', true)
+            ->assertJsonPath('data.user.username', 'sys.admin')
             ->assertJsonPath('data.user.email', 'admin@example.com');
 
         $this

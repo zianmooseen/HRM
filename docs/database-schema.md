@@ -20,6 +20,8 @@ This document captures the intended relational model for the Laravel migrations.
 ## Employee And Onboarding
 
 - `employees`: HR records, optional login user, employment lifecycle, salary visibility protected by permission.
+- `employee_service_periods`: auditable employment periods for initial hire, contract extension, termination, and rehire.
+- `documents`: private employee files such as passports, visas, Emirates IDs, contracts, and medical certificates.
 - `employee_invitations`: hashed invitation token lifecycle.
 - `onboarding_templates`: reusable workflow checklist.
 - `onboarding_template_tasks`: template task definitions.
@@ -39,7 +41,8 @@ This document captures the intended relational model for the Laravel migrations.
 - `leave_policies`: policy scope and effective dates.
 - `leave_policy_rules`: legal minimum snapshots and company values.
 - `employee_leave_balances`: annual entitlement and usage ledger.
-- `leave_requests`: leave approval records.
+- `leave_requests`: leave approval records with approval/rejection notes.
+- `leave_request_status_events`: leave request submission, approval, and rejection timeline.
 - `leave_pay_calculation_items`: auditable payroll output for approved leave.
 
 ## Payroll Foundation
@@ -49,6 +52,7 @@ This document captures the intended relational model for the Laravel migrations.
 - `payroll_periods`
 - `payslips`
 - `payslip_items`
+- `employee_terminations`: employee termination and final settlement records with gratuity snapshots and payment status.
 
 ## Audit
 

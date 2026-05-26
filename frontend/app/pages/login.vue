@@ -3,8 +3,8 @@
     <form class="login-form" @submit.prevent="submit">
       <h1>Sign in</h1>
       <label>
-        Email
-        <input v-model="email" type="email" autocomplete="email" required>
+        Username
+        <input v-model="login" autocomplete="username" required>
       </label>
       <label>
         Password
@@ -20,7 +20,7 @@
 definePageMeta({ layout: false })
 
 const auth = useAuthStore()
-const email = ref('')
+const login = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -30,10 +30,10 @@ async function submit() {
   error.value = ''
 
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(login.value, password.value)
     await navigateTo('/')
   } catch {
-    error.value = 'Invalid email or password.'
+    error.value = 'Invalid username or password.'
   } finally {
     loading.value = false
   }

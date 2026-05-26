@@ -29,6 +29,8 @@ class StoreEmployeeRequest extends FormRequest
             'nationality' => ['nullable', 'string', 'max:100'],
             'hire_date' => ['nullable', 'date'],
             'probation_end_date' => ['nullable', 'date'],
+            'contract_start_date' => ['nullable', 'date'],
+            'contract_end_date' => ['nullable', 'date', 'after_or_equal:contract_start_date'],
             'employment_type' => ['nullable', 'string', 'max:100'],
             'contract_type' => ['nullable', 'string', 'max:100'],
             'status' => ['required', 'in:draft,onboarding,active,on_leave,suspended,terminated,archived'],

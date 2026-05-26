@@ -7,6 +7,28 @@ use App\Models\LeaveRequest;
 
 class LeaveBalanceService
 {
+    public function upsertEntitlement(array $data): EmployeeLeaveBalance
+    {
+        $balance = EmployeeLeaveBalance::query()->firstOrNew([
+            'company_id' => $data['company_id'],
+            'employee_id' => $data['employee_id'],
+            'leave_type_id' => $data['leave_type_id'],
+            'leave_year' => $data['leave_year'],
+        ]);
+
+        $balance->fill([
+            'opening_balance' => $data['opening_balance'],
+            'accrued_days' => $data['accrued_days'],
+            'carried_forward_days' => $data['carried_forward_days'],
+            'adjusted_days' => $data['adjusted_days'],
+            'encashed_days' => $data['encashed_days'] ?? $balance->encashed_days ?? 0,
+        ]);
+
+        $this->recalculate($balance);
+
+        return $balance;
+    }
+
     public function addPending(LeaveRequest $leaveRequest): EmployeeLeaveBalance
     {
         $balance = $this->balanceFor($leaveRequest);
@@ -24,6 +46,28 @@ class LeaveBalanceService
         $this->recalculate($balance);
 
         return $balance;
+    }
+
+    public function availableDaysBeforeApproval(LeaveRequest $leaveRequest): float
+    {
+        $balance = $this->balanceFor($leaveRequest);
+        $entitlement = $this->entitlementDays($balance);
+
+        if ($entitlement <= 0) {
+            return INF;
+        }
+
+        $pendingWithoutRequest = max(0, (float) $balance->pending_days - (float) $leaveRequest->working_days);
+
+        return $entitlement
+            - (float) $balance->used_days
+            - $pendingWithoutRequest
+            - (float) $balance->encashed_days;
+    }
+
+    public function hasConfiguredEntitlement(LeaveRequest $leaveRequest): bool
+    {
+        return $this->entitlementDays($this->balanceFor($leaveRequest)) > 0;
     }
 
     public function reject(LeaveRequest $leaveRequest): EmployeeLeaveBalance
@@ -60,5 +104,13 @@ class LeaveBalanceService
             - (float) $balance->encashed_days;
 
         $balance->save();
+    }
+
+    private function entitlementDays(EmployeeLeaveBalance $balance): float
+    {
+        return (float) $balance->opening_balance
+            + (float) $balance->accrued_days
+            + (float) $balance->carried_forward_days
+            + (float) $balance->adjusted_days;
     }
 }

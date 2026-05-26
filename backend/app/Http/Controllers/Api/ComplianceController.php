@@ -10,6 +10,7 @@ use App\Models\Employee;
 use App\Services\Auth\CompanyAccess;
 use App\Services\Compliance\GratuityCalculator;
 use App\Services\Compliance\LegalRuleRepository;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -47,7 +48,9 @@ class ComplianceController extends Controller
 
         abort_unless($employee, 422, 'Selected employee is invalid.');
 
-        if (! $employee->hire_date) {
+        $serviceStartDate = $this->serviceStartDate($employee);
+
+        if (! $serviceStartDate) {
             throw ValidationException::withMessages(['employee_id' => ['Employee hire date is required for gratuity calculation.']]);
         }
 
@@ -70,7 +73,7 @@ class ComplianceController extends Controller
 
         // Feature flow step 1: use employee record data, but allow HR to test salary/unpaid-leave scenarios.
         $result = $this->gratuity->calculate([
-            'start_date' => $employee->hire_date->toDateString(),
+            'start_date' => $serviceStartDate->toDateString(),
             'end_date' => $data['termination_date'],
             'basic_salary' => $basicSalary,
             'unpaid_leave_days' => $data['unpaid_leave_days'] ?? 0,
@@ -80,6 +83,18 @@ class ComplianceController extends Controller
             'employee' => new EmployeeResource($employee),
             'gratuity' => $result,
         ]);
+    }
+
+    private function serviceStartDate(Employee $employee): ?CarbonImmutable
+    {
+        $period = $employee->servicePeriods()
+            ->whereIn('status', ['active', 'terminated'])
+            ->latest('start_date')
+            ->first();
+
+        return $period?->start_date
+            ? CarbonImmutable::parse($period->start_date)
+            : ($employee->hire_date ? CarbonImmutable::parse($employee->hire_date) : null);
     }
 
     private function company(Request $request)

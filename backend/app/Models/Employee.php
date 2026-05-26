@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
@@ -96,5 +97,30 @@ class Employee extends Model
     public function payslips(): HasMany
     {
         return $this->hasMany(Payslip::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function onboardingCases(): HasMany
+    {
+        return $this->hasMany(EmployeeOnboardingCase::class);
+    }
+
+    public function terminations(): HasMany
+    {
+        return $this->hasMany(EmployeeTermination::class);
+    }
+
+    public function servicePeriods(): HasMany
+    {
+        return $this->hasMany(EmployeeServicePeriod::class);
+    }
+
+    public function activeServicePeriod(): HasOne
+    {
+        return $this->hasOne(EmployeeServicePeriod::class)->where('status', 'active')->latestOfMany();
     }
 }

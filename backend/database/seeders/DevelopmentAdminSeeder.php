@@ -15,18 +15,20 @@ class DevelopmentAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = env('SEED_ADMIN_EMAIL');
-        $password = env('SEED_ADMIN_PASSWORD');
+        $username = env('SEED_ADMIN_USERNAME', 'sys.admin');
+        $email = env('SEED_ADMIN_EMAIL', 'sys.admin@example.local');
+        $password = env('SEED_ADMIN_PASSWORD', 'sys.admin');
 
-        if (! $email || ! $password) {
+        if (! $username || ! $email || ! $password) {
             return;
         }
 
         // Feature flow step 1: create a local-only admin account from environment values.
         $user = User::query()->updateOrCreate(
-            ['email' => $email],
+            ['username' => $username],
             [
-                'name' => env('SEED_ADMIN_NAME', 'Admin User'),
+                'name' => env('SEED_ADMIN_NAME', 'System Admin'),
+                'email' => $email,
                 'password' => Hash::make($password),
                 'status' => 'active',
             ],
@@ -41,10 +43,11 @@ class DevelopmentAdminSeeder extends Seeder
             ]);
         }
 
-        $companyEmail = env('SEED_COMPANY_ADMIN_EMAIL');
-        $companyPassword = env('SEED_COMPANY_ADMIN_PASSWORD');
+        $companyUsername = env('SEED_COMPANY_ADMIN_USERNAME', 'com.admin');
+        $companyEmail = env('SEED_COMPANY_ADMIN_EMAIL', 'com.admin@example.local');
+        $companyPassword = env('SEED_COMPANY_ADMIN_PASSWORD', 'com.admin');
 
-        if (! $companyEmail || ! $companyPassword) {
+        if (! $companyUsername || ! $companyEmail || ! $companyPassword) {
             return;
         }
 
@@ -63,9 +66,10 @@ class DevelopmentAdminSeeder extends Seeder
 
         // Feature flow step 4: create a company-scoped admin account for tenant workflows.
         $companyUser = User::query()->updateOrCreate(
-            ['email' => $companyEmail],
+            ['username' => $companyUsername],
             [
                 'name' => env('SEED_COMPANY_ADMIN_NAME', 'Company Admin'),
+                'email' => $companyEmail,
                 'password' => Hash::make($companyPassword),
                 'status' => 'active',
             ],

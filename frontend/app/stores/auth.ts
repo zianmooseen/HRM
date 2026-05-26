@@ -16,12 +16,12 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(email: string, password: string) {
+  async function login(login: string, password: string) {
     // Feature flow step 1: request Sanctum CSRF cookie before posting credentials.
     await api.csrf()
 
     // Feature flow step 2: credentials are exchanged for a secure cookie-backed session.
-    const response = await api.post<AuthPayload>('/login', { email, password })
+    const response = await api.post<AuthPayload>('/login', { login, password })
     user.value = response.data.user
     loaded.value = true
   }

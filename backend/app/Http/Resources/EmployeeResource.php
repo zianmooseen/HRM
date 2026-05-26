@@ -14,6 +14,7 @@ class EmployeeResource extends JsonResource
         return [
             'id' => $this->id,
             'company_id' => $this->company_id,
+            'user_id' => $this->user_id,
             'branch_id' => $this->branch_id,
             'department_id' => $this->department_id,
             'job_title_id' => $this->job_title_id,
@@ -29,6 +30,8 @@ class EmployeeResource extends JsonResource
             'nationality' => $this->nationality,
             'hire_date' => optional($this->hire_date)->toDateString(),
             'probation_end_date' => optional($this->probation_end_date)->toDateString(),
+            'contract_start_date' => optional($this->contract_start_date)->toDateString(),
+            'contract_end_date' => optional($this->contract_end_date)->toDateString(),
             'employment_type' => $this->employment_type,
             'contract_type' => $this->contract_type,
             'status' => $this->status,

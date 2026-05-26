@@ -62,6 +62,20 @@ class EmployeeController extends Controller
             'updated_by' => $request->user()->id,
         ]);
 
+        if ($data['hire_date'] ?? null) {
+            // Feature flow step 1: employee hire creates the first auditable service period.
+            $employee->servicePeriods()->create([
+                'company_id' => $company->id,
+                'start_date' => $data['contract_start_date'] ?? $data['hire_date'],
+                'end_date' => $data['contract_end_date'] ?? null,
+                'employment_type' => $data['employment_type'] ?? null,
+                'contract_type' => $data['contract_type'] ?? null,
+                'status' => in_array($employee->status, ['terminated', 'archived'], true) ? 'ended' : 'active',
+                'change_reason' => 'Initial hire',
+                'created_by' => $request->user()->id,
+            ]);
+        }
+
         $this->audit->log($request, 'employee.created', $employee, null, $employee->toArray());
 
         return $this->success('Employee created.', [

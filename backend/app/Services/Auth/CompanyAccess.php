@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\User;
 
 class CompanyAccess
@@ -28,5 +29,20 @@ class CompanyAccess
         abort_unless($company, 403, 'No company scope is assigned to this user.');
 
         return $company;
+    }
+
+    public function isSelfService(User $user): bool
+    {
+        return $user->hasRole('employee')
+            && ! $user->roles->whereIn('slug', ['super_admin', 'company_admin', 'hr_manager', 'payroll_manager', 'department_manager'])->count();
+    }
+
+    public function employeeFor(User $user): ?Employee
+    {
+        if ($user->relationLoaded('employeeRecord')) {
+            return $user->employeeRecord;
+        }
+
+        return $user->employeeRecord()->first();
     }
 }

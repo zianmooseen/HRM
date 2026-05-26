@@ -14,7 +14,8 @@ class PayrollCalculator
         $totalDeductions = 0.0;
         $basicSalary = (float) ($employee->basic_salary ?? 0);
 
-        if ($basicSalary > 0) {
+        if ($employee->status === 'active' && $basicSalary > 0) {
+            // Feature flow step 1: active employees receive normal recurring salary in payroll.
             $items[] = [
                 'salary_component_id' => null,
                 'label' => 'Basic Salary',
@@ -60,7 +61,48 @@ class PayrollCalculator
                 }
             });
 
-        // Feature flow step 1: generated payslips keep the exact component snapshot used by payroll.
+        $employee->terminations()
+            ->whereIn('status', ['draft', 'partially_paid'])
+            ->whereBetween('termination_date', [$period->period_start, $period->period_end])
+            ->orderBy('termination_date')
+            ->get()
+            ->each(function ($termination) use (&$items, &$grossPay, &$totalDeductions): void {
+                // Feature flow step 2: final settlement buckets become auditable payslip items.
+                foreach ([
+                    'End-of-service gratuity' => ['field' => 'gratuity_amount', 'type' => 'earning'],
+                    'Leave encashment' => ['field' => 'leave_encashment_amount', 'type' => 'earning'],
+                    'Notice pay' => ['field' => 'notice_paid_amount', 'type' => 'earning'],
+                    'Other final settlement earnings' => ['field' => 'other_earnings_amount', 'type' => 'earning'],
+                    'Final settlement deductions' => ['field' => 'deductions_amount', 'type' => 'deduction'],
+                ] as $label => $config) {
+                    $amount = (float) $termination->{$config['field']};
+
+                    if ($amount <= 0) {
+                        continue;
+                    }
+
+                    $items[] = [
+                        'salary_component_id' => null,
+                        'label' => $label,
+                        'type' => $config['type'],
+                        'amount' => $amount,
+                        'metadata_json' => [
+                            'source' => 'employee_terminations',
+                            'termination_id' => $termination->id,
+                            'termination_date' => $termination->termination_date->toDateString(),
+                            'field' => $config['field'],
+                        ],
+                    ];
+
+                    if ($config['type'] === 'deduction') {
+                        $totalDeductions += $amount;
+                    } else {
+                        $grossPay += $amount;
+                    }
+                }
+            });
+
+        // Feature flow step 3: generated payslips keep the exact component snapshot used by payroll.
         return [
             'gross_pay' => $grossPay,
             'total_deductions' => $totalDeductions,

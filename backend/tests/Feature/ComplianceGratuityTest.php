@@ -212,6 +212,45 @@ class ComplianceGratuityTest extends TestCase
             ->assertJsonPath('data.gratuity.gratuity_amount', 0);
     }
 
+    public function test_company_admin_can_view_and_update_compliance_settings(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+
+        [$company, $user] = $this->companyAdmin();
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/compliance/settings')
+            ->assertOk()
+            ->assertJsonPath('data.compliance_settings.company_id', $company->id)
+            ->assertJsonPath('data.compliance_settings.payroll_day_divisor', 'calendar_30')
+            ->assertJsonPath('data.compliance_settings.sick_leave_notification_days', 3);
+
+        $this->putJson('/api/compliance/settings', [
+            'payroll_day_divisor' => 'actual_calendar_days',
+            'annual_leave_accrual_method' => 'monthly',
+            'annual_leave_carry_forward_allowed' => true,
+            'annual_leave_max_carry_forward_days' => 15,
+            'public_holidays_count_as_annual_leave' => false,
+            'sick_leave_requires_medical_certificate' => true,
+            'sick_leave_notification_days' => 2,
+            'emiratisation_monitoring_enabled' => true,
+        ])->assertOk()
+            ->assertJsonPath('data.compliance_settings.payroll_day_divisor', 'actual_calendar_days')
+            ->assertJsonPath('data.compliance_settings.annual_leave_max_carry_forward_days', '15.00')
+            ->assertJsonPath('data.compliance_settings.emiratisation_monitoring_enabled', true);
+
+        $this->assertDatabaseHas('company_compliance_settings', [
+            'company_id' => $company->id,
+            'payroll_day_divisor' => 'actual_calendar_days',
+            'sick_leave_notification_days' => 2,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'company_id' => $company->id,
+            'action' => 'company_compliance_settings.updated',
+        ]);
+    }
+
     private function companyAdmin(): array
     {
         $company = Company::query()->create(['name' => 'Demo Company', 'default_currency' => 'AED']);

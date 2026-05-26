@@ -19,7 +19,16 @@ class PayrollRunService
             $period->payslips()->delete();
 
             $period->company->employees()
-                ->where('status', 'active')
+                ->where(function ($query) use ($period): void {
+                    // Feature flow step 1: payroll includes active employees plus terminated employees with unpaid settlements in this period.
+                    $query
+                        ->where('status', 'active')
+                        ->orWhereHas('terminations', function ($terminationQuery) use ($period): void {
+                            $terminationQuery
+                                ->whereIn('status', ['draft', 'partially_paid'])
+                                ->whereBetween('termination_date', [$period->period_start, $period->period_end]);
+                        });
+                })
                 ->orderBy('id')
                 ->get()
                 ->each(function ($employee) use ($period, &$created): void {

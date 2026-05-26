@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Company extends Model
@@ -93,5 +94,10 @@ class Company extends Model
     public function employeeServicePeriods(): HasMany
     {
         return $this->hasMany(EmployeeServicePeriod::class);
+    }
+
+    public function complianceSetting(): HasOne
+    {
+        return $this->hasOne(CompanyComplianceSetting::class);
     }
 }

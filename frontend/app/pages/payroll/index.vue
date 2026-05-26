@@ -3,13 +3,13 @@
     <header>
       <div>
         <h1>Payroll</h1>
-        <p class="muted">Configure recurring salary items, run periods, and review generated payslips.</p>
+        <p class="muted">Set up allowances and deductions, run payroll periods, and review generated payslips.</p>
       </div>
     </header>
 
     <section class="panel-grid">
       <form class="form-grid" @submit.prevent="createComponent">
-        <h2>Salary Component</h2>
+        <h2>Allowances & Deductions</h2>
         <label>
           Code
           <input v-model="componentForm.code" required>
@@ -21,7 +21,7 @@
         <label>
           Type
           <select v-model="componentForm.type" required>
-            <option value="earning">Earning</option>
+            <option value="earning">Allowance</option>
             <option value="deduction">Deduction</option>
           </select>
         </label>
@@ -33,11 +33,11 @@
           </select>
         </label>
         <p v-if="componentError" class="error">{{ componentError }}</p>
-        <button type="submit" :disabled="savingComponent">{{ savingComponent ? 'Saving...' : 'Create component' }}</button>
+        <button type="submit" :disabled="savingComponent">{{ savingComponent ? 'Saving...' : 'Create allowance or deduction' }}</button>
       </form>
 
       <form class="form-grid" @submit.prevent="assignComponent">
-        <h2>Employee Assignment</h2>
+        <h2>Assign to Employee</h2>
         <label>
           Employee
           <select v-model.number="assignmentForm.employee_id" required>
@@ -48,11 +48,11 @@
           </select>
         </label>
         <label>
-          Component
+          Allowance or deduction
           <select v-model.number="assignmentForm.salary_component_id" required>
-            <option disabled :value="0">Select component</option>
+            <option disabled :value="0">Select allowance or deduction</option>
             <option v-for="component in components" :key="component.id" :value="component.id">
-              {{ component.name }}
+              {{ component.name }} · {{ component.type === 'deduction' ? 'Deduction' : 'Allowance' }}
             </option>
           </select>
         </label>
@@ -65,7 +65,7 @@
           <input v-model="assignmentForm.effective_from" type="date" required>
         </label>
         <p v-if="assignmentError" class="error">{{ assignmentError }}</p>
-        <button type="submit" :disabled="savingAssignment">{{ savingAssignment ? 'Saving...' : 'Assign component' }}</button>
+        <button type="submit" :disabled="savingAssignment">{{ savingAssignment ? 'Saving...' : 'Assign pay item' }}</button>
       </form>
 
       <form class="form-grid" @submit.prevent="createPeriod">
@@ -144,6 +144,7 @@
             <th>Deductions</th>
             <th>Net</th>
             <th>Status</th>
+            <th>Pay items</th>
           </tr>
         </thead>
         <tbody>
@@ -153,6 +154,14 @@
             <td>{{ payslip.total_deductions }}</td>
             <td>{{ payslip.net_pay }}</td>
             <td>{{ label(payslip.status) }}</td>
+            <td>
+              <ul class="payslip-items">
+                <li v-for="item in payslip.items || []" :key="item.id">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.type === 'deduction' ? '-' : '+' }}{{ item.amount }}</strong>
+                </li>
+              </ul>
+            </td>
           </tr>
           <tr v-if="payslips.length === 0">
             <td colspan="5">Run payroll to generate payslips.</td>
@@ -196,6 +205,14 @@ interface Payslip {
   net_pay: string
   status: string
   employee?: EmployeeOption | null
+  items?: PayslipItem[]
+}
+
+interface PayslipItem {
+  id: number
+  label: string
+  type: string
+  amount: string
 }
 
 const api = useApiClient()
@@ -270,7 +287,7 @@ async function createComponent() {
     componentForm.type = 'earning'
     await loadAll()
   } catch (err) {
-    componentError.value = apiErrorMessage(err, 'Unable to create salary component.')
+    componentError.value = apiErrorMessage(err, 'Unable to create allowance or deduction.')
   } finally {
     savingComponent.value = false
   }
@@ -286,7 +303,7 @@ async function assignComponent() {
     assignmentForm.salary_component_id = 0
     assignmentForm.amount = 0
   } catch (err) {
-    assignmentError.value = apiErrorMessage(err, 'Unable to assign salary component.')
+    assignmentError.value = apiErrorMessage(err, 'Unable to assign pay item.')
   } finally {
     savingAssignment.value = false
   }
@@ -342,6 +359,22 @@ function label(value: string) {
   display: grid;
   grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 20px;
+}
+
+.payslip-items {
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.payslip-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #41505a;
 }
 
 .form-grid h2,

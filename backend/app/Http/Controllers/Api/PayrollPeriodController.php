@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Http\Requests\Payroll\StorePayrollPeriodRequest;
 use App\Http\Resources\PayrollPeriodResource;
 use App\Http\Resources\PayslipResource;
+use App\Models\EmployeeTermination;
 use App\Models\PayrollPeriod;
 use App\Services\Audit\AuditLogger;
 use App\Services\Auth\CompanyAccess;
@@ -96,6 +97,7 @@ class PayrollPeriodController extends Controller
             'approved_at' => now(),
         ]);
         $payrollPeriod->payslips()->update(['status' => 'approved']);
+        $this->markIncludedTerminationsPaid($request, $payrollPeriod);
         $this->audit->log($request, 'payroll_period.approved', $payrollPeriod, $before, $payrollPeriod->fresh()->toArray());
 
         return $this->success('Payroll period approved.', [
@@ -114,5 +116,42 @@ class PayrollPeriodController extends Controller
     private function ensureOwned(PayrollPeriod $period, int $companyId): void
     {
         abort_unless($period->company_id === $companyId, 403, 'You are not authorized to perform this action.');
+    }
+
+    private function markIncludedTerminationsPaid(Request $request, PayrollPeriod $payrollPeriod): void
+    {
+        $terminationIds = $payrollPeriod->payslips()
+            ->with('items')
+            ->get()
+            ->flatMap(fn ($payslip) => $payslip->items->pluck('metadata_json'))
+            ->filter(fn ($metadata) => ($metadata['source'] ?? null) === 'employee_terminations' && isset($metadata['termination_id']))
+            ->pluck('termination_id')
+            ->unique()
+            ->values();
+
+        if ($terminationIds->isEmpty()) {
+            return;
+        }
+
+        EmployeeTermination::query()
+            ->where('company_id', $payrollPeriod->company_id)
+            ->whereIn('id', $terminationIds)
+            ->get()
+            ->each(function (EmployeeTermination $termination) use ($request, $payrollPeriod): void {
+                if ($termination->status === 'paid') {
+                    return;
+                }
+
+                $before = $termination->toArray();
+                $termination->update([
+                    'paid_amount' => $termination->final_settlement_amount,
+                    'paid_at' => $payrollPeriod->pay_date ?? now(),
+                    'payment_reference' => 'payroll_period:'.$payrollPeriod->id,
+                    'status' => 'paid',
+                    'paid_by' => $request->user()->id,
+                ]);
+
+                $this->audit->log($request, 'employee_termination.paid', $termination, $before, $termination->fresh()->toArray());
+            });
     }
 }

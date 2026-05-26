@@ -13,12 +13,42 @@
       <dd>{{ employee.status }}</dd>
       <dt>Work email</dt>
       <dd>{{ employee.work_email || '-' }}</dd>
+      <dt>Personal email</dt>
+      <dd>{{ employee.personal_email || '-' }}</dd>
+      <dt>Phone</dt>
+      <dd>{{ employee.phone || '-' }}</dd>
+      <dt>Gender</dt>
+      <dd>{{ employee.gender ? label(employee.gender) : '-' }}</dd>
+      <dt>Date of birth</dt>
+      <dd>{{ employee.date_of_birth || '-' }}</dd>
+      <dt>Nationality</dt>
+      <dd>{{ employee.nationality || '-' }}</dd>
+      <dt>UAE citizen</dt>
+      <dd>{{ employee.is_uae_citizen ? 'Yes' : 'No' }}</dd>
+      <dt>Skilled worker</dt>
+      <dd>{{ employee.is_skilled_worker ? 'Yes' : 'No' }}</dd>
+      <dt>Skill level</dt>
+      <dd>{{ employee.skill_level || '-' }}</dd>
+      <dt>Work permit type</dt>
+      <dd>{{ employee.work_permit_type || '-' }}</dd>
       <dt>Branch</dt>
       <dd>{{ employee.branch?.name || '-' }}</dd>
       <dt>Department</dt>
       <dd>{{ employee.department?.name || '-' }}</dd>
       <dt>Job title</dt>
       <dd>{{ employee.job_title?.title || '-' }}</dd>
+      <dt>Manager</dt>
+      <dd>{{ employee.manager?.display_name || '-' }}</dd>
+      <dt>Hire date</dt>
+      <dd>{{ employee.hire_date || '-' }}</dd>
+      <dt>Contract</dt>
+      <dd>{{ employee.contract_start_date || '-' }} to {{ employee.contract_end_date || 'Open-ended' }}</dd>
+      <template v-if="employee.basic_salary !== undefined">
+        <dt>Basic salary</dt>
+        <dd>{{ employee.basic_salary || '-' }}</dd>
+        <dt>Monthly package estimate</dt>
+        <dd>{{ employee.monthly_salary || '-' }}</dd>
+      </template>
       <dt>Login account</dt>
       <dd>{{ employee.user_id ? `User #${employee.user_id}` : 'Not created' }}</dd>
     </dl>

@@ -140,7 +140,10 @@ Rules:
 
 - All employee endpoints are scoped to the authenticated user's company.
 - `branch_id`, `department_id`, and `job_title_id` must belong to the current company.
+- `manager_employee_id`, when provided, must belong to the current company and cannot point to the same employee on update.
+- Employee profile responses include personal details, reporting manager, UAE citizenship/skilled-worker compliance fields, contract dates, and contract expiry status.
 - Salary fields are returned only when the user has `employees.view_salary`.
+- `GET /api/employees?contract_expiring_days=60` returns active/onboarding/on-leave/suspended employees with contract end dates in the next 60 days.
 - Create, update, and delete operations create audit logs.
 - Creating an employee account links `employees.user_id`, assigns the `employee` role with `scope = self`, and creates an audit log.
 - Creating an employee with a hire date creates the first `employee_service_periods` record.
@@ -492,7 +495,7 @@ Implemented endpoints:
 - `POST /api/payroll-periods/{payroll_period}/run`
 - `POST /api/payroll-periods/{payroll_period}/approve`
 
-Salary component request:
+Allowance or deduction request:
 
 ```json
 {
@@ -505,7 +508,7 @@ Salary component request:
 }
 ```
 
-Employee salary component request:
+Employee allowance or deduction assignment request:
 
 ```json
 {
@@ -533,8 +536,10 @@ Rules:
 - Payroll endpoints are scoped to the authenticated user's company.
 - Salary component codes are unique per company.
 - Salary assignments require both the employee and component to belong to the current company.
-- Running payroll regenerates draft payslips for active employees only.
+- Running payroll regenerates draft payslips for active employees and terminated employees with unpaid final settlements inside the period.
 - Payslips include employee basic salary plus active recurring salary assignments effective during the period.
+- Final settlement payslips include gratuity, leave encashment, notice pay, other earnings, and settlement deductions as auditable payslip items.
+- Approving a payroll period marks included final settlement records as paid with `payment_reference = payroll_period:{id}`.
 - Deductions reduce net pay; earnings increase gross pay.
 - Approved payroll periods cannot be rerun.
 - Salary setup, payroll runs, and payroll approvals create audit logs.
@@ -544,6 +549,8 @@ Rules:
 Implemented endpoints:
 
 - `GET /api/compliance/legal-rules`
+- `GET /api/compliance/settings`
+- `PUT /api/compliance/settings`
 - `POST /api/compliance/gratuity`
 - `GET /api/employee-terminations`
 - `POST /api/employees/{employee}/termination`
@@ -563,6 +570,8 @@ Gratuity calculation request:
 Rules:
 
 - The employee must belong to the authenticated user's current company.
+- Company compliance settings expose payroll day divisor, annual leave accrual/carry-forward, public holiday treatment, sick leave document rules, and Emiratisation monitoring.
+- Compliance setting updates require `settings.update` and create audit logs.
 - Employee `hire_date` and a positive basic salary are required.
 - `basic_salary` is optional; if omitted, the employee record value is used.
 - Service days exclude submitted unpaid leave days.

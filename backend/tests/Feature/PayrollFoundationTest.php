@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\Employee;
+use App\Models\EmployeeTermination;
 use App\Models\PayrollPeriod;
 use App\Models\Role;
 use App\Models\SalaryComponent;
@@ -151,6 +152,81 @@ class PayrollFoundationTest extends TestCase
 
         $this->postJson("/api/payroll-periods/{$period->id}/run")
             ->assertUnprocessable();
+    }
+
+    public function test_payroll_includes_final_settlement_and_marks_termination_paid_on_approval(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'EMP-FINAL',
+            'first_name' => 'Final',
+            'last_name' => 'Settlement',
+            'display_name' => 'Final Settlement',
+            'status' => 'terminated',
+            'basic_salary' => 9000,
+        ]);
+        $termination = EmployeeTermination::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'termination_date' => '2026-05-20',
+            'last_working_date' => '2026-05-20',
+            'termination_type' => 'company_initiated',
+            'basic_salary' => 9000,
+            'gratuity_amount' => 7000,
+            'leave_encashment_amount' => 1500,
+            'notice_paid_amount' => 500,
+            'other_earnings_amount' => 250,
+            'deductions_amount' => 750,
+            'final_settlement_amount' => 8500,
+            'status' => 'draft',
+            'calculation_snapshot_json' => ['source' => 'test'],
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $periodId = $this->postJson('/api/payroll-periods', [
+            'period_start' => '2026-05-01',
+            'period_end' => '2026-05-31',
+            'pay_date' => '2026-06-01',
+        ])->assertCreated()->json('data.payroll_period.id');
+
+        $this->postJson("/api/payroll-periods/{$periodId}/run")
+            ->assertOk()
+            ->assertJsonPath('data.payslips_created', 1);
+
+        $this->assertDatabaseHas('payslips', [
+            'company_id' => $company->id,
+            'payroll_period_id' => $periodId,
+            'employee_id' => $employee->id,
+            'gross_pay' => 9250,
+            'total_deductions' => 750,
+            'net_pay' => 8500,
+        ]);
+        $this->assertDatabaseHas('payslip_items', [
+            'label' => 'End-of-service gratuity',
+            'type' => 'earning',
+            'amount' => 7000,
+        ]);
+        $this->assertDatabaseHas('payslip_items', [
+            'label' => 'Final settlement deductions',
+            'type' => 'deduction',
+            'amount' => 750,
+        ]);
+
+        $this->postJson("/api/payroll-periods/{$periodId}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.payroll_period.status', 'approved');
+
+        $this->assertDatabaseHas('employee_terminations', [
+            'id' => $termination->id,
+            'status' => 'paid',
+            'paid_amount' => 8500,
+            'payment_reference' => 'payroll_period:'.$periodId,
+        ]);
+        $this->assertDatabaseHas('audit_logs', ['company_id' => $company->id, 'action' => 'employee_termination.paid']);
     }
 
     private function companyAdmin(): array

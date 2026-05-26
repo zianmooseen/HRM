@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Http\Requests\Compliance\CalculateGratuityRequest;
+use App\Http\Requests\Compliance\UpdateCompanyComplianceSettingsRequest;
+use App\Http\Resources\CompanyComplianceSettingResource;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\LegalRuleSetResource;
+use App\Models\CompanyComplianceSetting;
 use App\Models\Employee;
+use App\Services\Audit\AuditLogger;
 use App\Services\Auth\CompanyAccess;
 use App\Services\Compliance\GratuityCalculator;
 use App\Services\Compliance\LegalRuleRepository;
@@ -24,6 +28,7 @@ class ComplianceController extends Controller
         private readonly CompanyAccess $access,
         private readonly LegalRuleRepository $rules,
         private readonly GratuityCalculator $gratuity,
+        private readonly AuditLogger $audit,
     ) {
     }
 
@@ -85,6 +90,35 @@ class ComplianceController extends Controller
         ]);
     }
 
+    public function settings(Request $request): JsonResponse
+    {
+        $company = $this->company($request);
+        $setting = $this->settingFor($company->id, $request->user()->id);
+
+        return $this->success('Compliance settings retrieved.', [
+            'compliance_settings' => new CompanyComplianceSettingResource($setting->load('legalRuleSet.items')),
+        ]);
+    }
+
+    public function updateSettings(UpdateCompanyComplianceSettingsRequest $request): JsonResponse
+    {
+        $company = $this->company($request, 'settings.update');
+        $setting = $this->settingFor($company->id, $request->user()->id);
+        $before = $setting->toArray();
+
+        // Feature flow step 1: compliance policy changes are centralized and audit logged for later review.
+        $setting->update([
+            ...$request->validated(),
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $this->audit->log($request, 'company_compliance_settings.updated', $setting, $before, $setting->fresh()->toArray());
+
+        return $this->success('Compliance settings updated.', [
+            'compliance_settings' => new CompanyComplianceSettingResource($setting->fresh()->load('legalRuleSet.items')),
+        ]);
+    }
+
     private function serviceStartDate(Employee $employee): ?CarbonImmutable
     {
         $period = $employee->servicePeriods()
@@ -97,10 +131,34 @@ class ComplianceController extends Controller
             : ($employee->hire_date ? CarbonImmutable::parse($employee->hire_date) : null);
     }
 
-    private function company(Request $request)
+    private function settingFor(int $companyId, int $userId): CompanyComplianceSetting
+    {
+        $ruleSet = $this->rules->activeRuleSet();
+
+        abort_unless($ruleSet, 422, 'No active UAE legal rule set is configured.');
+
+        return CompanyComplianceSetting::query()->firstOrCreate(
+            ['company_id' => $companyId],
+            [
+                'legal_rule_set_id' => $ruleSet->id,
+                'payroll_day_divisor' => 'calendar_30',
+                'annual_leave_accrual_method' => 'monthly',
+                'annual_leave_carry_forward_allowed' => true,
+                'annual_leave_max_carry_forward_days' => null,
+                'public_holidays_count_as_annual_leave' => false,
+                'sick_leave_requires_medical_certificate' => true,
+                'sick_leave_notification_days' => 3,
+                'emiratisation_monitoring_enabled' => false,
+                'created_by' => $userId,
+                'updated_by' => $userId,
+            ],
+        );
+    }
+
+    private function company(Request $request, string $permission = 'settings.view')
     {
         $user = $request->user()->loadMissing('roles.permissions', 'scopedCompanies');
-        $this->access->ensurePermission($user, 'settings.view');
+        $this->access->ensurePermission($user, $permission);
 
         return $this->access->ensureCompany($user);
     }

@@ -75,5 +75,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/payroll-periods/{payrollPeriod}/run', [PayrollPeriodController::class, 'run']);
     Route::post('/payroll-periods/{payrollPeriod}/approve', [PayrollPeriodController::class, 'approve']);
     Route::get('/compliance/legal-rules', [ComplianceController::class, 'legalRules']);
+    Route::get('/compliance/settings', [ComplianceController::class, 'settings']);
+    Route::put('/compliance/settings', [ComplianceController::class, 'updateSettings']);
     Route::post('/compliance/gratuity', [ComplianceController::class, 'gratuity']);
 });

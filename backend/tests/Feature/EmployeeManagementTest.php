@@ -10,6 +10,7 @@ use App\Models\EmployeeServicePeriod;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleAndPermissionSeeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -54,8 +55,18 @@ class EmployeeManagementTest extends TestCase
             'branch_id' => $branch->id,
             'employee_code' => 'EMP-001',
             'first_name' => 'Aisha',
+            'middle_name' => 'M',
             'last_name' => 'Khan',
+            'personal_email' => 'aisha.personal@example.com',
             'work_email' => 'aisha@example.com',
+            'phone' => '+971500000001',
+            'gender' => 'female',
+            'nationality' => 'United Arab Emirates',
+            'is_uae_citizen' => true,
+            'skill_level' => 'level_1',
+            'is_skilled_worker' => true,
+            'work_permit_type' => 'citizen',
+            'date_of_birth' => '1990-02-10',
             'hire_date' => '2026-01-01',
             'contract_start_date' => '2026-01-01',
             'contract_end_date' => '2026-12-31',
@@ -63,7 +74,9 @@ class EmployeeManagementTest extends TestCase
             'basic_salary' => 12000,
         ])->assertCreated()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.employee.employee_code', 'EMP-001');
+            ->assertJsonPath('data.employee.employee_code', 'EMP-001')
+            ->assertJsonPath('data.employee.is_uae_citizen', true)
+            ->assertJsonPath('data.employee.date_of_birth', '1990-02-10');
 
         $this->getJson('/api/employees')
             ->assertOk()
@@ -203,6 +216,42 @@ class EmployeeManagementTest extends TestCase
             'status' => 'active',
         ]);
         $this->assertDatabaseHas('audit_logs', ['company_id' => $company->id, 'action' => 'employee.rehired']);
+    }
+
+    public function test_company_admin_can_filter_contracts_expiring_soon(): void
+    {
+        Carbon::setTestNow('2026-05-26 09:00:00');
+        $this->seed(RoleAndPermissionSeeder::class);
+
+        [$company, $user] = $this->companyAdmin();
+        Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'EXP-SOON',
+            'first_name' => 'Soon',
+            'last_name' => 'Expiry',
+            'display_name' => 'Soon Expiry',
+            'status' => 'active',
+            'contract_end_date' => '2026-06-20',
+        ]);
+        Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'EXP-LATER',
+            'first_name' => 'Later',
+            'last_name' => 'Expiry',
+            'display_name' => 'Later Expiry',
+            'status' => 'active',
+            'contract_end_date' => '2026-09-20',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/employees?contract_expiring_days=60')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.employees')
+            ->assertJsonPath('data.employees.0.employee_code', 'EXP-SOON')
+            ->assertJsonPath('data.employees.0.contract_expiry_status', 'critical');
+
+        Carbon::setTestNow();
     }
 
     private function companyAdmin(): array

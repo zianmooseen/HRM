@@ -10,6 +10,9 @@ class EmployeeResource extends JsonResource
     public function toArray(Request $request): array
     {
         $canViewSalary = $request->user()?->hasPermission('employees.view_salary') ?? false;
+        $contractDaysRemaining = $this->contract_end_date
+            ? now()->startOfDay()->diffInDays($this->contract_end_date, false)
+            : null;
 
         return [
             'id' => $this->id,
@@ -18,6 +21,7 @@ class EmployeeResource extends JsonResource
             'branch_id' => $this->branch_id,
             'department_id' => $this->department_id,
             'job_title_id' => $this->job_title_id,
+            'manager_employee_id' => $this->manager_employee_id,
             'employee_code' => $this->employee_code,
             'first_name' => $this->first_name,
             'middle_name' => $this->middle_name,
@@ -28,10 +32,17 @@ class EmployeeResource extends JsonResource
             'phone' => $this->phone,
             'gender' => $this->gender,
             'nationality' => $this->nationality,
+            'is_uae_citizen' => $this->is_uae_citizen,
+            'skill_level' => $this->skill_level,
+            'is_skilled_worker' => $this->is_skilled_worker,
+            'work_permit_type' => $this->work_permit_type,
+            'date_of_birth' => optional($this->date_of_birth)->toDateString(),
             'hire_date' => optional($this->hire_date)->toDateString(),
             'probation_end_date' => optional($this->probation_end_date)->toDateString(),
             'contract_start_date' => optional($this->contract_start_date)->toDateString(),
             'contract_end_date' => optional($this->contract_end_date)->toDateString(),
+            'contract_days_remaining' => $contractDaysRemaining,
+            'contract_expiry_status' => $this->contractExpiryStatus($contractDaysRemaining),
             'employment_type' => $this->employment_type,
             'contract_type' => $this->contract_type,
             'status' => $this->status,
@@ -40,6 +51,28 @@ class EmployeeResource extends JsonResource
             'branch' => $this->whenLoaded('branch', fn () => new BranchResource($this->branch)),
             'department' => $this->whenLoaded('department', fn () => new DepartmentResource($this->department)),
             'job_title' => $this->whenLoaded('jobTitle', fn () => new JobTitleResource($this->jobTitle)),
+            'manager' => $this->whenLoaded('manager', fn () => new self($this->manager)),
         ];
+    }
+
+    private function contractExpiryStatus(?int $daysRemaining): string
+    {
+        if ($daysRemaining === null) {
+            return 'not_tracked';
+        }
+
+        if ($daysRemaining < 0) {
+            return 'expired';
+        }
+
+        if ($daysRemaining <= 30) {
+            return 'critical';
+        }
+
+        if ($daysRemaining <= 60) {
+            return 'warning';
+        }
+
+        return 'valid';
     }
 }

@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Models\JobTitle;
 use App\Services\Audit\AuditLogger;
 use App\Services\Auth\CompanyAccess;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -30,8 +31,16 @@ class EmployeeController extends Controller
         $company = $this->company($request, 'employees.view');
 
         $employees = $company->employees()
-            ->with(['branch', 'department', 'jobTitle'])
+            ->with(['branch', 'department', 'jobTitle', 'manager'])
             ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
+            ->when($request->query('contract_expiring_days'), function ($query, $days): void {
+                // Feature flow step 1: contract expiry filters power dashboard reminders without client-side date guessing.
+                $today = CarbonImmutable::today();
+                $query
+                    ->whereIn('status', ['active', 'onboarding', 'on_leave', 'suspended'])
+                    ->whereNotNull('contract_end_date')
+                    ->whereBetween('contract_end_date', [$today->toDateString(), $today->addDays((int) $days)->toDateString()]);
+            })
             ->when($request->query('search'), function ($query, $search): void {
                 $query->where(function ($inner) use ($search): void {
                     $inner
@@ -79,7 +88,7 @@ class EmployeeController extends Controller
         $this->audit->log($request, 'employee.created', $employee, null, $employee->toArray());
 
         return $this->success('Employee created.', [
-            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle'])),
+            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle', 'manager'])),
         ], 201);
     }
 
@@ -89,7 +98,7 @@ class EmployeeController extends Controller
         $this->ensureOwned($employee, $company->id);
 
         return $this->success('Employee retrieved.', [
-            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle'])),
+            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle', 'manager'])),
         ]);
     }
 
@@ -99,6 +108,9 @@ class EmployeeController extends Controller
         $this->ensureOwned($employee, $company->id);
 
         $data = $this->validated($request, $company->id);
+        if (($data['manager_employee_id'] ?? null) === $employee->id) {
+            throw ValidationException::withMessages(['manager_employee_id' => ['Employee cannot report to themselves.']]);
+        }
         $this->ensureUniqueEmployeeCode($company->id, $data['employee_code'], $employee->id);
 
         $before = $employee->toArray();
@@ -111,7 +123,7 @@ class EmployeeController extends Controller
         $this->audit->log($request, 'employee.updated', $employee, $before, $employee->fresh()->toArray());
 
         return $this->success('Employee updated.', [
-            'employee' => new EmployeeResource($employee->fresh()->load(['branch', 'department', 'jobTitle'])),
+            'employee' => new EmployeeResource($employee->fresh()->load(['branch', 'department', 'jobTitle', 'manager'])),
         ]);
     }
 
@@ -143,6 +155,7 @@ class EmployeeController extends Controller
             'branch_id' => Branch::class,
             'department_id' => Department::class,
             'job_title_id' => JobTitle::class,
+            'manager_employee_id' => Employee::class,
         ] as $field => $model) {
             if ($data[$field] ?? null) {
                 abort_unless($model::query()->whereKey($data[$field])->where('company_id', $companyId)->exists(), 422, "Selected {$field} is invalid.");

@@ -79,6 +79,11 @@ class Employee extends Model
         return $this->belongsTo(JobTitle::class);
     }
 
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'manager_employee_id');
+    }
+
     public function leaveRequests(): HasMany
     {
         return $this->hasMany(LeaveRequest::class);

@@ -11,8 +11,19 @@ class EmiratisationComplianceService
         }
 
         $category = $company['emiratisation_category'] ?? 'not_applicable';
+        $totalActiveWorkers = (int) ($employeeCounts['total_active_workers'] ?? 0);
         $totalSkilledWorkers = (int) ($employeeCounts['total_skilled_workers'] ?? 0);
         $totalSkilledCitizens = (int) ($employeeCounts['total_skilled_uae_citizens'] ?? 0);
+        $minEmployees = $rule['min_employee_count'] ?? null;
+        $maxEmployees = $rule['max_employee_count'] ?? null;
+
+        if ($minEmployees !== null && $totalActiveWorkers < (int) $minEmployees) {
+            return $this->snapshot($employeeCounts, 0, 0, 'not_applicable', $rule);
+        }
+
+        if ($maxEmployees !== null && $totalActiveWorkers > (int) $maxEmployees) {
+            return $this->snapshot($employeeCounts, 0, 0, 'not_applicable', $rule);
+        }
 
         // Feature flow step 1: large companies are measured against skilled-worker growth obligations.
         if ($category === 'large_50_plus') {
@@ -24,6 +35,13 @@ class EmiratisationComplianceService
 
         // Feature flow step 2: selected 20-49 companies use a minimum UAE citizen count.
         if ($category === 'selected_20_to_49') {
+            $sectorCodes = $rule['sector_codes_json'] ?? [];
+            $companySector = $company['economic_sector_code'] ?? null;
+
+            if ($sectorCodes && (! $companySector || ! in_array($companySector, $sectorCodes, true))) {
+                return $this->snapshot($employeeCounts, 0, 0, 'not_applicable', $rule);
+            }
+
             $required = (int) ($rule['required_uae_citizens'] ?? 1);
 
             return $this->result($employeeCounts, $required, (int) ($employeeCounts['total_active_uae_citizens'] ?? 0), $rule);

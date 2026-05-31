@@ -27,4 +27,9 @@ class LegalRuleSet extends Model
     {
         return $this->hasMany(LegalRuleItem::class);
     }
+
+    public function emiratisationRules(): HasMany
+    {
+        return $this->hasMany(EmiratisationRule::class);
+    }
 }

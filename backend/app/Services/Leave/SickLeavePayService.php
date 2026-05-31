@@ -2,9 +2,11 @@
 
 namespace App\Services\Leave;
 
+use App\Models\CompanyComplianceSetting;
 use App\Models\LeavePayCalculationItem;
 use App\Models\LeaveRequest;
 use App\Services\Compliance\LegalRuleRepository;
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 
 class SickLeavePayService
@@ -29,6 +31,8 @@ class SickLeavePayService
         }
 
         $ruleValues = $this->rules->values();
+        $divisorPolicy = $this->payrollDayDivisor($leaveRequest);
+        $dailyWageDivisor = $this->dailyWageDivisor($leaveRequest, $divisorPolicy);
         $rules = [
             'max_days_per_year' => $ruleValues['sick_leave.max_days_per_year'] ?? 90,
             'full_pay_days' => $ruleValues['sick_leave.full_pay_days'] ?? 15,
@@ -37,7 +41,7 @@ class SickLeavePayService
             'medical_document_required' => $ruleValues['sick_leave.medical_report_required'] ?? true,
             'notification_days' => $ruleValues['sick_leave.notification_days'] ?? 3,
             'paid_sick_leave_during_probation' => false,
-            'calculation_basis' => 'basic_salary_30_day_divisor',
+            'calculation_basis' => 'basic_salary_'.$divisorPolicy,
         ];
 
         // Feature flow step 1: prior approved sick leave in the same year consumes the UAE pay tiers.
@@ -53,7 +57,7 @@ class SickLeavePayService
         $result = $this->calculator->calculate([
             'requested_days' => (float) $leaveRequest->working_days,
             'previously_used_days' => (float) $previouslyUsedDays,
-            'daily_wage' => $basicSalary / 30,
+            'daily_wage' => $basicSalary / $dailyWageDivisor,
             'is_in_probation' => $employee->probation_end_date && $employee->probation_end_date->gte($leaveRequest->start_date),
             'has_medical_document' => (bool) $leaveRequest->medical_certificate_document_id,
         ], $rules);
@@ -97,5 +101,39 @@ class SickLeavePayService
 
         // Feature flow step 2: payroll can later consume stored leave pay rows instead of recalculating history.
         return $calculation;
+    }
+
+    private function payrollDayDivisor(LeaveRequest $leaveRequest): string
+    {
+        return CompanyComplianceSetting::query()
+            ->where('company_id', $leaveRequest->company_id)
+            ->value('payroll_day_divisor') ?: 'calendar_30';
+    }
+
+    private function dailyWageDivisor(LeaveRequest $leaveRequest, string $policy): int
+    {
+        $startDate = CarbonImmutable::parse($leaveRequest->start_date);
+
+        if ($policy === 'actual_calendar_days') {
+            return $startDate->daysInMonth;
+        }
+
+        if ($policy === 'working_days') {
+            $workingDays = 0;
+            $date = $startDate->startOfMonth();
+            $end = $startDate->endOfMonth();
+
+            while ($date->lte($end)) {
+                if (! $date->isWeekend()) {
+                    $workingDays++;
+                }
+
+                $date = $date->addDay();
+            }
+
+            return max(1, $workingDays);
+        }
+
+        return 30;
     }
 }

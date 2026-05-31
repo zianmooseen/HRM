@@ -5,10 +5,14 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeLeaveBalance;
+use App\Models\CompanyComplianceSetting;
+use App\Models\LegalRuleSet;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Models\PublicHoliday;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\LegalRuleSeeder;
 use Database\Seeders\LeaveTypeSeeder;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Support\Carbon;
@@ -224,6 +228,95 @@ class LeaveManagementTest extends TestCase
             'end_date' => '2026-05-21',
         ])->assertUnprocessable()
             ->assertJsonPath('errors.start_date.0', 'Leave cannot be requested after the employee termination date.');
+    }
+
+    public function test_annual_leave_excludes_configured_public_holidays_from_balance_days(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LeaveTypeSeeder::class]);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = $this->employee($company);
+        $leaveType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+
+        PublicHoliday::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Public Holiday',
+            'holiday_date' => '2026-05-19',
+            'country_code' => 'AE',
+            'paid' => true,
+            'source' => 'government',
+            'status' => 'active',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/leave-requests/day-count?'.http_build_query([
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-05-18',
+            'end_date' => '2026-05-20',
+        ]))->assertOk()
+            ->assertJsonPath('data.calculation.total_days', 3)
+            ->assertJsonPath('data.calculation.working_days', 2)
+            ->assertJsonPath('data.calculation.public_holidays_count', 1)
+            ->assertJsonPath('data.calculation.day_calculation_json.excluded_public_holidays.0.name', 'Public Holiday');
+
+        $this->postJson('/api/leave-requests', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-05-18',
+            'end_date' => '2026-05-20',
+        ])->assertCreated()
+            ->assertJsonPath('data.leave_request.total_days', '3.00')
+            ->assertJsonPath('data.leave_request.working_days', '2.00')
+            ->assertJsonPath('data.leave_request.public_holidays_count', '1.00')
+            ->assertJsonPath('data.leave_request.day_calculation.excluded_public_holidays.0.date', '2026-05-19');
+
+        $this->assertDatabaseHas('employee_leave_balances', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'leave_year' => 2026,
+            'pending_days' => 2,
+        ]);
+    }
+
+    public function test_company_policy_can_count_public_holidays_as_annual_leave_days(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LeaveTypeSeeder::class, LegalRuleSeeder::class]);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = $this->employee($company);
+        $leaveType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+        $ruleSet = LegalRuleSet::query()->firstOrFail();
+
+        CompanyComplianceSetting::query()->create([
+            'company_id' => $company->id,
+            'legal_rule_set_id' => $ruleSet->id,
+            'public_holidays_count_as_annual_leave' => true,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        PublicHoliday::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Company Counted Holiday',
+            'holiday_date' => '2026-05-19',
+            'country_code' => 'AE',
+            'paid' => true,
+            'source' => 'company',
+            'status' => 'active',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/leave-requests', [
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => '2026-05-18',
+            'end_date' => '2026-05-20',
+        ])->assertCreated()
+            ->assertJsonPath('data.leave_request.working_days', '3.00')
+            ->assertJsonPath('data.leave_request.public_holidays_count', '0.00')
+            ->assertJsonPath('data.leave_request.day_calculation.public_holidays_count_as_annual_leave', true);
     }
 
     public function test_company_admin_can_configure_employee_leave_balance(): void

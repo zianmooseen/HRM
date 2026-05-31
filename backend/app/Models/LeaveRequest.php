@@ -16,6 +16,8 @@ class LeaveRequest extends Model
         'end_date',
         'total_days',
         'working_days',
+        'public_holidays_count',
+        'day_calculation_json',
         'status',
         'reason',
         'medical_certificate_document_id',
@@ -33,6 +35,8 @@ class LeaveRequest extends Model
         'end_date' => 'date',
         'total_days' => 'decimal:2',
         'working_days' => 'decimal:2',
+        'public_holidays_count' => 'decimal:2',
+        'day_calculation_json' => 'array',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];

@@ -25,6 +25,9 @@ class Company extends Model
         'emiratisation_category',
         'economic_sector_code',
         'mohre_establishment_number',
+        'wps_bank_name',
+        'wps_agent_code',
+        'wps_file_sender_id',
     ];
 
     protected $casts = [
@@ -99,5 +102,35 @@ class Company extends Model
     public function complianceSetting(): HasOne
     {
         return $this->hasOne(CompanyComplianceSetting::class);
+    }
+
+    public function publicHolidays(): HasMany
+    {
+        return $this->hasMany(PublicHoliday::class);
+    }
+
+    public function emiratisationSnapshots(): HasMany
+    {
+        return $this->hasMany(EmiratisationSnapshot::class);
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(CompanySubscription::class);
+    }
+
+    public function activeSubscription(): HasOne
+    {
+        return $this->hasOne(CompanySubscription::class)->latestOfMany();
+    }
+
+    public function billingInvoices(): HasMany
+    {
+        return $this->hasMany(BillingInvoice::class);
+    }
+
+    public function wpsPayrollBatches(): HasMany
+    {
+        return $this->hasMany(WpsPayrollBatch::class);
     }
 }

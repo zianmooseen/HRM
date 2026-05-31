@@ -4,7 +4,7 @@ This document captures the intended relational model for the Laravel migrations.
 
 ## Core Company Tables
 
-- `companies`: legal entity, trade license, tax registration, country, emirate, currency, timezone, status, Emiratisation fields.
+- `companies`: legal entity, trade license, tax registration, country, emirate, currency, timezone, status, Emiratisation fields, MoHRE establishment number, and WPS sender/agent setup.
 - `branches`: company locations with optional manager employee.
 - `departments`: company departments, optionally scoped to branches.
 - `job_titles`: company job catalog.
@@ -19,7 +19,7 @@ This document captures the intended relational model for the Laravel migrations.
 
 ## Employee And Onboarding
 
-- `employees`: HR records, optional login user, employment lifecycle, salary visibility protected by permission.
+- `employees`: HR records, optional login user, employment lifecycle, salary visibility protected by permission, and WPS bank identifiers.
 - `employee_service_periods`: auditable employment periods for initial hire, contract extension, termination, and rehire.
 - `documents`: private employee files such as passports, visas, Emirates IDs, contracts, and medical certificates.
 - `employee_invitations`: hashed invitation token lifecycle.
@@ -37,11 +37,14 @@ This document captures the intended relational model for the Laravel migrations.
 - `legal_rule_sets`: versioned UAE legal rule sets by effective date.
 - `legal_rule_items`: JSON values for rule keys.
 - `company_compliance_settings`: configurable company policy knobs.
+- `public_holidays`: company holiday calendar with country/emirate scope, paid flag, source, and status.
+- `emiratisation_rules`: configurable Emiratisation thresholds and contribution assumptions by company category.
+- `emiratisation_snapshots`: dated company compliance guidance snapshots.
 - `leave_types`: statutory and company leave types.
 - `leave_policies`: policy scope and effective dates.
 - `leave_policy_rules`: legal minimum snapshots and company values.
 - `employee_leave_balances`: annual entitlement and usage ledger.
-- `leave_requests`: leave approval records with approval/rejection notes.
+- `leave_requests`: leave approval records with approval/rejection notes, balance-impact day counts, public holiday exclusions, and a calculation snapshot.
 - `leave_request_status_events`: leave request submission, approval, and rejection timeline.
 - `leave_pay_calculation_items`: auditable payroll output for approved leave.
 
@@ -53,6 +56,15 @@ This document captures the intended relational model for the Laravel migrations.
 - `payslips`
 - `payslip_items`
 - `employee_terminations`: employee termination and final settlement records with gratuity snapshots and payment status.
+- `attendance_correction_requests`: employee/HR attendance correction workflow with approval and rejection state.
+- `wps_payroll_batches`: WPS export batch per approved payroll period with batch number, salary month, totals, generated file content, status lifecycle, and validation snapshot.
+- `wps_payroll_batch_items`: employee-level WPS export rows linked to payslips with bank identifiers, fixed/variable income, net pay, and row payload.
+
+## Platform Billing
+
+- `subscription_plans`: SaaS plan catalog with code, name, monthly price, currency, employee limit, feature flags, and status.
+- `company_subscriptions`: company plan assignments with lifecycle status, billing interval, trial dates, current period dates, cancellation date, and assignee.
+- `billing_invoices`: company-scoped SaaS invoices linked to subscriptions with invoice number, issue/due dates, amount, currency, status, paid date, and payment reference.
 
 ## Audit
 

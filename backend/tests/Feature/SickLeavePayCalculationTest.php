@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanyComplianceSetting;
 use App\Models\Employee;
+use App\Models\LegalRuleSet;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Role;
@@ -146,6 +148,48 @@ class SickLeavePayCalculationTest extends TestCase
             ->assertJsonPath('data.calculation.items.0.pay_tier', 'unpaid')
             ->assertJsonPath('data.calculation.items.0.days', 5)
             ->assertJsonPath('data.calculation.items.0.deduction_amount', 1500);
+    }
+
+    public function test_sick_leave_pay_uses_company_payroll_day_divisor_policy(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class, LeaveTypeSeeder::class]);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = $this->employee($company);
+        $ruleSet = LegalRuleSet::query()->firstOrFail();
+        $sickLeave = LeaveType::query()->where('code', 'sick_leave')->firstOrFail();
+        CompanyComplianceSetting::query()->create([
+            'company_id' => $company->id,
+            'legal_rule_set_id' => $ruleSet->id,
+            'payroll_day_divisor' => 'actual_calendar_days',
+            'annual_leave_accrual_method' => 'monthly',
+            'annual_leave_carry_forward_allowed' => true,
+            'public_holidays_count_as_annual_leave' => false,
+            'sick_leave_requires_medical_certificate' => true,
+            'sick_leave_notification_days' => 3,
+            'emiratisation_monitoring_enabled' => false,
+            'created_by' => $user->id,
+            'updated_by' => $user->id,
+        ]);
+        $request = LeaveRequest::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $sickLeave->id,
+            'start_date' => '2026-02-02',
+            'end_date' => '2026-02-06',
+            'total_days' => 5,
+            'working_days' => 5,
+            'status' => 'pending',
+            'requested_by' => $user->id,
+            'medical_certificate_document_id' => 44,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/leave-requests/{$request->id}/approve")
+            ->assertOk()
+            ->assertJsonPath('data.leave_request.pay_calculation_items.0.daily_wage', '321.43')
+            ->assertJsonPath('data.leave_request.pay_calculation_items.0.calculation_basis', 'basic_salary_actual_calendar_days');
     }
 
     private function companyAdmin(): array

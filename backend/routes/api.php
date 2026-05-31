@@ -2,10 +2,15 @@
 
 use App\Http\Controllers\Api\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Api\Auth\CurrentUserController;
+use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\AttendanceCorrectionRequestController;
 use App\Http\Controllers\Api\AttendanceRecordController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\CompanyBillingController;
 use App\Http\Controllers\Api\ComplianceController;
+use App\Http\Controllers\Api\ComplianceReportController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\EmployeeLeaveBalanceController;
@@ -20,8 +25,11 @@ use App\Http\Controllers\Api\EmployeeSalaryComponentController;
 use App\Http\Controllers\Api\EmployeeOnboardingController;
 use App\Http\Controllers\Api\OnboardingTemplateController;
 use App\Http\Controllers\Api\PayrollPeriodController;
+use App\Http\Controllers\Api\PlatformBillingController;
+use App\Http\Controllers\Api\PublicHolidayController;
 use App\Http\Controllers\Api\SalaryComponentController;
 use App\Http\Controllers\Api\SelfServiceController;
+use App\Http\Controllers\Api\WpsPayrollBatchController;
 use Illuminate\Support\Facades\Route;
 
 // Feature flow step 1: API login must always return JSON, never Laravel's guest redirect to /home.
@@ -31,10 +39,22 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', CurrentUserController::class);
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
     Route::get('/self/profile', [SelfServiceController::class, 'profile']);
+    Route::get('/dashboard', DashboardController::class);
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
 
     Route::get('/companies', [CompanyController::class, 'index']);
     Route::get('/company', [CompanyController::class, 'current']);
     Route::put('/company', [CompanyController::class, 'update']);
+    Route::get('/billing/current', [CompanyBillingController::class, 'current']);
+
+    Route::get('/platform/billing/plans', [PlatformBillingController::class, 'plans']);
+    Route::post('/platform/billing/plans', [PlatformBillingController::class, 'storePlan']);
+    Route::get('/platform/billing/subscriptions', [PlatformBillingController::class, 'subscriptions']);
+    Route::post('/platform/billing/companies/{company}/subscription', [PlatformBillingController::class, 'assignSubscription']);
+    Route::get('/platform/billing/invoices', [PlatformBillingController::class, 'invoices']);
+    Route::post('/platform/billing/companies/{company}/invoices', [PlatformBillingController::class, 'storeInvoice']);
+    Route::post('/platform/billing/invoices/{invoice}/mark-paid', [PlatformBillingController::class, 'markInvoicePaid']);
 
     Route::apiResource('branches', BranchController::class)->except(['show']);
     Route::apiResource('departments', DepartmentController::class)->except(['show']);
@@ -58,11 +78,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/documents/{document}/preview', [DocumentController::class, 'preview']);
     Route::get('/documents/{document}/download', [DocumentController::class, 'download']);
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy']);
+    Route::get('/attendance-correction-requests', [AttendanceCorrectionRequestController::class, 'index']);
+    Route::post('/attendance-correction-requests', [AttendanceCorrectionRequestController::class, 'store']);
+    Route::post('/attendance-correction-requests/{correction}/approve', [AttendanceCorrectionRequestController::class, 'approve']);
+    Route::post('/attendance-correction-requests/{correction}/reject', [AttendanceCorrectionRequestController::class, 'reject']);
     Route::apiResource('attendance-records', AttendanceRecordController::class);
     Route::get('/leave-types', [LeaveTypeController::class, 'index']);
     Route::get('/leave-balances', [EmployeeLeaveBalanceController::class, 'index']);
     Route::post('/leave-balances/accrue-annual', [EmployeeLeaveBalanceController::class, 'accrueAnnual']);
     Route::post('/leave-balances', [EmployeeLeaveBalanceController::class, 'store']);
+    Route::get('/leave-requests/day-count', [LeaveRequestController::class, 'dayCount']);
     Route::apiResource('leave-requests', LeaveRequestController::class)
         ->only(['index', 'store', 'show'])
         ->parameters(['leave-requests' => 'leaveRequest']);
@@ -74,8 +99,19 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('payroll-periods', PayrollPeriodController::class)->only(['index', 'store', 'show']);
     Route::post('/payroll-periods/{payrollPeriod}/run', [PayrollPeriodController::class, 'run']);
     Route::post('/payroll-periods/{payrollPeriod}/approve', [PayrollPeriodController::class, 'approve']);
+    Route::get('/wps-payroll-batches', [WpsPayrollBatchController::class, 'index']);
+    Route::get('/wps-payroll-batches/{batch}', [WpsPayrollBatchController::class, 'show']);
+    Route::get('/wps-payroll-batches/{batch}/download', [WpsPayrollBatchController::class, 'download']);
+    Route::post('/wps-payroll-batches/{batch}/status', [WpsPayrollBatchController::class, 'updateStatus']);
+    Route::post('/payroll-periods/{payrollPeriod}/wps-export', [WpsPayrollBatchController::class, 'generate']);
     Route::get('/compliance/legal-rules', [ComplianceController::class, 'legalRules']);
     Route::get('/compliance/settings', [ComplianceController::class, 'settings']);
     Route::put('/compliance/settings', [ComplianceController::class, 'updateSettings']);
     Route::post('/compliance/gratuity', [ComplianceController::class, 'gratuity']);
+    Route::get('/compliance/emiratisation', [ComplianceController::class, 'emiratisation']);
+    Route::post('/compliance/emiratisation/snapshot', [ComplianceController::class, 'storeEmiratisationSnapshot']);
+    Route::get('/compliance/reports', [ComplianceReportController::class, 'summary']);
+    Route::get('/compliance/reports/export', [ComplianceReportController::class, 'export']);
+    Route::post('/public-holidays/import', [PublicHolidayController::class, 'import']);
+    Route::apiResource('public-holidays', PublicHolidayController::class)->except(['show']);
 });

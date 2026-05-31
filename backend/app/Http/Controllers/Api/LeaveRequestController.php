@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Http\Requests\Leave\ApproveLeaveRequestRequest;
+use App\Http\Requests\Leave\CalculateLeaveDaysRequest;
 use App\Http\Requests\Leave\RejectLeaveRequestRequest;
 use App\Http\Requests\Leave\StoreLeaveRequestRequest;
 use App\Http\Resources\LeavePayCalculationItemResource;
@@ -62,9 +63,9 @@ class LeaveRequestController extends Controller
         $this->ensureSelfEmployee($request, (int) $data['employee_id']);
         $employee = $this->ensureEmployeeOwned((int) $data['employee_id'], $company->id);
         $this->ensureLeaveAllowedForEmployee($employee, $data['start_date'], $data['end_date']);
-        $this->ensureLeaveTypeVisible((int) $data['leave_type_id'], $company->id);
+        $leaveType = $this->ensureLeaveTypeVisible((int) $data['leave_type_id'], $company->id);
         $this->ensureMedicalCertificateOwned($data, $company->id);
-        $days = $this->dayCalculator->calculate($data['start_date'], $data['end_date']);
+        $days = $this->dayCalculator->calculate($data['start_date'], $data['end_date'], $company, $employee, $leaveType);
 
         $leaveRequest = DB::transaction(function () use ($request, $company, $data, $days): LeaveRequest {
             // Feature flow step 1: submitted leave starts as pending and immediately reserves balance days.
@@ -85,6 +86,20 @@ class LeaveRequestController extends Controller
         return $this->success('Leave request created.', [
             'leave_request' => new LeaveRequestResource($leaveRequest->load(['employee', 'leaveType', 'payCalculationItems', 'statusEvents'])),
         ], 201);
+    }
+
+    public function dayCount(CalculateLeaveDaysRequest $request): JsonResponse
+    {
+        $company = $this->company($request, 'leave.view');
+        $data = $request->validated();
+        $this->ensureSelfEmployee($request, (int) $data['employee_id']);
+        $employee = $this->ensureEmployeeOwned((int) $data['employee_id'], $company->id);
+        $this->ensureLeaveAllowedForEmployee($employee, $data['start_date'], $data['end_date']);
+        $leaveType = $this->ensureLeaveTypeVisible((int) $data['leave_type_id'], $company->id);
+
+        return $this->success('Leave days calculated.', [
+            'calculation' => $this->dayCalculator->calculate($data['start_date'], $data['end_date'], $company, $employee, $leaveType),
+        ]);
     }
 
     public function show(Request $request, LeaveRequest $leaveRequest): JsonResponse
@@ -266,16 +281,20 @@ class LeaveRequestController extends Controller
         abort_unless($exists, 422, 'Selected medical certificate is invalid.');
     }
 
-    private function ensureLeaveTypeVisible(int $leaveTypeId, int $companyId): void
+    private function ensureLeaveTypeVisible(int $leaveTypeId, int $companyId): LeaveType
     {
+        $leaveType = LeaveType::query()
+            ->whereKey($leaveTypeId)
+            ->where('status', 'active')
+            ->where(fn ($query) => $query->whereNull('company_id')->orWhere('company_id', $companyId))
+            ->first();
+
         abort_unless(
-            LeaveType::query()
-                ->whereKey($leaveTypeId)
-                ->where('status', 'active')
-                ->where(fn ($query) => $query->whereNull('company_id')->orWhere('company_id', $companyId))
-                ->exists(),
+            $leaveType,
             422,
             'Selected leave type is invalid.',
         );
+
+        return $leaveType;
     }
 }

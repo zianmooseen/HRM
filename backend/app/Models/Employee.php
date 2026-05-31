@@ -43,6 +43,10 @@ class Employee extends Model
         'status',
         'basic_salary',
         'monthly_salary',
+        'bank_name',
+        'bank_iban',
+        'bank_routing_code',
+        'wps_person_id',
         'created_by',
         'updated_by',
     ];
@@ -109,6 +113,11 @@ class Employee extends Model
         return $this->hasMany(Document::class);
     }
 
+    public function attendanceCorrectionRequests(): HasMany
+    {
+        return $this->hasMany(AttendanceCorrectionRequest::class);
+    }
+
     public function onboardingCases(): HasMany
     {
         return $this->hasMany(EmployeeOnboardingCase::class);
@@ -127,5 +136,10 @@ class Employee extends Model
     public function activeServicePeriod(): HasOne
     {
         return $this->hasOne(EmployeeServicePeriod::class)->where('status', 'active')->latestOfMany();
+    }
+
+    public function wpsPayrollBatchItems(): HasMany
+    {
+        return $this->hasMany(WpsPayrollBatchItem::class);
     }
 }

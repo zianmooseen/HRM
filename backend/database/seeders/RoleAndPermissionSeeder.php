@@ -47,8 +47,8 @@ class RoleAndPermissionSeeder extends Seeder
         $roles = [
             'super_admin' => $permissions->keys()->all(),
             'company_admin' => $permissions->keys()->reject(fn ($slug) => $slug === 'companies.create')->values()->all(),
-            'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject', 'documents.view', 'documents.upload', 'documents.delete'],
-            'payroll_manager' => ['employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export'],
+            'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject', 'documents.view', 'documents.upload', 'documents.delete', 'audit_logs.view'],
+            'payroll_manager' => ['employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export', 'audit_logs.view'],
             'department_manager' => ['employees.view', 'leave.view', 'leave.approve', 'leave.reject'],
             'employee' => ['attendance.view', 'leave.view', 'leave.create', 'documents.view', 'documents.upload'],
         ];

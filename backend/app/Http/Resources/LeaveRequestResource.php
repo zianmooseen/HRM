@@ -17,6 +17,8 @@ class LeaveRequestResource extends JsonResource
             'end_date' => optional($this->end_date)->toDateString(),
             'total_days' => $this->total_days,
             'working_days' => $this->working_days,
+            'public_holidays_count' => $this->public_holidays_count,
+            'day_calculation' => $this->day_calculation_json,
             'status' => $this->status,
             'reason' => $this->reason,
             'medical_certificate_document_id' => $this->medical_certificate_document_id,

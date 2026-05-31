@@ -133,6 +133,22 @@
         Monthly package estimate
         <input v-model.number="form.monthly_salary" type="number" min="0">
       </label>
+      <label>
+        Bank name
+        <input v-model="form.bank_name">
+      </label>
+      <label>
+        Bank IBAN
+        <input v-model="form.bank_iban">
+      </label>
+      <label>
+        Bank routing code
+        <input v-model="form.bank_routing_code">
+      </label>
+      <label>
+        WPS person ID
+        <input v-model="form.wps_person_id">
+      </label>
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save employee' }}</button>
     </form>

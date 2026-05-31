@@ -37,6 +37,7 @@ const navigationGroups = [
     items: [
       { label: 'Platform dashboard', to: '/', permission: null },
       { label: 'Companies', to: '/platform/companies', permission: 'companies.view' },
+      { label: 'Billing', to: '/platform/billing', permission: 'companies.view' },
       { label: 'Platform settings', to: '/platform/settings', permission: 'settings.view' },
       { label: 'Audit logs', to: '/platform/audit-logs', permission: 'audit_logs.view' },
     ],
@@ -55,8 +56,13 @@ const navigationGroups = [
       { label: 'Leave', to: '/leave', permission: 'leave.view' },
       { label: 'Attendance', to: '/attendance', permission: 'attendance.view' },
       { label: 'Payroll', to: '/payroll', permission: 'payroll.view' },
+      { label: 'Compliance reports', to: '/reports/compliance', permission: 'settings.view' },
+      { label: 'Audit logs', to: '/platform/audit-logs', permission: 'audit_logs.view' },
       { label: 'Compliance', to: '/settings/compliance', permission: 'settings.view' },
       { label: 'Leave policies', to: '/settings/leave-policies', permission: 'settings.view' },
+      { label: 'Payroll policies', to: '/settings/payroll-policies', permission: 'settings.view' },
+      { label: 'Public holidays', to: '/settings/public-holidays', permission: 'settings.view' },
+      { label: 'Emiratisation', to: '/settings/emiratisation', permission: 'settings.view' },
     ],
   },
   {

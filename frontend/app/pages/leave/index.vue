@@ -34,6 +34,19 @@
         End date
         <input v-model="form.end_date" type="date" required>
       </label>
+      <section v-if="dayCalculation" class="day-preview">
+        <strong>{{ dayCalculation.working_days }} balance days</strong>
+        <span>{{ dayCalculation.total_days }} calendar days</span>
+        <span v-if="dayCalculation.public_holidays_count > 0">
+          {{ dayCalculation.public_holidays_count }} public holiday{{ dayCalculation.public_holidays_count === 1 ? '' : 's' }} excluded
+        </span>
+      </section>
+      <p v-if="dayCalculationError" class="error full">{{ dayCalculationError }}</p>
+      <ul v-if="excludedPublicHolidays.length > 0" class="holiday-list full">
+        <li v-for="holiday in excludedPublicHolidays" :key="holiday.date">
+          {{ holiday.date }} · {{ holiday.name }}
+        </li>
+      </ul>
       <label v-if="selectedLeaveType?.code === 'sick_leave' || selectedLeaveType?.requires_document">
         Medical certificate
         <select v-model="form.medical_certificate_document_id">
@@ -262,6 +275,8 @@ interface LeaveRequestRow {
   end_date: string
   total_days: string
   working_days: string
+  public_holidays_count: string
+  day_calculation: DayCalculationSnapshot | null
   status: string
   reason: string | null
   approval_note: string | null
@@ -289,6 +304,19 @@ interface LeavePayCalculationItem {
   gross_pay_amount: string | number
   deduction_amount: string | number
   calculation_basis?: string
+}
+
+interface DayCalculation {
+  total_days: number
+  working_days: number
+  public_holidays_count: number
+  day_calculation_json: DayCalculationSnapshot
+}
+
+interface DayCalculationSnapshot {
+  weekend_days_excluded: boolean
+  public_holidays_count_as_annual_leave: boolean | null
+  excluded_public_holidays: Array<{ date: string, name: string }>
 }
 
 interface SickPayPreview {
@@ -340,7 +368,9 @@ const saving = ref(false)
 const error = ref('')
 const loadError = ref('')
 const actionError = ref('')
+const dayCalculationError = ref('')
 const sickPayPreview = ref<SickPayPreview | null>(null)
+const dayCalculation = ref<DayCalculation | null>(null)
 const form = reactive({
   employee_id: 0,
   leave_type_id: 0,
@@ -355,6 +385,7 @@ const filters = reactive({
 })
 const selectedLeaveType = computed(() => leaveTypes.value.find((leaveType) => leaveType.id === form.leave_type_id) || null)
 const pendingRequests = computed(() => requests.value.filter((request) => request.status === 'pending'))
+const excludedPublicHolidays = computed(() => dayCalculation.value?.day_calculation_json.excluded_public_holidays || [])
 
 onMounted(async () => {
   await Promise.all([loadSetup(), loadRequests(), loadBalances()])
@@ -369,6 +400,13 @@ watch(
     } else {
       medicalCertificates.value = []
     }
+  },
+)
+
+watch(
+  () => [form.employee_id, form.leave_type_id, form.start_date, form.end_date],
+  () => {
+    void loadDayCalculation()
   },
 )
 
@@ -412,6 +450,29 @@ async function loadMedicalCertificates() {
   })
   const response = await api.get<{ documents: EmployeeDocument[] }>(`/documents?${query.toString()}`)
   medicalCertificates.value = response.data.documents
+}
+
+async function loadDayCalculation() {
+  dayCalculationError.value = ''
+  dayCalculation.value = null
+
+  if (!form.employee_id || !form.leave_type_id || !form.start_date || !form.end_date || form.end_date < form.start_date) {
+    return
+  }
+
+  const query = new URLSearchParams({
+    employee_id: String(form.employee_id),
+    leave_type_id: String(form.leave_type_id),
+    start_date: form.start_date,
+    end_date: form.end_date,
+  })
+
+  try {
+    const response = await api.get<{ calculation: DayCalculation }>(`/leave-requests/day-count?${query.toString()}`)
+    dayCalculation.value = response.data.calculation
+  } catch (err) {
+    dayCalculationError.value = apiErrorMessage(err, 'Unable to calculate leave days.')
+  }
 }
 
 async function submit() {
@@ -484,6 +545,8 @@ function resetForm() {
   form.end_date = new Date().toISOString().slice(0, 10)
   form.medical_certificate_document_id = ''
   form.reason = ''
+  dayCalculation.value = null
+  dayCalculationError.value = ''
 }
 
 function label(value: string) {
@@ -560,6 +623,25 @@ function latestNote(request: LeaveRequestRow) {
 
 section h2 {
   margin: 0 0 12px;
+}
+
+.day-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  color: #35444c;
+}
+
+.day-preview strong {
+  color: #102027;
+}
+
+.holiday-list {
+  margin: 0;
+  padding-left: 18px;
+  color: #5d6a72;
 }
 
 @media (max-width: 760px) {

@@ -75,6 +75,43 @@ Logs out the current session.
 
 Returns the authenticated user, roles, and permissions.
 
+## Dashboard
+
+### `GET /api/dashboard`
+
+Returns the current company's operational dashboard summary. Requires `employees.view`.
+
+Includes:
+
+- Employee counts by lifecycle status.
+- Today's attendance counts.
+- Pending leave and approved leave this month.
+- Latest payroll period status.
+- Latest saved Emiratisation snapshot.
+- Contract and document expiry reminders for the next 60 days.
+- Recent company audit events.
+
+## Audit Logs
+
+### `GET /api/audit-logs`
+
+Returns paginated company-scoped audit logs. Requires `audit_logs.view`.
+
+Supported filters:
+
+- `module`
+- `action`
+- `employee_id`
+- `actor_user_id`
+- `date_from`
+- `date_to`
+- `page`
+- `per_page`
+
+### `GET /api/audit-logs/{auditLog}`
+
+Returns one company-scoped audit log with before/after snapshots when the user has permission to view the affected data. Payroll, salary, and document snapshots are redacted unless the viewer has the matching payroll, salary, or document permission.
+
 ## Company Setup
 
 ### `GET /api/companies`
@@ -120,6 +157,80 @@ Returns job titles for the current company.
 ### `POST /api/job-titles`
 
 Creates a job title for the current company.
+
+## Platform Billing
+
+Platform billing is restricted to `super_admin` users for plan management, subscription assignment, invoice creation, and payment recording.
+
+Implemented endpoints:
+
+- `GET /api/billing/current`
+- `GET /api/platform/billing/plans`
+- `POST /api/platform/billing/plans`
+- `GET /api/platform/billing/subscriptions`
+- `POST /api/platform/billing/companies/{company}/subscription`
+- `GET /api/platform/billing/invoices`
+- `POST /api/platform/billing/companies/{company}/invoices`
+- `POST /api/platform/billing/invoices/{invoice}/mark-paid`
+
+Create plan request:
+
+```json
+{
+  "code": "growth",
+  "name": "Growth",
+  "description": "For growing UAE teams",
+  "monthly_price": 499,
+  "currency": "AED",
+  "employee_limit": 100,
+  "features": ["employees", "leave", "payroll"],
+  "status": "active"
+}
+```
+
+Assign subscription request:
+
+```json
+{
+  "subscription_plan_id": 1,
+  "status": "active",
+  "billing_interval": "monthly",
+  "trial_ends_at": null,
+  "current_period_starts_at": "2026-05-01",
+  "current_period_ends_at": "2026-05-31"
+}
+```
+
+Create invoice request:
+
+```json
+{
+  "company_subscription_id": 1,
+  "invoice_number": "INV-2026-0001",
+  "issued_at": "2026-05-01",
+  "due_at": "2026-05-15",
+  "amount": 499,
+  "currency": "AED",
+  "status": "issued",
+  "notes": "May subscription"
+}
+```
+
+Mark invoice paid request:
+
+```json
+{
+  "payment_reference": "bank-transfer-123"
+}
+```
+
+Rules:
+
+- `GET /api/billing/current` returns the authenticated user's current company subscription and latest invoices when the user has `companies.view`.
+- Subscription assignment closes any existing active or trialing subscription before creating the new company subscription.
+- Invoice creation requires the selected subscription to belong to the target company.
+- Marking an invoice paid stores `paid_at`, status, and payment reference.
+- Subscription assignment, invoice creation, and payment recording create audit logs.
 
 ## Employee Management
 
@@ -273,6 +384,10 @@ Implemented endpoints:
 - `GET /api/attendance-records/{attendance_record}`
 - `PUT /api/attendance-records/{attendance_record}`
 - `DELETE /api/attendance-records/{attendance_record}`
+- `GET /api/attendance-correction-requests`
+- `POST /api/attendance-correction-requests`
+- `POST /api/attendance-correction-requests/{correction}/approve`
+- `POST /api/attendance-correction-requests/{correction}/reject`
 
 Supported list filters:
 
@@ -301,6 +416,10 @@ Rules:
 - `employee_id` must belong to the current company.
 - One attendance record is allowed per employee per date.
 - Create, update, and delete operations create audit logs.
+- Correction requests are submitted as `pending` and do not mutate attendance until approval.
+- Employees can submit correction requests for their own attendance through self-service.
+- Approving a correction updates the existing attendance record or creates one for missed-punch days.
+- Submitting, approving, rejecting, and applying corrections create audit logs.
 - Manual attendance entry is ready for future web, mobile, biometric, and import sources.
 
 ## Leave Management
@@ -311,6 +430,7 @@ Implemented endpoints:
 - `GET /api/leave-balances`
 - `POST /api/leave-balances/accrue-annual`
 - `POST /api/leave-balances`
+- `GET /api/leave-requests/day-count`
 - `GET /api/leave-requests`
 - `POST /api/leave-requests`
 - `GET /api/leave-requests/{leave_request}`
@@ -421,6 +541,9 @@ Rules:
 - `employee_id` must belong to the current company.
 - `medical_certificate_document_id`, when provided, must be an uploaded `medical_certificate` document for the same employee.
 - Leave types can be global statutory types or company-specific active types.
+- `GET /api/leave-requests/day-count` previews calendar days, balance-impact days, and excluded public holidays before submission.
+- Annual leave excludes active paid public holidays from balance days when company compliance settings say public holidays do not count as annual leave.
+- Leave requests persist `public_holidays_count` and `day_calculation` so the balance impact can be audited later.
 - Company admins can configure balance entitlement buckets through `POST /api/leave-balances`.
 - Balance configuration recalculates closing balance and creates an audit log.
 - Company admins can run annual leave accrual for all active/onboarding employees, or one employee, through `POST /api/leave-balances/accrue-annual`.
@@ -494,6 +617,11 @@ Implemented endpoints:
 - `GET /api/payroll-periods/{payroll_period}`
 - `POST /api/payroll-periods/{payroll_period}/run`
 - `POST /api/payroll-periods/{payroll_period}/approve`
+- `GET /api/wps-payroll-batches`
+- `GET /api/wps-payroll-batches/{batch}`
+- `GET /api/wps-payroll-batches/{batch}/download`
+- `POST /api/wps-payroll-batches/{batch}/status`
+- `POST /api/payroll-periods/{payroll_period}/wps-export`
 
 Allowance or deduction request:
 
@@ -544,6 +672,25 @@ Rules:
 - Approved payroll periods cannot be rerun.
 - Salary setup, payroll runs, and payroll approvals create audit logs.
 
+WPS export rules:
+
+- WPS export requires `payroll.export`.
+- Only approved payroll periods can be exported.
+- Company WPS setup must include `mohre_establishment_number`, `wps_agent_code`, and `wps_file_sender_id`.
+- Every exported employee must have `bank_iban`, `bank_routing_code`, and `wps_person_id`.
+- One WPS batch is stored per payroll period; generated batches may be regenerated until they are submitted or accepted.
+- Batch statuses are `generated`, `submitted`, `accepted`, and `rejected`.
+- WPS generation and status changes create audit logs.
+
+Update WPS status request:
+
+```json
+{
+  "status": "submitted",
+  "rejection_reason": null
+}
+```
+
 ## Compliance Calculations
 
 Implemented endpoints:
@@ -552,6 +699,18 @@ Implemented endpoints:
 - `GET /api/compliance/settings`
 - `PUT /api/compliance/settings`
 - `POST /api/compliance/gratuity`
+- `GET /api/compliance/emiratisation`
+- `POST /api/compliance/emiratisation/snapshot`
+- `GET /api/compliance/reports`
+- `GET /api/compliance/reports/export?type=settings`
+- `GET /api/compliance/reports/export?type=public_holidays`
+- `GET /api/compliance/reports/export?type=emiratisation`
+- `GET /api/compliance/reports/export?type=audit`
+- `GET /api/public-holidays`
+- `POST /api/public-holidays`
+- `POST /api/public-holidays/import`
+- `PUT /api/public-holidays/{public_holiday}`
+- `DELETE /api/public-holidays/{public_holiday}`
 - `GET /api/employee-terminations`
 - `POST /api/employees/{employee}/termination`
 - `POST /api/employee-terminations/{termination}/mark-paid`
@@ -572,6 +731,13 @@ Rules:
 - The employee must belong to the authenticated user's current company.
 - Company compliance settings expose payroll day divisor, annual leave accrual/carry-forward, public holiday treatment, sick leave document rules, and Emiratisation monitoring.
 - Compliance setting updates require `settings.update` and create audit logs.
+- Payroll policy screen uses `payroll_day_divisor` to control daily wage calculations for salary-linked leave pay.
+- Emiratisation endpoints calculate active workers, skilled workers, UAE citizens, required UAE citizen count, missing count, estimated contribution exposure, and compliance status.
+- Emiratisation snapshots persist the current guidance result and create an audit log.
+- Compliance report endpoints require `settings.view`, are scoped to the current company, and expose CSV exports for settings, public holidays, Emiratisation snapshots, and compliance audit history.
+- Public holiday reads require `settings.view`; create, update, and delete require `settings.update`.
+- Public holiday records are scoped to the authenticated user's current company and are unique by company, date, and name.
+- Public holiday import accepts up to 100 rows, creates non-duplicate holidays, skips duplicate company/date/name rows, and returns an import summary.
 - Employee `hire_date` and a positive basic salary are required.
 - `basic_salary` is optional; if omitted, the employee record value is used.
 - Service days exclude submitted unpaid leave days.

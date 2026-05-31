@@ -136,6 +136,17 @@
     <section v-if="selectedPeriod">
       <h2>Payslips</h2>
       <p class="muted">{{ selectedPeriod.period_start }} to {{ selectedPeriod.period_end }}</p>
+      <div class="section-actions">
+        <button
+          v-if="selectedPeriod.status === 'approved'"
+          type="button"
+          :disabled="generatingWps"
+          @click="generateWps(selectedPeriod)"
+        >
+          {{ generatingWps ? 'Generating...' : 'Generate WPS export' }}
+        </button>
+      </div>
+      <p v-if="wpsError" class="error">{{ wpsError }}</p>
       <table>
         <thead>
           <tr>
@@ -169,6 +180,41 @@
         </tbody>
       </table>
     </section>
+
+    <section>
+      <h2>WPS Exports</h2>
+      <p class="muted">Generated payroll files for UAE Wage Protection System submission tracking.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Batch</th>
+            <th>Salary month</th>
+            <th>Records</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="batch in wpsBatches" :key="batch.id">
+            <td>{{ batch.batch_number }}</td>
+            <td>{{ batch.salary_month }}</td>
+            <td>{{ batch.record_count }}</td>
+            <td>{{ batch.total_amount }}</td>
+            <td>{{ label(batch.status) }}</td>
+            <td class="table-actions">
+              <a class="secondary-link" :href="downloadWpsUrl(batch)" target="_blank">Download</a>
+              <button v-if="batch.status === 'generated'" type="button" class="secondary" @click="updateWpsStatus(batch, 'submitted')">Mark submitted</button>
+              <button v-if="batch.status === 'submitted'" type="button" class="secondary" @click="updateWpsStatus(batch, 'accepted')">Mark accepted</button>
+              <button v-if="batch.status === 'submitted'" type="button" class="secondary" @click="updateWpsStatus(batch, 'rejected')">Mark rejected</button>
+            </td>
+          </tr>
+          <tr v-if="wpsBatches.length === 0">
+            <td colspan="6">No WPS exports generated yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </section>
 </template>
 
@@ -198,6 +244,16 @@ interface PayrollPeriod {
   payslips_count?: number
 }
 
+interface WpsPayrollBatch {
+  id: number
+  batch_number: string
+  payroll_period_id: number
+  salary_month: string
+  record_count: number
+  total_amount: string
+  status: string
+}
+
 interface Payslip {
   id: number
   gross_pay: string
@@ -220,15 +276,19 @@ const employees = ref<EmployeeOption[]>([])
 const components = ref<SalaryComponent[]>([])
 const periods = ref<PayrollPeriod[]>([])
 const payslips = ref<Payslip[]>([])
+const wpsBatches = ref<WpsPayrollBatch[]>([])
 const selectedPeriod = ref<PayrollPeriod | null>(null)
 const loading = ref(true)
 const loadError = ref('')
 const componentError = ref('')
 const assignmentError = ref('')
 const periodError = ref('')
+const wpsError = ref('')
 const savingComponent = ref(false)
 const savingAssignment = ref(false)
 const savingPeriod = ref(false)
+const generatingWps = ref(false)
+const config = useRuntimeConfig()
 const today = new Date().toISOString().slice(0, 10)
 const componentForm = reactive({
   code: '',
@@ -269,6 +329,7 @@ async function loadAll() {
     employees.value = employeeResponse.data.employees
     components.value = componentResponse.data.salary_components
     periods.value = periodResponse.data.payroll_periods
+    await loadWpsBatches()
   } catch {
     loadError.value = 'Unable to load payroll data.'
   } finally {
@@ -330,6 +391,7 @@ async function openPeriod(period: PayrollPeriod) {
   const response = await api.get<{ payroll_period: PayrollPeriod, payslips: Payslip[] }>(`/payroll-periods/${period.id}`)
   selectedPeriod.value = response.data.payroll_period
   payslips.value = response.data.payslips
+  await loadWpsBatches(period.id)
 }
 
 async function runPeriod(period: PayrollPeriod) {
@@ -342,6 +404,37 @@ async function approvePeriod(period: PayrollPeriod) {
   await api.post(`/payroll-periods/${period.id}/approve`, {})
   await loadAll()
   await openPeriod(period)
+}
+
+async function loadWpsBatches(periodId?: number) {
+  const query = periodId ? `?payroll_period_id=${periodId}` : ''
+  const response = await api.get<{ wps_payroll_batches: WpsPayrollBatch[] }>(`/wps-payroll-batches${query}`)
+  wpsBatches.value = response.data.wps_payroll_batches
+}
+
+async function generateWps(period: PayrollPeriod) {
+  generatingWps.value = true
+  wpsError.value = ''
+
+  try {
+    // Feature flow step 4: payroll users generate WPS only from the selected approved payroll period.
+    await api.post(`/payroll-periods/${period.id}/wps-export`, {})
+    await loadWpsBatches(period.id)
+  } catch (err) {
+    wpsError.value = apiErrorMessage(err, 'Unable to generate WPS export.')
+  } finally {
+    generatingWps.value = false
+  }
+}
+
+async function updateWpsStatus(batch: WpsPayrollBatch, status: string) {
+  const rejection_reason = status === 'rejected' ? 'Rejected by WPS processor. Review external submission response.' : null
+  await api.post(`/wps-payroll-batches/${batch.id}/status`, { status, rejection_reason })
+  await loadWpsBatches(selectedPeriod.value?.id)
+}
+
+function downloadWpsUrl(batch: WpsPayrollBatch) {
+  return `${config.public.apiBaseUrl}/wps-payroll-batches/${batch.id}/download`
 }
 
 function label(value: string) {
@@ -375,6 +468,18 @@ function label(value: string) {
   justify-content: space-between;
   gap: 10px;
   color: #41505a;
+}
+
+.section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 10px 0;
+}
+
+.secondary-link {
+  color: #176b54;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .form-grid h2,

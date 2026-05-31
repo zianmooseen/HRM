@@ -6,12 +6,15 @@ use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Http\Requests\Compliance\CalculateGratuityRequest;
 use App\Http\Requests\Compliance\UpdateCompanyComplianceSettingsRequest;
 use App\Http\Resources\CompanyComplianceSettingResource;
+use App\Http\Resources\EmiratisationSnapshotResource;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\LegalRuleSetResource;
 use App\Models\CompanyComplianceSetting;
+use App\Models\EmiratisationRule;
 use App\Models\Employee;
 use App\Services\Audit\AuditLogger;
 use App\Services\Auth\CompanyAccess;
+use App\Services\Compliance\EmiratisationComplianceService;
 use App\Services\Compliance\GratuityCalculator;
 use App\Services\Compliance\LegalRuleRepository;
 use Carbon\CarbonImmutable;
@@ -29,6 +32,7 @@ class ComplianceController extends Controller
         private readonly LegalRuleRepository $rules,
         private readonly GratuityCalculator $gratuity,
         private readonly AuditLogger $audit,
+        private readonly EmiratisationComplianceService $emiratisation,
     ) {
     }
 
@@ -100,6 +104,34 @@ class ComplianceController extends Controller
         ]);
     }
 
+    public function emiratisation(Request $request): JsonResponse
+    {
+        $company = $this->company($request);
+        $snapshot = $this->emiratisationSnapshot($company);
+
+        return $this->success('Emiratisation compliance calculated.', [
+            'snapshot' => $snapshot,
+            'latest_snapshot' => ($latestSnapshot = $company->emiratisationSnapshots()->latest('snapshot_date')->latest('id')->first())
+                ? new EmiratisationSnapshotResource($latestSnapshot)
+                : null,
+        ]);
+    }
+
+    public function storeEmiratisationSnapshot(Request $request): JsonResponse
+    {
+        $company = $this->company($request, 'settings.update');
+        $snapshot = $company->emiratisationSnapshots()->create([
+            'snapshot_date' => now()->toDateString(),
+            ...$this->emiratisationSnapshot($company),
+        ]);
+
+        $this->audit->log($request, 'emiratisation_snapshot.created', $snapshot, null, $snapshot->toArray());
+
+        return $this->success('Emiratisation snapshot saved.', [
+            'snapshot' => new EmiratisationSnapshotResource($snapshot),
+        ], 201);
+    }
+
     public function updateSettings(UpdateCompanyComplianceSettingsRequest $request): JsonResponse
     {
         $company = $this->company($request, 'settings.update');
@@ -153,6 +185,64 @@ class ComplianceController extends Controller
                 'updated_by' => $userId,
             ],
         );
+    }
+
+    private function emiratisationSnapshot($company): array
+    {
+        $counts = $this->emiratisationCounts($company->id);
+        $rule = $this->emiratisationRule($company->emiratisation_category);
+
+        return $this->emiratisation->calculate($company->toArray(), $counts, $rule);
+    }
+
+    private function emiratisationCounts(int $companyId): array
+    {
+        $baseQuery = Employee::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active');
+
+        return [
+            'total_active_workers' => (clone $baseQuery)->count(),
+            'total_skilled_workers' => (clone $baseQuery)->where('is_skilled_worker', true)->count(),
+            'total_active_uae_citizens' => (clone $baseQuery)->where('is_uae_citizen', true)->count(),
+            'total_skilled_uae_citizens' => (clone $baseQuery)->where('is_uae_citizen', true)->where('is_skilled_worker', true)->count(),
+        ];
+    }
+
+    private function emiratisationRule(string $category): array
+    {
+        $ruleSet = $this->rules->activeRuleSet();
+
+        if (! $ruleSet) {
+            return ['category' => $category];
+        }
+
+        $rule = EmiratisationRule::query()
+            ->where('legal_rule_set_id', $ruleSet->id)
+            ->where('category', $category)
+            ->where('status', 'active')
+            ->whereDate('effective_from', '<=', now()->toDateString())
+            ->where(fn ($query) => $query->whereNull('effective_to')->orWhereDate('effective_to', '>=', now()->toDateString()))
+            ->orderByDesc('effective_from')
+            ->first();
+
+        if (! $rule) {
+            return ['category' => $category];
+        }
+
+        return [
+            'legal_rule_set_id' => $rule->legal_rule_set_id,
+            'category' => $rule->category,
+            'min_employee_count' => $rule->min_employee_count,
+            'max_employee_count' => $rule->max_employee_count,
+            'sector_codes_json' => $rule->sector_codes_json,
+            'annual_growth_percent' => $rule->annual_growth_percent,
+            'semi_annual_growth_percent' => $rule->semi_annual_growth_percent,
+            'required_uae_citizens' => $rule->required_uae_citizens,
+            'contribution_amount_per_missing_citizen' => $rule->contribution_amount_per_missing_citizen,
+            'contribution_frequency' => $rule->contribution_frequency,
+            'effective_from' => $rule->effective_from?->toDateString(),
+        ];
     }
 
     private function company(Request $request, string $permission = 'settings.view')

@@ -42,6 +42,10 @@ class StoreEmployeeRequest extends FormRequest
             'status' => ['required', 'in:draft,onboarding,active,on_leave,suspended,terminated,archived'],
             'basic_salary' => ['nullable', 'numeric', 'min:0'],
             'monthly_salary' => ['nullable', 'numeric', 'min:0'],
+            'bank_name' => ['nullable', 'string', 'max:255'],
+            'bank_iban' => ['nullable', 'string', 'max:34'],
+            'bank_routing_code' => ['nullable', 'string', 'max:50'],
+            'wps_person_id' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

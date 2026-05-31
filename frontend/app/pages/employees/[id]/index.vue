@@ -48,6 +48,14 @@
         <dd>{{ employee.basic_salary || '-' }}</dd>
         <dt>Monthly package estimate</dt>
         <dd>{{ employee.monthly_salary || '-' }}</dd>
+        <dt>Bank name</dt>
+        <dd>{{ employee.bank_name || '-' }}</dd>
+        <dt>Bank IBAN</dt>
+        <dd>{{ employee.bank_iban || '-' }}</dd>
+        <dt>Bank routing code</dt>
+        <dd>{{ employee.bank_routing_code || '-' }}</dd>
+        <dt>WPS person ID</dt>
+        <dd>{{ employee.wps_person_id || '-' }}</dd>
       </template>
       <dt>Login account</dt>
       <dd>{{ employee.user_id ? `User #${employee.user_id}` : 'Not created' }}</dd>

@@ -61,6 +61,67 @@
       </div>
     </form>
 
+    <section class="panel">
+      <header>
+        <div>
+          <h2>Correction Request</h2>
+          <p class="muted">Submit a missed punch or time correction for manager/HR approval.</p>
+        </div>
+      </header>
+      <form class="form-grid" @submit.prevent="submitCorrection">
+        <label>
+          Employee
+          <select v-model.number="correctionForm.employee_id" required>
+            <option disabled :value="0">Select employee</option>
+            <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+              {{ employee.display_name }} ({{ employee.employee_code }})
+            </option>
+          </select>
+        </label>
+        <label>
+          Date
+          <input v-model="correctionForm.date" type="date" required>
+        </label>
+        <label>
+          Type
+          <select v-model="correctionForm.correction_type" required>
+            <option value="missed_check_in">Missed check in</option>
+            <option value="missed_check_out">Missed check out</option>
+            <option value="wrong_time">Wrong time</option>
+            <option value="absence_status">Absence status</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          Requested check in
+          <input v-model="correctionForm.requested_check_in" type="time">
+        </label>
+        <label>
+          Requested check out
+          <input v-model="correctionForm.requested_check_out" type="time">
+        </label>
+        <label>
+          Break minutes
+          <input v-model.number="correctionForm.requested_break_minutes" type="number" min="0">
+        </label>
+        <label>
+          Requested status
+          <select v-model="correctionForm.requested_status" required>
+            <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
+          </select>
+        </label>
+        <label class="full">
+          Reason
+          <textarea v-model="correctionForm.reason" rows="3" required />
+        </label>
+        <p v-if="correctionError" class="error">{{ correctionError }}</p>
+        <p v-if="correctionSaved" class="muted">Correction request submitted.</p>
+        <div class="button-row">
+          <button type="submit" :disabled="savingCorrection">{{ savingCorrection ? 'Submitting...' : 'Submit correction' }}</button>
+        </div>
+      </form>
+    </section>
+
     <section class="filters">
       <label>
         Filter employee
@@ -111,6 +172,46 @@
         </tr>
       </tbody>
     </table>
+
+    <section class="panel">
+      <header>
+        <div>
+          <h2>Correction Approval Queue</h2>
+          <p class="muted">Pending correction requests are applied to attendance only after approval.</p>
+        </div>
+        <button type="button" class="secondary" @click="loadCorrections">Refresh</button>
+      </header>
+      <p v-if="loadingCorrections">Loading correction requests...</p>
+      <p v-else-if="correctionLoadError" class="error">{{ correctionLoadError }}</p>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Employee</th>
+            <th>Type</th>
+            <th>Requested</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="correction in corrections" :key="correction.id">
+            <td>{{ correction.date }}</td>
+            <td>{{ correction.employee?.display_name || '-' }}</td>
+            <td>{{ label(correction.correction_type) }}</td>
+            <td>{{ correctionSummary(correction) }}</td>
+            <td>{{ label(correction.status) }}</td>
+            <td class="table-actions">
+              <button v-if="correction.status === 'pending'" type="button" class="secondary" @click="approveCorrection(correction)">Approve</button>
+              <button v-if="correction.status === 'pending'" type="button" class="danger" @click="rejectCorrection(correction)">Reject</button>
+            </td>
+          </tr>
+          <tr v-if="corrections.length === 0">
+            <td colspan="6">No correction requests found.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </section>
 </template>
 
@@ -136,14 +237,34 @@ interface AttendanceRecord {
   employee?: EmployeeOption | null
 }
 
+interface AttendanceCorrectionRequest {
+  id: number
+  employee_id: number
+  date: string
+  correction_type: string
+  requested_check_in: string | null
+  requested_check_out: string | null
+  requested_break_minutes: number
+  requested_status: string
+  reason: string | null
+  status: string
+  employee?: EmployeeOption | null
+}
+
 const api = useApiClient()
 const statuses = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'remote']
 const employees = ref<EmployeeOption[]>([])
 const records = ref<AttendanceRecord[]>([])
+const corrections = ref<AttendanceCorrectionRequest[]>([])
 const loading = ref(true)
+const loadingCorrections = ref(true)
 const saving = ref(false)
+const savingCorrection = ref(false)
 const error = ref('')
 const loadError = ref('')
+const correctionError = ref('')
+const correctionLoadError = ref('')
+const correctionSaved = ref(false)
 const editingId = ref<number | null>(null)
 const form = reactive({
   employee_id: 0,
@@ -160,15 +281,39 @@ const filters = reactive({
   date_from: '',
   date_to: '',
 })
+const correctionForm = reactive({
+  employee_id: 0,
+  date: new Date().toISOString().slice(0, 10),
+  correction_type: 'wrong_time',
+  requested_check_in: '',
+  requested_check_out: '',
+  requested_break_minutes: 0,
+  requested_status: 'present',
+  reason: '',
+})
 const submitLabel = computed(() => editingId.value ? 'Update attendance' : 'Create attendance')
 
 onMounted(async () => {
-  await Promise.all([loadEmployees(), loadRecords()])
+  await Promise.all([loadEmployees(), loadRecords(), loadCorrections()])
 })
 
 async function loadEmployees() {
   const response = await api.get<{ employees: EmployeeOption[] }>('/employees')
   employees.value = response.data.employees
+}
+
+async function loadCorrections() {
+  loadingCorrections.value = true
+  correctionLoadError.value = ''
+
+  try {
+    const response = await api.get<{ attendance_correction_requests: AttendanceCorrectionRequest[] }>('/attendance-correction-requests')
+    corrections.value = response.data.attendance_correction_requests
+  } catch (err) {
+    correctionLoadError.value = apiErrorMessage(err, 'Unable to load correction requests.')
+  } finally {
+    loadingCorrections.value = false
+  }
 }
 
 async function loadRecords() {
@@ -188,6 +333,54 @@ async function loadRecords() {
     loadError.value = 'Unable to load attendance records.'
   } finally {
     loading.value = false
+  }
+}
+
+async function submitCorrection() {
+  savingCorrection.value = true
+  correctionError.value = ''
+  correctionSaved.value = false
+
+  try {
+    await api.post('/attendance-correction-requests', {
+      ...correctionForm,
+      requested_check_in: correctionForm.requested_check_in || null,
+      requested_check_out: correctionForm.requested_check_out || null,
+      reason: correctionForm.reason || null,
+    })
+    resetCorrectionForm()
+    correctionSaved.value = true
+    await loadCorrections()
+  } catch (err) {
+    correctionError.value = apiErrorMessage(err, 'Unable to submit correction request.')
+  } finally {
+    savingCorrection.value = false
+  }
+}
+
+async function approveCorrection(correction: AttendanceCorrectionRequest) {
+  correctionError.value = ''
+
+  try {
+    await api.post(`/attendance-correction-requests/${correction.id}/approve`, {})
+    await Promise.all([loadRecords(), loadCorrections()])
+  } catch (err) {
+    correctionError.value = apiErrorMessage(err, 'Unable to approve correction request.')
+  }
+}
+
+async function rejectCorrection(correction: AttendanceCorrectionRequest) {
+  const rejection_reason = window.prompt('Rejection reason')
+
+  if (!rejection_reason) return
+
+  correctionError.value = ''
+
+  try {
+    await api.post(`/attendance-correction-requests/${correction.id}/reject`, { rejection_reason })
+    await loadCorrections()
+  } catch (err) {
+    correctionError.value = apiErrorMessage(err, 'Unable to reject correction request.')
   }
 }
 
@@ -216,6 +409,17 @@ async function submit() {
   } finally {
     saving.value = false
   }
+}
+
+function resetCorrectionForm() {
+  correctionForm.employee_id = 0
+  correctionForm.date = new Date().toISOString().slice(0, 10)
+  correctionForm.correction_type = 'wrong_time'
+  correctionForm.requested_check_in = ''
+  correctionForm.requested_check_out = ''
+  correctionForm.requested_break_minutes = 0
+  correctionForm.requested_status = 'present'
+  correctionForm.reason = ''
 }
 
 function edit(record: AttendanceRecord) {
@@ -263,6 +467,10 @@ function timeRange(record: AttendanceRecord) {
 
   return `${record.check_in || '-'} - ${record.check_out || '-'}`
 }
+
+function correctionSummary(correction: AttendanceCorrectionRequest) {
+  return `${correction.requested_check_in || '-'} - ${correction.requested_check_out || '-'}, ${label(correction.requested_status)}`
+}
 </script>
 
 <style scoped>
@@ -280,6 +488,20 @@ function timeRange(record: AttendanceRecord) {
   grid-template-columns: repeat(3, minmax(160px, 1fr));
   gap: 12px;
   max-width: 760px;
+}
+
+.panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  border: 1px solid #d8dee4;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.panel h2 {
+  margin: 0;
 }
 
 .filters label {

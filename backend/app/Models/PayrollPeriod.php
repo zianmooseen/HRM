@@ -35,4 +35,9 @@ class PayrollPeriod extends Model
     {
         return $this->hasMany(Payslip::class);
     }
+
+    public function wpsPayrollBatches(): HasMany
+    {
+        return $this->hasMany(WpsPayrollBatch::class);
+    }
 }

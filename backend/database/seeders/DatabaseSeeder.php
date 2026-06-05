@@ -19,5 +19,8 @@ class DatabaseSeeder extends Seeder
 
         // Feature flow step 4: create a runnable local login only when seed credentials are configured.
         $this->call(DevelopmentAdminSeeder::class);
+
+        // Feature flow step 5: create deterministic demo records for end-to-end manual testing.
+        $this->call(DemoDataSeeder::class);
     }
 }

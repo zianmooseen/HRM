@@ -4,7 +4,7 @@ This document captures the intended relational model for the Laravel migrations.
 
 ## Core Company Tables
 
-- `companies`: legal entity, trade license, tax registration, country, emirate, currency, timezone, status, Emiratisation fields, MoHRE establishment number, and WPS sender/agent setup.
+- `companies`: legal entity, trade license, tax registration, country, emirate, currency, timezone, status, Emiratisation fields, MoHRE establishment number, WPS provider profile, and WPS sender/agent setup.
 - `branches`: company locations with optional manager employee.
 - `departments`: company departments, optionally scoped to branches.
 - `job_titles`: company job catalog.
@@ -19,7 +19,7 @@ This document captures the intended relational model for the Laravel migrations.
 
 ## Employee And Onboarding
 
-- `employees`: HR records, optional login user, employment lifecycle, salary visibility protected by permission, and WPS bank identifiers.
+- `employees`: HR records, optional login user, employment lifecycle, explicit work permit/labor card identifiers, salary visibility protected by permission, and WPS bank identifiers.
 - `employee_service_periods`: auditable employment periods for initial hire, contract extension, termination, and rehire.
 - `documents`: private employee files such as passports, visas, Emirates IDs, contracts, and medical certificates.
 - `employee_invitations`: hashed invitation token lifecycle.
@@ -59,6 +59,7 @@ This document captures the intended relational model for the Laravel migrations.
 - `attendance_correction_requests`: employee/HR attendance correction workflow with approval and rejection state.
 - `wps_payroll_batches`: WPS export batch per approved payroll period with batch number, salary month, totals, generated file content, status lifecycle, and validation snapshot.
 - `wps_payroll_batch_items`: employee-level WPS export rows linked to payslips with bank identifiers, fixed/variable income, net pay, and row payload.
+- `wps_compliance_alerts`: persisted warning, urgent, and overdue alerts for payroll periods that have not reached accepted WPS status.
 
 ## Platform Billing
 

@@ -79,7 +79,17 @@ Returns the authenticated user, roles, and permissions.
 
 ### `GET /api/dashboard`
 
-Returns the current company's operational dashboard summary. Requires `employees.view`.
+Returns an operational dashboard summary. Requires `employees.view`.
+
+Supported scope parameters:
+
+- `company_id`: available only to `super_admin` users. Company admins cannot override their assigned company.
+- `branch_id`: optional branch inside the selected company. Foreign-company branch IDs are rejected.
+
+Role meaning:
+
+- `super_admin` is the SaaS platform operator/system administrator responsible for maintaining the HRM service across customer organizations.
+- `company_admin` is a customer administrator restricted to their assigned organization.
 
 Includes:
 
@@ -90,6 +100,9 @@ Includes:
 - Latest saved Emiratisation snapshot.
 - Contract and document expiry reminders for the next 60 days.
 - Recent company audit events.
+- Available organizations and branches for the dashboard scope selector.
+
+Employee, attendance, leave, contract, document, and WPS-readiness metrics respect the selected branch. Payroll periods, WPS batch status, audit activity, and Emiratisation remain organization-level because those records are currently company-scoped.
 
 ## Audit Logs
 
@@ -676,18 +689,24 @@ WPS export rules:
 
 - WPS export requires `payroll.export`.
 - Only approved payroll periods can be exported.
-- Company WPS setup must include `mohre_establishment_number`, `wps_agent_code`, and `wps_file_sender_id`.
-- Every exported employee must have `bank_iban`, `bank_routing_code`, and `wps_person_id`.
+- Company WPS setup must include `mohre_establishment_number`, `wps_bank_name`, `wps_agent_code`, and `wps_file_sender_id`.
+- Every exported employee must have a work permit or labor card number, a checksum-valid UAE `bank_iban`, `bank_routing_code`, and `wps_person_id`.
+- UAE IBANs are normalized to uppercase without spaces during employee writes.
+- Export files use the selected company `wps_provider` profile and download with a `.sif` extension.
+- Bundled profiles must be checked against the current template supplied by the selected bank or WPS agent before production submission.
 - One WPS batch is stored per payroll period; generated batches may be regenerated until they are submitted or accepted.
-- Batch statuses are `generated`, `submitted`, `accepted`, and `rejected`.
+- Batch statuses are `generated`, `submitted`, `processing`, `accepted`, `partially_accepted`, `rejected`, `corrected`, and `cancelled`.
+- Status updates may store bank references, response filenames, and structured response details.
 - WPS generation and status changes create audit logs.
+- `php artisan wps:monitor-deadlines` persists dashboard alerts after 3, 10, and 15 days from the payroll pay date and resolves them after accepted status.
 
 Update WPS status request:
 
 ```json
 {
   "status": "submitted",
-  "rejection_reason": null
+  "rejection_reason": null,
+  "bank_reference": "BANK-REFERENCE-123"
 }
 ```
 

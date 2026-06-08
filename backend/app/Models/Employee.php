@@ -33,6 +33,8 @@ class Employee extends Model
         'skill_level',
         'is_skilled_worker',
         'work_permit_type',
+        'work_permit_number',
+        'labor_card_number',
         'date_of_birth',
         'hire_date',
         'probation_end_date',

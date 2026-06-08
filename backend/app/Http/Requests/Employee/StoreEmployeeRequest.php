@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Employee;
 
+use App\Rules\UaeIban;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreEmployeeRequest extends FormRequest
@@ -32,6 +33,8 @@ class StoreEmployeeRequest extends FormRequest
             'skill_level' => ['nullable', 'string', 'max:100'],
             'is_skilled_worker' => ['boolean'],
             'work_permit_type' => ['nullable', 'string', 'max:100'],
+            'work_permit_number' => ['nullable', 'string', 'max:100'],
+            'labor_card_number' => ['nullable', 'string', 'max:100'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'hire_date' => ['nullable', 'date'],
             'probation_end_date' => ['nullable', 'date'],
@@ -43,9 +46,16 @@ class StoreEmployeeRequest extends FormRequest
             'basic_salary' => ['nullable', 'numeric', 'min:0'],
             'monthly_salary' => ['nullable', 'numeric', 'min:0'],
             'bank_name' => ['nullable', 'string', 'max:255'],
-            'bank_iban' => ['nullable', 'string', 'max:34'],
+            'bank_iban' => ['nullable', 'string', 'max:34', new UaeIban()],
             'bank_routing_code' => ['nullable', 'string', 'max:50'],
             'wps_person_id' => ['nullable', 'string', 'max:100'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('bank_iban')) {
+            $this->merge(['bank_iban' => UaeIban::normalize($this->input('bank_iban'))]);
+        }
     }
 }

@@ -130,7 +130,7 @@ class DemoDataSeeder extends Seeder
                 'hire_date' => '2023-06-15',
                 'contract_start_date' => '2025-06-15',
                 'contract_end_date' => '2026-07-15',
-                'bank_iban' => 'AE580331234567890123457',
+                'bank_iban' => 'AE770331234567890123457',
                 'wps_person_id' => 'WPS1002',
             ]),
             'E1003' => $this->employee($company, $branchAbuDhabi, $departments['OPS'], $titles['OPS-SUP'], $admin, [
@@ -148,7 +148,7 @@ class DemoDataSeeder extends Seeder
                 'hire_date' => '2024-01-10',
                 'contract_start_date' => '2024-01-10',
                 'contract_end_date' => '2026-01-09',
-                'bank_iban' => 'AE420331234567890123458',
+                'bank_iban' => 'AE500331234567890123458',
                 'wps_person_id' => 'WPS1003',
             ]),
             'E1004' => $this->employee($company, $branchDubai, $departments['SALES'], $titles['SALES-EXE'], $admin, [
@@ -166,7 +166,7 @@ class DemoDataSeeder extends Seeder
                 'hire_date' => Carbon::today()->addDays(10)->toDateString(),
                 'contract_start_date' => Carbon::today()->addDays(10)->toDateString(),
                 'contract_end_date' => Carbon::today()->addYears(2)->toDateString(),
-                'bank_iban' => 'AE930331234567890123459',
+                'bank_iban' => 'AE230331234567890123459',
                 'wps_person_id' => 'WPS1004',
             ]),
             'E1005' => $this->employee($company, $branchDubai, $departments['OPS'], $titles['SWE'], $admin, [
@@ -184,7 +184,7 @@ class DemoDataSeeder extends Seeder
                 'hire_date' => '2021-09-01',
                 'contract_start_date' => '2025-09-01',
                 'contract_end_date' => Carbon::today()->addDays(45)->toDateString(),
-                'bank_iban' => 'AE250331234567890123450',
+                'bank_iban' => 'AE720331234567890123450',
                 'wps_person_id' => 'WPS1005',
             ]),
         ];
@@ -262,6 +262,8 @@ class DemoDataSeeder extends Seeder
                 'contract_type' => 'fixed_term',
                 'probation_end_date' => Carbon::parse($data['hire_date'])->addMonths(6)->toDateString(),
                 'work_permit_type' => $data['is_uae_citizen'] ?? false ? 'uae_citizen' : 'mohre_work_permit',
+                'work_permit_number' => $data['work_permit_number'] ?? 'WP-'.$data['employee_code'],
+                'labor_card_number' => $data['labor_card_number'] ?? 'LC-'.$data['employee_code'],
                 'bank_name' => 'Emirates NBD',
                 'bank_routing_code' => 'EBILAEAD',
                 'created_by' => $admin->id,

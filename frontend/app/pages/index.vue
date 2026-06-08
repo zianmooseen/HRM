@@ -3,7 +3,9 @@
     <header class="dashboard-hero">
       <div>
         <h1>Dashboard</h1>
-        <p class="muted">Plan, prioritize, and manage UAE HR operations with clarity.</p>
+        <p class="muted">
+          {{ dashboardScopeLabel }}
+        </p>
       </div>
       <div class="hero-actions">
         <NuxtLink class="primary-action" to="/employees/create">Add Employee</NuxtLink>
@@ -15,6 +17,30 @@
     <p v-else-if="error" class="error">{{ error }}</p>
 
     <template v-else-if="dashboard">
+      <section class="scope-panel">
+        <label v-if="dashboard.scope.can_select_company">
+          Organization
+          <select v-model.number="selectedCompanyId" @change="changeCompany">
+            <option v-for="company in dashboard.scope.companies" :key="company.id" :value="company.id">
+              {{ company.name }}
+            </option>
+          </select>
+        </label>
+        <label>
+          Branch
+          <select v-model="selectedBranchId" @change="loadDashboard">
+            <option value="">All branches</option>
+            <option v-for="branch in dashboard.scope.branches" :key="branch.id" :value="String(branch.id)">
+              {{ branch.name }} ({{ branch.code }})
+            </option>
+          </select>
+        </label>
+        <p class="muted">
+          Employee, attendance, leave, contract, document, and WPS readiness counts follow this scope.
+          Payroll, WPS batch status, and Emiratisation remain organization-level.
+        </p>
+      </section>
+
       <section class="metric-grid">
         <article class="metric-card metric-card-feature">
           <div class="metric-topline">
@@ -143,6 +169,21 @@
             <NuxtLink to="/payroll">Open payroll</NuxtLink>
           </section>
 
+          <section class="panel focus-panel" :class="`wps-${dashboard.wps.compliance_status}`">
+            <h2>WPS Readiness</h2>
+            <strong>{{ wpsReadinessPercent }}%</strong>
+            <p class="muted">
+              {{ dashboard.wps.ready_employees }} of {{ dashboard.wps.active_employees }} employees ready
+            </p>
+            <p v-if="dashboard.wps.employees_missing_details > 0" class="wps-warning">
+              {{ dashboard.wps.employees_missing_details }} employee(s) need WPS details.
+            </p>
+            <p v-if="dashboard.wps.payment_due_date" class="muted">
+              Due {{ dashboard.wps.payment_due_date }} · {{ label(dashboard.wps.compliance_status) }}
+            </p>
+            <NuxtLink to="/payroll">Open WPS payroll</NuxtLink>
+          </section>
+
           <section class="panel project-list">
             <header>
               <h2>Operations</h2>
@@ -213,6 +254,28 @@
 definePageMeta({ middleware: ['auth'] })
 
 interface DashboardSummary {
+  scope: {
+    level: 'organization' | 'branch'
+    company: {
+      id: number
+      name: string
+    }
+    branch: {
+      id: number
+      name: string
+      code: string
+    } | null
+    companies: Array<{
+      id: number
+      name: string
+    }>
+    branches: Array<{
+      id: number
+      name: string
+      code: string
+    }>
+    can_select_company: boolean
+  }
   employee_counts: {
     active: number
     onboarding: number
@@ -241,6 +304,24 @@ interface DashboardSummary {
       pay_date: string
       status: string
     } | null
+  }
+  wps: {
+    company_setup_complete: boolean
+    missing_company_fields: string[]
+    active_employees: number
+    ready_employees: number
+    employees_missing_details: number
+    missing_employees: Array<{
+      id: number
+      employee_code: string
+      display_name: string
+      missing_fields: string[]
+    }>
+    latest_batch_status: string | null
+    latest_batch_id: number | null
+    payment_due_date: string | null
+    days_after_due: number | null
+    compliance_status: string
   }
   compliance: {
     latest_emiratisation_snapshot: {
@@ -277,11 +358,24 @@ interface DashboardSummary {
   }>
 }
 
-const auth = useAuthStore()
 const api = useApiClient()
 const dashboard = ref<DashboardSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
+const selectedCompanyId = ref<number | null>(null)
+const selectedBranchId = ref('')
+
+const dashboardScopeLabel = computed(() => {
+  const scope = dashboard.value?.scope
+
+  if (!scope) {
+    return 'Plan, prioritize, and manage UAE HR operations with clarity.'
+  }
+
+  return scope.branch
+    ? `${scope.company.name} · ${scope.branch.name} branch metrics`
+    : `${scope.company.name} · organization-wide metrics`
+})
 
 const payrollStatus = computed(() => {
   const status = dashboard.value?.payroll.latest_period?.status
@@ -291,6 +385,15 @@ const payrollPeriodLabel = computed(() => {
   const period = dashboard.value?.payroll.latest_period
 
   return period ? `${period.period_start} to ${period.period_end}` : 'No payroll period yet'
+})
+const wpsReadinessPercent = computed(() => {
+  const wps = dashboard.value?.wps
+
+  if (!wps?.active_employees) {
+    return wps?.company_setup_complete ? 100 : 0
+  }
+
+  return Math.round((wps.ready_employees / wps.active_employees) * 100)
 })
 const emiratisationStatus = computed(() => {
   const status = dashboard.value?.compliance.latest_emiratisation_snapshot?.compliance_status
@@ -486,13 +589,30 @@ async function loadDashboard() {
 
   try {
     // Feature flow step 1: the dashboard consumes a single backend summary so module counts stay consistent.
-    const response = await api.get<{ dashboard: DashboardSummary }>('/dashboard')
+    const params = new URLSearchParams()
+
+    if (selectedCompanyId.value) {
+      params.set('company_id', String(selectedCompanyId.value))
+    }
+
+    if (selectedBranchId.value) {
+      params.set('branch_id', selectedBranchId.value)
+    }
+
+    const query = params.size ? `?${params.toString()}` : ''
+    const response = await api.get<{ dashboard: DashboardSummary }>(`/dashboard${query}`)
     dashboard.value = response.data.dashboard
+    selectedCompanyId.value = response.data.dashboard.scope.company.id
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to load dashboard.')
   } finally {
     loading.value = false
   }
+}
+
+async function changeCompany() {
+  selectedBranchId.value = ''
+  await loadDashboard()
 }
 
 function actionLabel(value: string) {
@@ -518,6 +638,37 @@ function percent(value = 0, total = 0) {
 .dashboard-page {
   gap: 24px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.scope-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 320px)) 1fr;
+  align-items: end;
+  gap: 16px;
+  border: 1px solid #dce5df;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.scope-panel label {
+  display: grid;
+  gap: 6px;
+  color: #263b31;
+  font-weight: 700;
+}
+
+.scope-panel select {
+  min-height: 42px;
+}
+
+.scope-panel p {
+  margin: 0;
+}
+
+.wps-warning {
+  color: #8b1830;
+  font-weight: 700;
 }
 
 .muted {
@@ -888,6 +1039,10 @@ function percent(value = 0, total = 0) {
 
   .hero-actions {
     display: grid;
+  }
+
+  .scope-panel {
+    grid-template-columns: 1fr;
   }
 
   .bar-chart {

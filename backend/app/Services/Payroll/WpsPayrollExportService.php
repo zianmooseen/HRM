@@ -12,6 +12,12 @@ use Illuminate\Validation\ValidationException;
 
 class WpsPayrollExportService
 {
+    public function __construct(
+        private readonly WpsFileExporterFactory $exporters,
+        private readonly WpsReadinessService $readiness,
+    ) {
+    }
+
     public function generate(PayrollPeriod $period, int $userId): WpsPayrollBatch
     {
         $period->loadMissing(['company', 'payslips.employee']);
@@ -36,12 +42,17 @@ class WpsPayrollExportService
                 ]);
             }
 
+            $exporter = $this->exporters->make($period->company);
+            $rows = $payslips->map(fn (Payslip $payslip) => $this->row($period, $payslip));
+            $file = $exporter->generate($period, $rows);
+
             $batch = WpsPayrollBatch::query()->updateOrCreate(
                 ['company_id' => $period->company_id, 'payroll_period_id' => $period->id],
                 [
                     'batch_number' => $existing?->batch_number ?: $this->batchNumber($period),
                     'status' => 'generated',
-                    'file_format' => 'csv',
+                    'file_format' => $file->format,
+                    'provider' => $exporter->provider(),
                     'salary_month' => $period->period_start->format('Y-m'),
                     'record_count' => $payslips->count(),
                     'total_amount' => $payslips->sum(fn (Payslip $payslip) => (float) $payslip->net_pay),
@@ -51,13 +62,16 @@ class WpsPayrollExportService
                     'rejected_at' => null,
                     'rejection_reason' => null,
                     'generated_by' => $userId,
+                    'status_updated_by' => null,
+                    'bank_reference' => null,
+                    'response_filename' => null,
+                    'response_details_json' => null,
                     'validation_errors_json' => [],
                 ],
             );
 
             $batch->items()->delete();
 
-            $rows = $payslips->map(fn (Payslip $payslip) => $this->row($period, $payslip));
             foreach ($rows as $row) {
                 $batch->items()->create([
                     'payslip_id' => $row['payslip_id'],
@@ -76,7 +90,7 @@ class WpsPayrollExportService
                 ]);
             }
 
-            $batch->update(['file_content' => $this->csv($period, $rows)]);
+            $batch->update(['file_content' => $file->content]);
 
             return $batch->fresh(['payrollPeriod', 'items']);
         });
@@ -99,11 +113,7 @@ class WpsPayrollExportService
 
     private function validateCompany(PayrollPeriod $period): void
     {
-        $missing = collect([
-            'mohre_establishment_number' => $period->company->mohre_establishment_number,
-            'wps_agent_code' => $period->company->wps_agent_code,
-            'wps_file_sender_id' => $period->company->wps_file_sender_id,
-        ])->filter(fn ($value) => blank($value))->keys();
+        $missing = collect($this->readiness->companyMissingFields($period->company));
 
         if ($missing->isNotEmpty()) {
             throw ValidationException::withMessages([
@@ -118,11 +128,7 @@ class WpsPayrollExportService
 
         foreach ($payslips as $payslip) {
             $employee = $payslip->employee;
-            $missing = collect([
-                'bank_iban' => $employee?->bank_iban,
-                'bank_routing_code' => $employee?->bank_routing_code,
-                'wps_person_id' => $employee?->wps_person_id,
-            ])->filter(fn ($value) => blank($value))->keys();
+            $missing = collect($employee ? $this->readiness->employeeMissingFields($employee) : ['employee']);
 
             if ($missing->isNotEmpty()) {
                 $errors[] = ($employee?->employee_code ?? 'Employee #'.$payslip->employee_id).' missing '.$missing->implode(', ');
@@ -156,48 +162,6 @@ class WpsPayrollExportService
             'net_pay' => round((float) $payslip->net_pay, 2),
             'days_in_period' => $days,
         ];
-    }
-
-    private function csv(PayrollPeriod $period, Collection $rows): string
-    {
-        $lines = [
-            $this->csvLine(['Record Type', 'Employee Code', 'Employee Name', 'WPS Person ID', 'Routing Code', 'IBAN', 'Salary Month', 'Fixed Income', 'Variable Income', 'Net Pay', 'Days']),
-        ];
-
-        foreach ($rows as $row) {
-            $lines[] = $this->csvLine([
-                $row['record_type'],
-                $row['employee_code'],
-                $row['employee_name'],
-                $row['wps_person_id'],
-                $row['bank_routing_code'],
-                $row['bank_iban'],
-                $row['salary_month'],
-                number_format($row['fixed_income'], 2, '.', ''),
-                number_format($row['variable_income'], 2, '.', ''),
-                number_format($row['net_pay'], 2, '.', ''),
-                $row['days_in_period'],
-            ]);
-        }
-
-        $lines[] = $this->csvLine([
-            'SCR',
-            $period->company->mohre_establishment_number,
-            $period->company->wps_agent_code,
-            $period->company->wps_file_sender_id,
-            $period->period_start->format('Y-m'),
-            $rows->count(),
-            number_format($rows->sum('net_pay'), 2, '.', ''),
-        ]);
-
-        return implode("\n", $lines)."\n";
-    }
-
-    private function csvLine(array $values): string
-    {
-        return collect($values)
-            ->map(fn ($value) => '"'.str_replace('"', '""', (string) $value).'"')
-            ->implode(',');
     }
 
     private function batchNumber(PayrollPeriod $period): string

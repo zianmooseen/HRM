@@ -4,6 +4,16 @@
       <h1>Employees</h1>
       <NuxtLink to="/employees/create">Create employee</NuxtLink>
     </header>
+    <label class="filter-control">
+      WPS readiness
+      <select v-model="wpsStatus" @change="loadEmployees">
+        <option value="">All employees</option>
+        <option value="ready">Ready for WPS</option>
+        <option value="missing_details">Missing WPS details</option>
+        <option value="invalid_iban">Invalid UAE IBAN</option>
+        <option value="missing_work_permit">Missing work permit</option>
+      </select>
+    </label>
     <p v-if="loading">Loading employees...</p>
     <p v-else-if="error" class="error">{{ error }}</p>
     <table v-else>
@@ -56,17 +66,24 @@ const api = useApiClient()
 const employees = ref<EmployeeRow[]>([])
 const loading = ref(true)
 const error = ref('')
+const wpsStatus = ref('')
 
-onMounted(async () => {
+onMounted(loadEmployees)
+
+async function loadEmployees() {
+  loading.value = true
+  error.value = ''
+
   try {
-    const response = await api.get<{ employees: EmployeeRow[] }>('/employees')
+    const query = wpsStatus.value ? `?wps_status=${wpsStatus.value}` : ''
+    const response = await api.get<{ employees: EmployeeRow[] }>(`/employees${query}`)
     employees.value = response.data.employees
   } catch {
     error.value = 'Unable to load employees.'
   } finally {
     loading.value = false
   }
-})
+}
 
 function contractLabel(employee: EmployeeRow) {
   if (employee.contract_expiry_status === 'not_tracked') {
@@ -86,6 +103,12 @@ function contractLabel(employee: EmployeeRow) {
 </script>
 
 <style scoped>
+.filter-control {
+  display: grid;
+  max-width: 320px;
+  gap: 6px;
+}
+
 .status-pill {
   display: inline-flex;
   border-radius: 999px;

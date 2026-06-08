@@ -60,6 +60,14 @@
         <input v-model="form.work_permit_type">
       </label>
       <label>
+        Work permit number
+        <input v-model="form.work_permit_number">
+      </label>
+      <label>
+        Labor card number
+        <input v-model="form.labor_card_number">
+      </label>
+      <label>
         Hire date
         <input v-model="form.hire_date" type="date">
       </label>

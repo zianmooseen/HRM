@@ -26,6 +26,7 @@ class Company extends Model
         'economic_sector_code',
         'mohre_establishment_number',
         'wps_bank_name',
+        'wps_provider',
         'wps_agent_code',
         'wps_file_sender_id',
     ];

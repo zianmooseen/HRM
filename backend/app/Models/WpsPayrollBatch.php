@@ -14,6 +14,7 @@ class WpsPayrollBatch extends Model
         'batch_number',
         'status',
         'file_format',
+        'provider',
         'salary_month',
         'record_count',
         'total_amount',
@@ -22,7 +23,11 @@ class WpsPayrollBatch extends Model
         'accepted_at',
         'rejected_at',
         'rejection_reason',
+        'bank_reference',
+        'response_filename',
+        'response_details_json',
         'generated_by',
+        'status_updated_by',
         'file_content',
         'validation_errors_json',
     ];
@@ -34,6 +39,7 @@ class WpsPayrollBatch extends Model
         'submitted_at' => 'datetime',
         'accepted_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'response_details_json' => 'array',
         'validation_errors_json' => 'array',
     ];
 

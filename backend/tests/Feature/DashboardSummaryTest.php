@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AttendanceRecord;
 use App\Models\AuditLog;
+use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Document;
 use App\Models\Employee;
@@ -154,6 +155,98 @@ class DashboardSummaryTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->getJson('/api/dashboard')->assertForbidden();
+    }
+
+    public function test_company_admin_can_filter_dashboard_metrics_by_branch(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+
+        [$company, $user] = $this->companyAdmin();
+        $dubai = Branch::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Dubai',
+            'code' => 'DXB',
+            'status' => 'active',
+        ]);
+        $abuDhabi = Branch::query()->create([
+            'company_id' => $company->id,
+            'name' => 'Abu Dhabi',
+            'code' => 'AUH',
+            'status' => 'active',
+        ]);
+        $dubaiEmployee = Employee::query()->create([
+            'company_id' => $company->id,
+            'branch_id' => $dubai->id,
+            'employee_code' => 'DXB-001',
+            'first_name' => 'Dubai',
+            'last_name' => 'Worker',
+            'display_name' => 'Dubai Worker',
+            'status' => 'active',
+        ]);
+        Employee::query()->create([
+            'company_id' => $company->id,
+            'branch_id' => $abuDhabi->id,
+            'employee_code' => 'AUH-001',
+            'first_name' => 'Abu Dhabi',
+            'last_name' => 'Worker',
+            'display_name' => 'Abu Dhabi Worker',
+            'status' => 'active',
+        ]);
+        AttendanceRecord::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $dubaiEmployee->id,
+            'date' => now()->toDateString(),
+            'status' => 'present',
+            'source' => 'manual',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson("/api/dashboard?branch_id={$dubai->id}")
+            ->assertOk()
+            ->assertJsonPath('data.dashboard.scope.level', 'branch')
+            ->assertJsonPath('data.dashboard.scope.branch.id', $dubai->id)
+            ->assertJsonPath('data.dashboard.employee_counts.active', 1)
+            ->assertJsonPath('data.dashboard.attendance_today.present', 1);
+    }
+
+    public function test_company_admin_cannot_select_another_company_dashboard(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+
+        [, $user] = $this->companyAdmin();
+        $otherCompany = Company::query()->create(['name' => 'Other Company']);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson("/api/dashboard?company_id={$otherCompany->id}")->assertForbidden();
+    }
+
+    public function test_super_admin_can_select_any_company_dashboard(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+
+        Company::query()->create(['name' => 'First Company']);
+        $selectedCompany = Company::query()->create(['name' => 'Selected Company']);
+        Employee::query()->create([
+            'company_id' => $selectedCompany->id,
+            'employee_code' => 'SYS-001',
+            'first_name' => 'System',
+            'last_name' => 'View',
+            'display_name' => 'System View',
+            'status' => 'active',
+        ]);
+        $user = User::factory()->create();
+        $role = Role::query()->where('slug', 'super_admin')->firstOrFail();
+        $user->roles()->attach($role->id, ['scope' => 'global']);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson("/api/dashboard?company_id={$selectedCompany->id}")
+            ->assertOk()
+            ->assertJsonPath('data.dashboard.scope.can_select_company', true)
+            ->assertJsonPath('data.dashboard.scope.company.id', $selectedCompany->id)
+            ->assertJsonPath('data.dashboard.employee_counts.active', 1);
     }
 
     private function companyAdmin(): array

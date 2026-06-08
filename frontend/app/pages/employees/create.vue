@@ -60,6 +60,14 @@
         <input v-model="form.work_permit_type">
       </label>
       <label>
+        Work permit number
+        <input v-model="form.work_permit_number">
+      </label>
+      <label>
+        Labor card number
+        <input v-model="form.labor_card_number">
+      </label>
+      <label>
         Hire date
         <input v-model="form.hire_date" type="date">
       </label>
@@ -129,6 +137,22 @@
         Monthly package estimate
         <input v-model.number="form.monthly_salary" type="number" min="0">
       </label>
+      <label>
+        Bank name
+        <input v-model="form.bank_name">
+      </label>
+      <label>
+        UAE IBAN
+        <input v-model="form.bank_iban" maxlength="34">
+      </label>
+      <label>
+        Bank routing code
+        <input v-model="form.bank_routing_code">
+      </label>
+      <label>
+        WPS person ID
+        <input v-model="form.wps_person_id">
+      </label>
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Create employee' }}</button>
     </form>
@@ -160,6 +184,8 @@ const form = reactive({
   skill_level: '',
   is_skilled_worker: false,
   work_permit_type: '',
+  work_permit_number: '',
+  labor_card_number: '',
   hire_date: '',
   probation_end_date: '',
   contract_start_date: '',
@@ -173,6 +199,10 @@ const form = reactive({
   status: 'draft',
   basic_salary: null as number | null,
   monthly_salary: null as number | null,
+  bank_name: '',
+  bank_iban: '',
+  bank_routing_code: '',
+  wps_person_id: '',
 })
 
 onMounted(async () => {

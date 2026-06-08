@@ -36,6 +36,8 @@ class EmployeeResource extends JsonResource
             'skill_level' => $this->skill_level,
             'is_skilled_worker' => $this->is_skilled_worker,
             'work_permit_type' => $this->work_permit_type,
+            'work_permit_number' => $this->when($canViewSalary, $this->work_permit_number),
+            'labor_card_number' => $this->when($canViewSalary, $this->labor_card_number),
             'date_of_birth' => optional($this->date_of_birth)->toDateString(),
             'hire_date' => optional($this->hire_date)->toDateString(),
             'probation_end_date' => optional($this->probation_end_date)->toDateString(),

@@ -25,6 +25,7 @@ class CompanyResource extends JsonResource
             'economic_sector_code' => $this->economic_sector_code,
             'mohre_establishment_number' => $this->mohre_establishment_number,
             'wps_bank_name' => $this->wps_bank_name,
+            'wps_provider' => $this->wps_provider ?? 'generic',
             'wps_agent_code' => $this->wps_agent_code,
             'wps_file_sender_id' => $this->wps_file_sender_id,
         ];

@@ -205,8 +205,10 @@
             <td class="table-actions">
               <a class="secondary-link" :href="downloadWpsUrl(batch)" target="_blank">Download</a>
               <button v-if="batch.status === 'generated'" type="button" class="secondary" @click="updateWpsStatus(batch, 'submitted')">Mark submitted</button>
-              <button v-if="batch.status === 'submitted'" type="button" class="secondary" @click="updateWpsStatus(batch, 'accepted')">Mark accepted</button>
-              <button v-if="batch.status === 'submitted'" type="button" class="secondary" @click="updateWpsStatus(batch, 'rejected')">Mark rejected</button>
+              <button v-if="batch.status === 'submitted'" type="button" class="secondary" @click="updateWpsStatus(batch, 'processing')">Mark processing</button>
+              <button v-if="['submitted', 'processing'].includes(batch.status)" type="button" class="secondary" @click="updateWpsStatus(batch, 'accepted')">Mark accepted</button>
+              <button v-if="['submitted', 'processing'].includes(batch.status)" type="button" class="secondary" @click="updateWpsStatus(batch, 'partially_accepted')">Mark partial</button>
+              <button v-if="['submitted', 'processing'].includes(batch.status)" type="button" class="secondary" @click="updateWpsStatus(batch, 'rejected')">Mark rejected</button>
             </td>
           </tr>
           <tr v-if="wpsBatches.length === 0">
@@ -252,6 +254,8 @@ interface WpsPayrollBatch {
   record_count: number
   total_amount: string
   status: string
+  provider: string
+  bank_reference: string | null
 }
 
 interface Payslip {
@@ -429,7 +433,11 @@ async function generateWps(period: PayrollPeriod) {
 
 async function updateWpsStatus(batch: WpsPayrollBatch, status: string) {
   const rejection_reason = status === 'rejected' ? 'Rejected by WPS processor. Review external submission response.' : null
-  await api.post(`/wps-payroll-batches/${batch.id}/status`, { status, rejection_reason })
+  const bank_reference = status === 'submitted'
+    ? window.prompt('Bank submission reference (optional):') || null
+    : batch.bank_reference
+
+  await api.post(`/wps-payroll-batches/${batch.id}/status`, { status, rejection_reason, bank_reference })
   await loadWpsBatches(selectedPeriod.value?.id)
 }
 

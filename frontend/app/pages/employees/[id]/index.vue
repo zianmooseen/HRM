@@ -31,6 +31,12 @@
       <dd>{{ employee.skill_level || '-' }}</dd>
       <dt>Work permit type</dt>
       <dd>{{ employee.work_permit_type || '-' }}</dd>
+      <template v-if="employee.basic_salary !== undefined">
+        <dt>Work permit number</dt>
+        <dd>{{ employee.work_permit_number || '-' }}</dd>
+        <dt>Labor card number</dt>
+        <dd>{{ employee.labor_card_number || '-' }}</dd>
+      </template>
       <dt>Branch</dt>
       <dd>{{ employee.branch?.name || '-' }}</dd>
       <dt>Department</dt>

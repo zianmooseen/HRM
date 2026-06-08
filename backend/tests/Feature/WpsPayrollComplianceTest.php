@@ -30,6 +30,7 @@ class WpsPayrollComplianceTest extends TestCase
             'display_name' => 'Wps Employee',
             'status' => 'active',
             'basic_salary' => 10000,
+            'work_permit_number' => 'WP123456',
             'bank_name' => 'Demo Bank',
             'bank_iban' => 'AE070331234567890123456',
             'bank_routing_code' => 'DEMOAEAD',
@@ -57,6 +58,7 @@ class WpsPayrollComplianceTest extends TestCase
         $batchId = $this->postJson("/api/payroll-periods/{$period->id}/wps-export")
             ->assertCreated()
             ->assertJsonPath('data.wps_payroll_batch.status', 'generated')
+            ->assertJsonPath('data.wps_payroll_batch.file_format', 'sif')
             ->assertJsonPath('data.wps_payroll_batch.record_count', 1)
             ->assertJsonPath('data.wps_payroll_batch.total_amount', '11500.00')
             ->json('data.wps_payroll_batch.id');
@@ -76,6 +78,11 @@ class WpsPayrollComplianceTest extends TestCase
             'company_id' => $company->id,
             'action' => 'wps_payroll_batch.generated',
         ]);
+
+        $this->get("/api/wps-payroll-batches/{$batchId}/download")
+            ->assertOk()
+            ->assertHeader('content-type', 'text/plain; charset=UTF-8')
+            ->assertHeader('content-disposition', 'attachment; filename="WPS-'.$company->id.'-202605-'.str_pad((string) $period->id, 4, '0', STR_PAD_LEFT).'.sif"');
     }
 
     public function test_wps_export_rejects_missing_employee_bank_details(): void
@@ -111,7 +118,7 @@ class WpsPayrollComplianceTest extends TestCase
 
         $this->postJson("/api/payroll-periods/{$period->id}/wps-export")
             ->assertUnprocessable()
-            ->assertJsonPath('errors.employees.0', 'EMP-NOBANK missing bank_iban, bank_routing_code, wps_person_id');
+            ->assertJsonPath('errors.employees.0', 'EMP-NOBANK missing work_permit_number, bank_iban, bank_routing_code, wps_person_id');
     }
 
     public function test_wps_batch_status_can_be_tracked_after_generation(): void
@@ -127,7 +134,8 @@ class WpsPayrollComplianceTest extends TestCase
             'display_name' => 'Status Employee',
             'status' => 'active',
             'basic_salary' => 7000,
-            'bank_iban' => 'AE070331234567890999999',
+            'work_permit_number' => 'WP999999',
+            'bank_iban' => 'AE850331234567890999999',
             'bank_routing_code' => 'DEMOAEAD',
             'wps_person_id' => 'P999999',
         ]);
@@ -171,6 +179,7 @@ class WpsPayrollComplianceTest extends TestCase
         $company = Company::query()->create([
             'name' => 'Demo Company',
             'mohre_establishment_number' => 'MOHRE-123',
+            'wps_bank_name' => 'Demo Bank',
             'wps_agent_code' => 'AGENT01',
             'wps_file_sender_id' => 'SENDER01',
         ]);

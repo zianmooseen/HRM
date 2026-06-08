@@ -28,6 +28,7 @@ class UpdateCompanyRequest extends FormRequest
             'economic_sector_code' => ['nullable', 'string', 'max:100'],
             'mohre_establishment_number' => ['nullable', 'string', 'max:100'],
             'wps_bank_name' => ['nullable', 'string', 'max:255'],
+            'wps_provider' => ['nullable', 'in:generic,fab,emirates_nbd'],
             'wps_agent_code' => ['nullable', 'string', 'max:100'],
             'wps_file_sender_id' => ['nullable', 'string', 'max:100'],
         ];

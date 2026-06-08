@@ -1,6 +1,6 @@
 export default defineNuxtConfig({
   srcDir: 'app',
-  modules: ['@pinia/nuxt'],
+  modules: ['@pinia/nuxt', '@nuxt/eslint'],
   css: ['driver.js/dist/driver.css', '~/assets/css/main.css'],
   runtimeConfig: {
     public: {

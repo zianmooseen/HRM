@@ -73,7 +73,7 @@ class WpsPayrollBatchController extends Controller
         $before = $batch->toArray();
         $timestamps = [
             'submitted_at' => $data['status'] === 'submitted' ? now() : $batch->submitted_at,
-            'accepted_at' => $data['status'] === 'accepted' ? now() : null,
+            'accepted_at' => in_array($data['status'], ['accepted', 'partially_accepted'], true) ? now() : null,
             'rejected_at' => $data['status'] === 'rejected' ? now() : null,
         ];
 
@@ -81,6 +81,10 @@ class WpsPayrollBatchController extends Controller
         $batch->update([
             'status' => $data['status'],
             'rejection_reason' => $data['status'] === 'rejected' ? ($data['rejection_reason'] ?? null) : null,
+            'bank_reference' => $data['bank_reference'] ?? $batch->bank_reference,
+            'response_filename' => $data['response_filename'] ?? $batch->response_filename,
+            'response_details_json' => $data['response_details'] ?? $batch->response_details_json,
+            'status_updated_by' => $request->user()->id,
             ...$timestamps,
         ]);
         $this->audit->log($request, 'wps_payroll_batch.status_updated', $batch, $before, $batch->fresh()->toArray());
@@ -95,9 +99,11 @@ class WpsPayrollBatchController extends Controller
         $company = $this->company($request, 'payroll.export');
         $this->ensureOwned($batch, $company->id);
 
+        $extension = $batch->file_format === 'sif' ? 'sif' : 'txt';
+
         return response($batch->file_content ?? '', 200, [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="'.$batch->batch_number.'.csv"',
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => 'attachment; filename="'.$batch->batch_number.'.'.$extension.'"',
         ]);
     }
 

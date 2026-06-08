@@ -43,6 +43,14 @@
         <input v-model="form.wps_bank_name">
       </label>
       <label>
+        WPS provider profile
+        <select v-model="form.wps_provider">
+          <option value="generic">Generic SIF</option>
+          <option value="fab">FAB</option>
+          <option value="emirates_nbd">Emirates NBD</option>
+        </select>
+      </label>
+      <label>
         WPS agent code
         <input v-model="form.wps_agent_code">
       </label>

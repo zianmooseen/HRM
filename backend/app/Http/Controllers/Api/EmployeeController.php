@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Models\JobTitle;
 use App\Services\Audit\AuditLogger;
 use App\Services\Auth\CompanyAccess;
+use App\Services\Payroll\WpsReadinessService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,11 @@ class EmployeeController extends Controller
 {
     use RespondsWithApiEnvelope;
 
-    public function __construct(private readonly CompanyAccess $access, private readonly AuditLogger $audit)
+    public function __construct(
+        private readonly CompanyAccess $access,
+        private readonly AuditLogger $audit,
+        private readonly WpsReadinessService $wpsReadiness,
+    )
     {
     }
 
@@ -51,6 +56,22 @@ class EmployeeController extends Controller
             })
             ->orderBy('display_name')
             ->get();
+
+        if ($request->query('wps_status')) {
+            $employees = $employees
+                ->filter(function (Employee $employee) use ($request): bool {
+                    $missing = $this->wpsReadiness->employeeMissingFields($employee);
+
+                    return match ($request->query('wps_status')) {
+                        'ready' => $missing === [],
+                        'missing_details' => $missing !== [],
+                        'invalid_iban' => in_array('bank_iban_invalid', $missing, true),
+                        'missing_work_permit' => in_array('work_permit_number', $missing, true),
+                        default => true,
+                    };
+                })
+                ->values();
+        }
 
         return $this->success('Employees retrieved.', [
             'employees' => EmployeeResource::collection($employees),

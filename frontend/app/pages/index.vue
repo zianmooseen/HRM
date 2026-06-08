@@ -1,6 +1,116 @@
 <template>
   <section class="page dashboard-page">
-    <header class="dashboard-hero">
+    <template v-if="isEmployeeSelfService">
+      <header class="dashboard-hero">
+        <div>
+          <h1>Welcome, {{ employeeDashboard?.employee.display_name || auth.user?.name }}</h1>
+          <p class="muted">Your personal HR workspace.</p>
+        </div>
+        <div class="hero-actions">
+          <NuxtLink class="primary-action" to="/my/leave">Request Leave</NuxtLink>
+          <NuxtLink class="ghost-action" to="/my/attendance">My Attendance</NuxtLink>
+        </div>
+      </header>
+
+      <p v-if="loading" class="loading-state">Loading your dashboard...</p>
+      <p v-else-if="error" class="error">{{ error }}</p>
+
+      <template v-else-if="employeeDashboard">
+        <section class="metric-grid employee-metrics">
+          <article class="metric-card metric-card-feature">
+            <div class="metric-topline">
+              <span>Today</span>
+              <NuxtLink to="/my/attendance" aria-label="Open my attendance">></NuxtLink>
+            </div>
+            <strong>{{ employeeDashboard.attendance_today ? label(employeeDashboard.attendance_today.status) : 'Not recorded' }}</strong>
+            <small>
+              {{ employeeDashboard.attendance_today?.check_in || '-' }} to
+              {{ employeeDashboard.attendance_today?.check_out || '-' }}
+            </small>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-topline">
+              <span>Pending Leave</span>
+              <NuxtLink to="/my/leave" aria-label="Open my leave">></NuxtLink>
+            </div>
+            <strong>{{ employeeDashboard.leave.pending_requests }}</strong>
+            <small>{{ employeeDashboard.leave.approved_upcoming }} approved upcoming</small>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-topline">
+              <span>Documents</span>
+              <NuxtLink to="/my/documents" aria-label="Open my documents">></NuxtLink>
+            </div>
+            <strong>{{ employeeDashboard.documents.total }}</strong>
+            <small>{{ employeeDashboard.documents.expiring_soon }} expiring within 60 days</small>
+          </article>
+
+          <article class="metric-card">
+            <div class="metric-topline">
+              <span>Corrections</span>
+              <NuxtLink to="/my/attendance" aria-label="Open attendance corrections">></NuxtLink>
+            </div>
+            <strong>{{ employeeDashboard.pending_attendance_corrections }}</strong>
+            <small>Attendance requests pending</small>
+          </article>
+        </section>
+
+        <section class="employee-dashboard-grid">
+          <section class="panel">
+            <header>
+              <div>
+                <h2>My Employment</h2>
+                <p class="muted">Your current organization details.</p>
+              </div>
+              <NuxtLink to="/my/profile">View profile</NuxtLink>
+            </header>
+            <dl class="employee-summary">
+              <dt>Employee code</dt>
+              <dd>{{ employeeDashboard.employee.employee_code }}</dd>
+              <dt>Status</dt>
+              <dd>{{ label(employeeDashboard.employee.status) }}</dd>
+              <dt>Branch</dt>
+              <dd>{{ employeeDashboard.employee.branch?.name || '-' }}</dd>
+              <dt>Department</dt>
+              <dd>{{ employeeDashboard.employee.department?.name || '-' }}</dd>
+              <dt>Job title</dt>
+              <dd>{{ employeeDashboard.employee.job_title?.title || '-' }}</dd>
+              <dt>Hire date</dt>
+              <dd>{{ employeeDashboard.employee.hire_date || '-' }}</dd>
+            </dl>
+          </section>
+
+          <section class="panel">
+            <header>
+              <div>
+                <h2>Recent Leave</h2>
+                <p class="muted">Your latest requests.</p>
+              </div>
+              <NuxtLink to="/my/leave">Manage leave</NuxtLink>
+            </header>
+            <div v-if="employeeDashboard.leave.recent_requests.length" class="reminder-list">
+              <article
+                v-for="request in employeeDashboard.leave.recent_requests"
+                :key="request.id"
+                class="reminder-row"
+              >
+                <span>
+                  <strong>{{ request.type || 'Leave' }}</strong>
+                  <small>{{ request.start_date }} to {{ request.end_date }}</small>
+                </span>
+                <em>{{ label(request.status) }}</em>
+              </article>
+            </div>
+            <p v-else class="muted empty-state">No leave requests yet.</p>
+          </section>
+        </section>
+      </template>
+    </template>
+
+    <template v-else>
+      <header class="dashboard-hero">
       <div>
         <h1>Dashboard</h1>
         <p class="muted">
@@ -246,6 +356,7 @@
           </section>
         </aside>
       </section>
+      </template>
     </template>
   </section>
 </template>
@@ -358,12 +469,53 @@ interface DashboardSummary {
   }>
 }
 
+interface EmployeeDashboardSummary {
+  employee: {
+    id: number
+    employee_code: string
+    display_name: string
+    status: string
+    hire_date: string | null
+    branch?: { name: string } | null
+    department?: { name: string } | null
+    job_title?: { title: string } | null
+  }
+  attendance_today: {
+    status: string
+    check_in: string | null
+    check_out: string | null
+  } | null
+  leave: {
+    pending_requests: number
+    approved_upcoming: number
+    recent_requests: Array<{
+      id: number
+      type: string | null
+      start_date: string
+      end_date: string
+      status: string
+    }>
+  }
+  documents: {
+    total: number
+    expiring_soon: number
+  }
+  pending_attendance_corrections: number
+}
+
+const auth = useAuthStore()
 const api = useApiClient()
 const dashboard = ref<DashboardSummary | null>(null)
+const employeeDashboard = ref<EmployeeDashboardSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
 const selectedCompanyId = ref<number | null>(null)
 const selectedBranchId = ref('')
+const isEmployeeSelfService = computed(() =>
+  auth.hasRole('employee')
+  && !['super_admin', 'company_admin', 'hr_manager', 'payroll_manager', 'department_manager']
+    .some((role) => auth.hasRole(role)),
+)
 
 const dashboardScopeLabel = computed(() => {
   const scope = dashboard.value?.scope
@@ -581,7 +733,28 @@ const dashboardQuestions = computed(() => [
   },
 ])
 
-onMounted(loadDashboard)
+onMounted(() => {
+  if (isEmployeeSelfService.value) {
+    loadEmployeeDashboard()
+    return
+  }
+
+  loadDashboard()
+})
+
+async function loadEmployeeDashboard() {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await api.get<{ dashboard: EmployeeDashboardSummary }>('/self/dashboard')
+    employeeDashboard.value = response.data.dashboard
+  } catch (err) {
+    error.value = apiErrorMessage(err, 'Unable to load your dashboard.')
+  } finally {
+    loading.value = false
+  }
+}
 
 async function loadDashboard() {
   loading.value = true
@@ -664,6 +837,29 @@ function percent(value = 0, total = 0) {
 
 .scope-panel p {
   margin: 0;
+}
+
+.employee-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.employee-summary {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.6fr) 1fr;
+  gap: 12px 18px;
+  margin: 0;
+}
+
+.employee-summary dt {
+  color: #7d8782;
+}
+
+.employee-summary dd {
+  margin: 0;
+  color: #173c2b;
+  font-weight: 700;
 }
 
 .wps-warning {
@@ -1042,6 +1238,10 @@ function percent(value = 0, total = 0) {
   }
 
   .scope-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-dashboard-grid {
     grid-template-columns: 1fr;
   }
 

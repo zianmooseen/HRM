@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AttendanceRecord;
+use App\Models\AttendanceCorrectionRequest;
 use App\Models\Company;
 use App\Models\Document;
 use App\Models\Employee;
@@ -150,6 +151,74 @@ class EmployeeSelfServiceTest extends TestCase
             'document_type' => 'passport',
             'file' => UploadedFile::fake()->create('passport.pdf', 10, 'application/pdf'),
         ])->assertCreated();
+    }
+
+    public function test_employee_can_view_personal_dashboard_summary(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LeaveTypeSeeder::class]);
+
+        $company = Company::query()->create(['name' => 'Demo Company']);
+        $user = User::factory()->create();
+        $employee = $this->employee($company, ['user_id' => $user->id]);
+        $role = Role::query()->where('slug', 'employee')->firstOrFail();
+        $user->roles()->attach($role->id, [
+            'company_id' => $company->id,
+            'scope' => 'self',
+        ]);
+        $leaveType = LeaveType::query()->where('code', 'annual_leave')->firstOrFail();
+
+        AttendanceRecord::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'date' => now()->toDateString(),
+            'status' => 'present',
+            'source' => 'manual',
+        ]);
+        LeaveRequest::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'leave_type_id' => $leaveType->id,
+            'start_date' => now()->addWeek()->toDateString(),
+            'end_date' => now()->addWeek()->toDateString(),
+            'total_days' => 1,
+            'working_days' => 1,
+            'status' => 'pending',
+            'requested_by' => $user->id,
+        ]);
+        Document::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'document_type' => 'passport',
+            'title' => 'Passport',
+            'original_file_name' => 'passport.pdf',
+            'disk' => 'local',
+            'path' => 'passport.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 10,
+            'expiry_date' => now()->addDays(30)->toDateString(),
+            'status' => 'active',
+        ]);
+        AttendanceCorrectionRequest::query()->create([
+            'company_id' => $company->id,
+            'employee_id' => $employee->id,
+            'date' => now()->subDay()->toDateString(),
+            'correction_type' => 'missed_check_out',
+            'requested_status' => 'present',
+            'reason' => 'Missed checkout',
+            'status' => 'pending',
+            'requested_by' => $user->id,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/self/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.dashboard.employee.id', $employee->id)
+            ->assertJsonPath('data.dashboard.attendance_today.status', 'present')
+            ->assertJsonPath('data.dashboard.leave.pending_requests', 1)
+            ->assertJsonPath('data.dashboard.documents.total', 1)
+            ->assertJsonPath('data.dashboard.documents.expiring_soon', 1)
+            ->assertJsonPath('data.dashboard.pending_attendance_corrections', 1);
     }
 
     private function companyAdmin(): array

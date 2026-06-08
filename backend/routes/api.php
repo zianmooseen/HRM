@@ -38,6 +38,7 @@ Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', CurrentUserController::class);
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
+    Route::get('/self/dashboard', [SelfServiceController::class, 'dashboard']);
     Route::get('/self/profile', [SelfServiceController::class, 'profile']);
     Route::get('/dashboard', DashboardController::class);
     Route::get('/audit-logs', [AuditLogController::class, 'index']);

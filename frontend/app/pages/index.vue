@@ -321,6 +321,54 @@ const analyticsBars = computed(() => {
 })
 const dashboardQuestions = computed(() => [
   {
+    question: 'What should I set up first?',
+    answer: 'Start with company settings, branches, departments, and job titles. After that, create employees and assign onboarding tasks so attendance, leave, and payroll have clean source data.',
+    action: 'Open company settings',
+    to: '/settings/company',
+  },
+  {
+    question: 'How do I add a new employee?',
+    answer: 'Use Add Employee to create the HR profile, assign the branch, department, job title, manager, contract dates, and salary basis before moving into onboarding.',
+    action: 'Add employee',
+    to: '/employees/create',
+  },
+  {
+    question: 'Who is still in onboarding?',
+    answer: `${dashboard.value?.employee_counts.onboarding ?? 0} employee record(s) are currently in onboarding. Open Onboarding to review templates, generated tasks, and case progress.`,
+    action: 'Open onboarding',
+    to: '/onboarding',
+  },
+  {
+    question: 'Which employees are missing documents?',
+    answer: 'Open employee records and review each employee file. Required document collection is handled through employee documents and onboarding tasks.',
+    action: 'View employees',
+    to: '/employees',
+  },
+  {
+    question: 'Which contracts are expiring soon?',
+    answer: `${dashboard.value?.alerts.contracts_expiring.length ?? 0} contract(s) need review in the next 60 days. Open the employee profile to extend the contract, renew the service period, or prepare termination.`,
+    action: 'Review contracts',
+    to: '/employees',
+  },
+  {
+    question: 'Who is absent today?',
+    answer: `${dashboard.value?.attendance_today.absent ?? 0} employee record(s) are marked absent today. Open Attendance to inspect records by date, employee, or department.`,
+    action: 'Open attendance',
+    to: '/attendance',
+  },
+  {
+    question: 'Who has missing check-out times?',
+    answer: 'Use the Attendance page to filter today or a selected date range, then inspect incomplete records and correct them through the manual attendance flow.',
+    action: 'Check attendance',
+    to: '/attendance',
+  },
+  {
+    question: 'Which branch has the most attendance issues?',
+    answer: 'Attendance records are ready for branch-level review. Open Attendance and compare records using employee branch and department filters.',
+    action: 'Review attendance',
+    to: '/attendance',
+  },
+  {
     question: 'How do I handle pending leave?',
     answer: `${dashboard.value?.leave.pending_requests ?? 0} leave request(s) are waiting for review. Open Leave to approve, reject, or inspect balances before deciding.`,
     action: 'Review leave requests',
@@ -333,15 +381,33 @@ const dashboardQuestions = computed(() => [
     to: '/attendance',
   },
   {
-    question: 'What should I do with expiring contracts?',
-    answer: `${dashboard.value?.alerts.contracts_expiring.length ?? 0} contract(s) need review in the next 60 days. Open the employee profile to extend the contract or prepare termination.`,
-    action: 'View employees',
-    to: '/employees',
+    question: 'Who is currently on leave?',
+    answer: `${dashboard.value?.attendance_today.on_leave ?? 0} employee record(s) are marked on leave today. Open Leave to review approved requests and balances.`,
+    action: 'Open leave',
+    to: '/leave',
+  },
+  {
+    question: 'Who has low annual leave balance?',
+    answer: 'Open Leave to review employee balances before approving requests. This helps avoid approving more paid annual leave than the available balance.',
+    action: 'Review leave balances',
+    to: '/leave',
+  },
+  {
+    question: 'Are public holidays counted correctly in leave?',
+    answer: 'Public holiday treatment is controlled by company compliance settings and public holiday records. Review both before running final leave calculations.',
+    action: 'Open public holidays',
+    to: '/settings/public-holidays',
   },
   {
     question: 'How do I follow up expiring documents?',
     answer: `${dashboard.value?.alerts.documents_expiring.length ?? 0} document(s) are expiring soon. Open the employee file and upload a replacement document when available.`,
     action: 'Open employee files',
+    to: '/employees',
+  },
+  {
+    question: 'Which documents expire in the next 30 days?',
+    answer: `${dashboard.value?.alerts.documents_expiring.length ?? 0} document(s) are listed as expiring soon. Open employee files to replace passports, visas, labor cards, or other tracked documents.`,
+    action: 'Review documents',
     to: '/employees',
   },
   {
@@ -351,10 +417,64 @@ const dashboardQuestions = computed(() => [
     to: '/payroll',
   },
   {
+    question: 'Is payroll ready to run this month?',
+    answer: `The latest payroll period is ${payrollPeriodLabel.value} with status ${payrollStatus.value}. Check employee salary components and attendance before running payroll.`,
+    action: 'Open payroll',
+    to: '/payroll',
+  },
+  {
+    question: 'Which employees are missing salary components?',
+    answer: 'Open Payroll to review salary setup. Basic salary and allowances should be configured before running payslips or final settlement.',
+    action: 'Review payroll setup',
+    to: '/payroll',
+  },
+  {
+    question: 'Are there unpaid final settlements?',
+    answer: 'Open Payroll and review employees with termination records. Final settlement should include gratuity, unused annual leave, deductions, and any pending pay.',
+    action: 'Open payroll',
+    to: '/payroll',
+  },
+  {
+    question: 'Which payslips are pending approval?',
+    answer: 'Use Payroll to inspect the latest payroll period, review generated payslips, and approve or rerun payroll when corrections are needed.',
+    action: 'Review payslips',
+    to: '/payroll',
+  },
+  {
     question: 'How do I review Emiratisation risk?',
     answer: `Current Emiratisation status is ${emiratisationStatus.value}. Open Emiratisation to review missing UAE citizen counts and update snapshots.`,
     action: 'Open Emiratisation',
     to: '/settings/emiratisation',
+  },
+  {
+    question: 'Are we compliant with Emiratisation?',
+    answer: `Current Emiratisation status is ${emiratisationStatus.value}. ${emiratisationDetail.value}. Review the snapshot and mark it for review if company records differ from MoHRE.`,
+    action: 'Review Emiratisation',
+    to: '/settings/emiratisation',
+  },
+  {
+    question: 'Which employees are missing UAE labor data?',
+    answer: 'Open Employees and review nationality, UAE citizen status, skill level, work permit type, and salary details used by compliance calculations.',
+    action: 'Review employees',
+    to: '/employees',
+  },
+  {
+    question: 'Are public holidays configured for this year?',
+    answer: 'Open Public Holidays and verify this year’s UAE holidays before approving leave or running payroll calculations.',
+    action: 'Open public holidays',
+    to: '/settings/public-holidays',
+  },
+  {
+    question: 'How do I start a guided tour?',
+    answer: 'Use the Guide button in the left sidebar. The tour highlights the current page flow and points you to the controls that matter for that feature.',
+    action: 'Stay on dashboard',
+    to: '/',
+  },
+  {
+    question: 'Which module needs attention today?',
+    answer: 'Start with pending leave, attendance exceptions, expiring contracts, expiring documents, payroll status, and Emiratisation status. Those are the dashboard signals most likely to need action.',
+    action: 'Review dashboard',
+    to: '/',
   },
 ])
 

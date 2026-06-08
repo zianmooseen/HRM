@@ -22,7 +22,7 @@
           Description
           <textarea v-model="templateForm.description" rows="2" />
         </label>
-        <label>
+        <label class="checkbox-label">
           <span>Default template</span>
           <input v-model="templateForm.is_default" type="checkbox">
         </label>
@@ -50,12 +50,12 @@
                 <option value="custom">Custom</option>
               </select>
             </label>
-            <label>
+            <label class="task-due-label">
               Due days
               <input v-model.number="task.due_days_after_start" type="number" min="0">
             </label>
-            <label>
-              Required
+            <label class="checkbox-label task-required-label">
+              <span>Required</span>
               <input v-model="task.required" type="checkbox">
             </label>
             <button v-if="templateForm.tasks.length > 1" type="button" class="danger" @click="removeTask(index)">
@@ -248,9 +248,44 @@ function label(value: string) {
 
 .task-row {
   display: grid;
-  grid-template-columns: minmax(180px, 2fr) minmax(150px, 1fr) 110px 90px auto;
-  gap: 10px;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(190px, 1fr) 140px 124px auto;
+  column-gap: 16px;
+  row-gap: 12px;
   align-items: end;
+}
+
+.task-row > label {
+  min-width: 0;
+}
+
+.task-row > label:not(.task-required-label) input,
+.task-row > label:not(.task-required-label) select {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.task-due-label {
+  width: 140px;
+}
+
+.task-required-label {
+  align-self: end;
+  box-sizing: border-box;
+  width: 124px;
+  min-height: 40px;
+  justify-content: flex-start;
+  white-space: nowrap;
+}
+
+.task-required-label input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.task-row .danger {
+  min-width: 96px;
+  justify-self: end;
 }
 
 @media (max-width: 900px) {

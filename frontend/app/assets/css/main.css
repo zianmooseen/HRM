@@ -64,6 +64,24 @@ a {
   gap: 6px;
 }
 
+.form-grid .checkbox-label,
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-grid input[type="checkbox"],
+.form-grid .checkbox-label input[type="checkbox"],
+.checkbox-label input[type="checkbox"] {
+  min-height: auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border-radius: 4px;
+}
+
 .form-grid input,
 .form-grid select,
 .form-grid textarea {

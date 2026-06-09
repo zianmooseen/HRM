@@ -63,9 +63,17 @@
               <th>Actor</th>
               <th></th>
             </tr>
+            <tr class="column-filter-row">
+              <th><TableColumnFilter v-model="columnFilters.date" label="Filter audit date" /></th>
+              <th><TableColumnFilter v-model="columnFilters.module" label="Filter audit module" /></th>
+              <th><TableColumnFilter v-model="columnFilters.action" label="Filter audit action" /></th>
+              <th><TableColumnFilter v-model="columnFilters.record" label="Filter audit record" /></th>
+              <th><TableColumnFilter v-model="columnFilters.actor" label="Filter audit actor" /></th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
-            <tr v-for="log in logs" :key="log.id">
+            <tr v-for="log in filteredLogs" :key="log.id">
               <td>{{ formatDate(log.created_at) }}</td>
               <td>{{ moduleLabel(log.module) }}</td>
               <td>{{ actionLabel(log.action) }}</td>
@@ -73,7 +81,7 @@
               <td>{{ log.actor_user_id || 'System' }}</td>
               <td><button type="button" class="secondary" @click="selectLog(log.id)">Details</button></td>
             </tr>
-            <tr v-if="logs.length === 0">
+            <tr v-if="filteredLogs.length === 0">
               <td colspan="6">No audit logs match these filters.</td>
             </tr>
           </tbody>
@@ -164,6 +172,16 @@ interface AuditMeta {
 
 const api = useApiClient()
 const logs = ref<AuditLogRow[]>([])
+const { filters: columnFilters, filteredRows: filteredLogs } = useTableColumnFilters(
+  logs,
+  [
+    { key: 'date', value: log => formatDate(log.created_at) },
+    { key: 'module', value: log => moduleLabel(log.module) },
+    { key: 'action', value: log => actionLabel(log.action) },
+    { key: 'record', value: log => `${log.auditable_type} #${log.auditable_id || '-'}` },
+    { key: 'actor', value: log => log.actor_user_id || 'System' },
+  ],
+)
 const selectedLog = ref<AuditLogRow | null>(null)
 const modules = ref<string[]>([])
 const loading = ref(true)

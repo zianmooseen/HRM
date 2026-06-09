@@ -31,9 +31,17 @@
       </div>
     </form>
     <table>
-      <thead><tr><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
+      <thead>
+        <tr><th>Name</th><th>Code</th><th>Status</th><th></th></tr>
+        <tr class="column-filter-row">
+          <th><TableColumnFilter v-model="columnFilters.name" label="Filter department name" /></th>
+          <th><TableColumnFilter v-model="columnFilters.code" label="Filter department code" /></th>
+          <th><TableColumnFilter v-model="columnFilters.status" label="Filter department status" /></th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
-        <tr v-for="department in departments" :key="department.id">
+        <tr v-for="department in filteredDepartments" :key="department.id">
           <td>{{ department.name }}</td>
           <td>{{ department.code }}</td>
           <td>{{ department.status }}</td>
@@ -52,6 +60,14 @@ definePageMeta({ middleware: ['auth'] })
 
 const api = useApiClient()
 const departments = ref<any[]>([])
+const { filters: columnFilters, filteredRows: filteredDepartments } = useTableColumnFilters(
+  departments,
+  [
+    { key: 'name', value: department => department.name },
+    { key: 'code', value: department => department.code },
+    { key: 'status', value: department => department.status },
+  ],
+)
 const branches = ref<any[]>([])
 const form = reactive({ name: '', code: '', branch_id: null as number | null, status: 'active' })
 const editingId = ref<number | null>(null)

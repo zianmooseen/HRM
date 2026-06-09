@@ -114,9 +114,14 @@
             <th>Rule key</th>
             <th>Value</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="ruleColumnFilters.ruleSet" label="Filter legal rule set" /></th>
+            <th><TableColumnFilter v-model="ruleColumnFilters.key" label="Filter legal rule key" /></th>
+            <th><TableColumnFilter v-model="ruleColumnFilters.value" label="Filter legal rule value" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="item in legalRuleSet.items" :key="item.rule_key">
+          <tr v-for="item in filteredLegalRuleItems" :key="item.rule_key">
             <td>{{ legalRuleSet.name }} {{ legalRuleSet.version }}</td>
             <td>{{ item.rule_key }}</td>
             <td>{{ item.value }}</td>
@@ -164,6 +169,15 @@ const api = useApiClient()
 const auth = useAuthStore()
 const employees = ref<EmployeeOption[]>([])
 const legalRuleSet = ref<LegalRuleSet | null>(null)
+const legalRuleItems = computed(() => legalRuleSet.value?.items || [])
+const { filters: ruleColumnFilters, filteredRows: filteredLegalRuleItems } = useTableColumnFilters(
+  legalRuleItems,
+  [
+    { key: 'ruleSet', value: () => legalRuleSet.value ? `${legalRuleSet.value.name} ${legalRuleSet.value.version}` : '' },
+    { key: 'key', value: item => item.rule_key },
+    { key: 'value', value: item => item.value },
+  ],
+)
 const settings = ref<ComplianceSettings | null>(null)
 const result = ref<GratuityResult | null>(null)
 const loadingRules = ref(true)

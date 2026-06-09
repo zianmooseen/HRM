@@ -48,16 +48,23 @@
           <th>Status</th>
           <th>Latest note</th>
         </tr>
+        <tr class="column-filter-row">
+          <th><TableColumnFilter v-model="columnFilters.type" label="Filter my leave type" /></th>
+          <th><TableColumnFilter v-model="columnFilters.dates" label="Filter my leave dates" /></th>
+          <th><TableColumnFilter v-model="columnFilters.days" label="Filter my leave days" /></th>
+          <th><TableColumnFilter v-model="columnFilters.status" label="Filter my leave status" /></th>
+          <th><TableColumnFilter v-model="columnFilters.note" label="Filter my leave note" /></th>
+        </tr>
       </thead>
       <tbody>
-        <tr v-for="request in requests" :key="request.id">
+        <tr v-for="request in filteredRequests" :key="request.id">
           <td>{{ request.leave_type?.name || '-' }}</td>
           <td>{{ request.start_date }} to {{ request.end_date }}</td>
           <td>{{ request.working_days }}</td>
           <td>{{ label(request.status) }}</td>
           <td>{{ latestNote(request) }}</td>
         </tr>
-        <tr v-if="requests.length === 0">
+        <tr v-if="filteredRequests.length === 0">
           <td colspan="5">No leave requests yet.</td>
         </tr>
       </tbody>
@@ -106,6 +113,16 @@ const api = useApiClient()
 const employee = ref<any>(null)
 const leaveTypes = ref<LeaveType[]>([])
 const requests = ref<LeaveRequestRow[]>([])
+const { filters: columnFilters, filteredRows: filteredRequests } = useTableColumnFilters(
+  requests,
+  [
+    { key: 'type', value: request => request.leave_type?.name },
+    { key: 'dates', value: request => `${request.start_date} to ${request.end_date}` },
+    { key: 'days', value: request => request.working_days },
+    { key: 'status', value: request => label(request.status) },
+    { key: 'note', value: request => latestNote(request) },
+  ],
+)
 const medicalCertificates = ref<EmployeeDocument[]>([])
 const saving = ref(false)
 const error = ref('')

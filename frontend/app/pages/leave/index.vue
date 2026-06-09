@@ -77,9 +77,17 @@
             <th>Available before approval</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="pendingColumnFilters.employee" label="Filter pending employee" /></th>
+            <th><TableColumnFilter v-model="pendingColumnFilters.type" label="Filter pending leave type" /></th>
+            <th><TableColumnFilter v-model="pendingColumnFilters.dates" label="Filter pending dates" /></th>
+            <th><TableColumnFilter v-model="pendingColumnFilters.requested" label="Filter requested days" /></th>
+            <th><TableColumnFilter v-model="pendingColumnFilters.available" label="Filter available balance" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="request in pendingRequests" :key="`pending-${request.id}`">
+          <tr v-for="request in filteredPendingRequests" :key="`pending-${request.id}`">
             <td>{{ request.employee?.display_name || '-' }}</td>
             <td>{{ request.leave_type?.name || '-' }}</td>
             <td>{{ request.start_date }} to {{ request.end_date }}</td>
@@ -145,9 +153,18 @@
             <th>Latest note</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="requestColumnFilters.employee" label="Filter request employee" /></th>
+            <th><TableColumnFilter v-model="requestColumnFilters.type" label="Filter request leave type" /></th>
+            <th><TableColumnFilter v-model="requestColumnFilters.dates" label="Filter request dates" /></th>
+            <th><TableColumnFilter v-model="requestColumnFilters.days" label="Filter request days" /></th>
+            <th><TableColumnFilter v-model="requestColumnFilters.status" label="Filter request status" /></th>
+            <th><TableColumnFilter v-model="requestColumnFilters.note" label="Filter latest note" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="request in requests" :key="request.id">
+          <tr v-for="request in filteredRequests" :key="request.id">
             <td>{{ request.employee?.display_name || '-' }}</td>
             <td>{{ request.leave_type?.name || '-' }}</td>
             <td>{{ request.start_date }} to {{ request.end_date }}</td>
@@ -181,7 +198,7 @@
               </button>
             </td>
           </tr>
-          <tr v-if="requests.length === 0">
+          <tr v-if="filteredRequests.length === 0">
             <td colspan="7">No leave requests found.</td>
           </tr>
         </tbody>
@@ -208,9 +225,17 @@
             <th>Gross pay</th>
             <th>Deduction</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="payColumnFilters.tier" label="Filter pay tier" /></th>
+            <th><TableColumnFilter v-model="payColumnFilters.days" label="Filter pay days" /></th>
+            <th><TableColumnFilter v-model="payColumnFilters.percentage" label="Filter pay percentage" /></th>
+            <th><TableColumnFilter v-model="payColumnFilters.dailyWage" label="Filter daily wage" /></th>
+            <th><TableColumnFilter v-model="payColumnFilters.gross" label="Filter gross pay" /></th>
+            <th><TableColumnFilter v-model="payColumnFilters.deduction" label="Filter deduction" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="item in sickPayPreview.calculation.items" :key="`${sickPayPreview.requestId}-${item.pay_tier}`">
+          <tr v-for="item in filteredPayItems" :key="`${sickPayPreview.requestId}-${item.pay_tier}`">
             <td>{{ label(item.pay_tier) }}</td>
             <td>{{ item.days }}</td>
             <td>{{ item.pay_percentage }}</td>
@@ -235,9 +260,17 @@
             <th>Pending</th>
             <th>Closing</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="balanceColumnFilters.employee" label="Filter balance employee" /></th>
+            <th><TableColumnFilter v-model="balanceColumnFilters.type" label="Filter balance leave type" /></th>
+            <th><TableColumnFilter v-model="balanceColumnFilters.year" label="Filter balance year" /></th>
+            <th><TableColumnFilter v-model="balanceColumnFilters.used" label="Filter used balance" /></th>
+            <th><TableColumnFilter v-model="balanceColumnFilters.pending" label="Filter pending balance" /></th>
+            <th><TableColumnFilter v-model="balanceColumnFilters.closing" label="Filter closing balance" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="balance in balances" :key="balance.id">
+          <tr v-for="balance in filteredBalances" :key="balance.id">
             <td>{{ balance.employee?.display_name || '-' }}</td>
             <td>{{ balance.leave_type?.name || '-' }}</td>
             <td>{{ balance.leave_year }}</td>
@@ -385,6 +418,50 @@ const filters = reactive({
 })
 const selectedLeaveType = computed(() => leaveTypes.value.find((leaveType) => leaveType.id === form.leave_type_id) || null)
 const pendingRequests = computed(() => requests.value.filter((request) => request.status === 'pending'))
+const payItems = computed(() => sickPayPreview.value?.calculation.items || [])
+const { filters: pendingColumnFilters, filteredRows: filteredPendingRequests } = useTableColumnFilters(
+  pendingRequests,
+  [
+    { key: 'employee', value: request => request.employee?.display_name },
+    { key: 'type', value: request => request.leave_type?.name },
+    { key: 'dates', value: request => `${request.start_date} to ${request.end_date}` },
+    { key: 'requested', value: request => `${request.working_days} days` },
+    { key: 'available', value: request => availableBeforeApproval(request) },
+  ],
+)
+const { filters: requestColumnFilters, filteredRows: filteredRequests } = useTableColumnFilters(
+  requests,
+  [
+    { key: 'employee', value: request => request.employee?.display_name },
+    { key: 'type', value: request => request.leave_type?.name },
+    { key: 'dates', value: request => `${request.start_date} to ${request.end_date}` },
+    { key: 'days', value: request => `${request.working_days} working / ${request.total_days} total` },
+    { key: 'status', value: request => label(request.status) },
+    { key: 'note', value: request => latestNote(request) },
+  ],
+)
+const { filters: payColumnFilters, filteredRows: filteredPayItems } = useTableColumnFilters(
+  payItems,
+  [
+    { key: 'tier', value: item => label(item.pay_tier) },
+    { key: 'days', value: item => item.days },
+    { key: 'percentage', value: item => item.pay_percentage },
+    { key: 'dailyWage', value: item => money(item.daily_wage) },
+    { key: 'gross', value: item => money(item.gross_pay_amount) },
+    { key: 'deduction', value: item => money(item.deduction_amount) },
+  ],
+)
+const { filters: balanceColumnFilters, filteredRows: filteredBalances } = useTableColumnFilters(
+  balances,
+  [
+    { key: 'employee', value: balance => balance.employee?.display_name },
+    { key: 'type', value: balance => balance.leave_type?.name },
+    { key: 'year', value: balance => balance.leave_year },
+    { key: 'used', value: balance => balance.used_days },
+    { key: 'pending', value: balance => balance.pending_days },
+    { key: 'closing', value: balance => balance.closing_balance },
+  ],
+)
 const excludedPublicHolidays = computed(() => dayCalculation.value?.day_calculation_json.excluded_public_holidays || [])
 
 onMounted(async () => {

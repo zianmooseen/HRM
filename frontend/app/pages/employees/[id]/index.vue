@@ -148,9 +148,17 @@
             <th>Status</th>
             <th>Reason</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="periodColumnFilters.start" label="Filter service start" type="date" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.end" label="Filter service end" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.employment" label="Filter employment type" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.contract" label="Filter contract type" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.status" label="Filter service status" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.reason" label="Filter service reason" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="period in servicePeriods" :key="period.id">
+          <tr v-for="period in filteredServicePeriods" :key="period.id">
             <td>{{ period.start_date }}</td>
             <td>{{ period.end_date || '-' }}</td>
             <td>{{ period.employment_type || '-' }}</td>
@@ -232,9 +240,17 @@
             <th>Status</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="terminationColumnFilters.date" label="Filter termination date" type="date" /></th>
+            <th><TableColumnFilter v-model="terminationColumnFilters.type" label="Filter termination type" /></th>
+            <th><TableColumnFilter v-model="terminationColumnFilters.gratuity" label="Filter gratuity amount" /></th>
+            <th><TableColumnFilter v-model="terminationColumnFilters.settlement" label="Filter settlement amount" /></th>
+            <th><TableColumnFilter v-model="terminationColumnFilters.status" label="Filter termination status" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="termination in terminations" :key="termination.id">
+          <tr v-for="termination in filteredTerminations" :key="termination.id">
             <td>{{ termination.termination_date }}</td>
             <td>{{ label(termination.termination_type) }}</td>
             <td>{{ termination.gratuity_amount }}</td>
@@ -441,6 +457,27 @@ const accountForm = reactive({
 })
 const terminations = ref<EmployeeTermination[]>([])
 const servicePeriods = ref<EmployeeServicePeriod[]>([])
+const { filters: periodColumnFilters, filteredRows: filteredServicePeriods } = useTableColumnFilters(
+  servicePeriods,
+  [
+    { key: 'start', value: period => period.start_date },
+    { key: 'end', value: period => period.end_date },
+    { key: 'employment', value: period => period.employment_type },
+    { key: 'contract', value: period => period.contract_type },
+    { key: 'status', value: period => label(period.status) },
+    { key: 'reason', value: period => period.change_reason },
+  ],
+)
+const { filters: terminationColumnFilters, filteredRows: filteredTerminations } = useTableColumnFilters(
+  terminations,
+  [
+    { key: 'date', value: termination => termination.termination_date },
+    { key: 'type', value: termination => label(termination.termination_type) },
+    { key: 'gratuity', value: termination => termination.gratuity_amount },
+    { key: 'settlement', value: termination => termination.final_settlement_amount },
+    { key: 'status', value: termination => label(termination.status) },
+  ],
+)
 const terminationsLoading = ref(false)
 const servicePeriodsLoading = ref(false)
 const terminationError = ref('')

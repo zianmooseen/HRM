@@ -38,15 +38,21 @@
           <th>File</th>
           <th>Expiry</th>
         </tr>
+        <tr class="column-filter-row">
+          <th><TableColumnFilter v-model="columnFilters.type" label="Filter my document type" /></th>
+          <th><TableColumnFilter v-model="columnFilters.title" label="Filter my document title" /></th>
+          <th><TableColumnFilter v-model="columnFilters.file" label="Filter my document file" /></th>
+          <th><TableColumnFilter v-model="columnFilters.expiry" label="Filter my document expiry" /></th>
+        </tr>
       </thead>
       <tbody>
-        <tr v-for="document in documents" :key="document.id">
+        <tr v-for="document in filteredDocuments" :key="document.id">
           <td>{{ label(document.document_type) }}</td>
           <td>{{ document.title }}</td>
           <td><a :href="downloadHref(document)" target="_blank">{{ document.original_file_name }}</a></td>
           <td>{{ document.expiry_date || '-' }}</td>
         </tr>
-        <tr v-if="documents.length === 0">
+        <tr v-if="filteredDocuments.length === 0">
           <td colspan="4">No documents uploaded yet.</td>
         </tr>
       </tbody>
@@ -70,6 +76,15 @@ const api = useApiClient()
 const config = useRuntimeConfig()
 const employee = ref<any>(null)
 const documents = ref<EmployeeDocument[]>([])
+const { filters: columnFilters, filteredRows: filteredDocuments } = useTableColumnFilters(
+  documents,
+  [
+    { key: 'type', value: document => label(document.document_type) },
+    { key: 'title', value: document => document.title },
+    { key: 'file', value: document => document.original_file_name },
+    { key: 'expiry', value: document => document.expiry_date },
+  ],
+)
 const loading = ref(true)
 const uploading = ref(false)
 const error = ref('')

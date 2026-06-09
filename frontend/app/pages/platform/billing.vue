@@ -68,16 +68,23 @@
             <th>Limit</th>
             <th>Status</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="planColumnFilters.plan" label="Filter billing plan" /></th>
+            <th><TableColumnFilter v-model="planColumnFilters.cycle" label="Filter billing cycle" /></th>
+            <th><TableColumnFilter v-model="planColumnFilters.price" label="Filter plan price" /></th>
+            <th><TableColumnFilter v-model="planColumnFilters.limit" label="Filter employee limit" /></th>
+            <th><TableColumnFilter v-model="planColumnFilters.status" label="Filter plan status" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="plan in plans" :key="plan.id">
+          <tr v-for="plan in filteredPlans" :key="plan.id">
             <td>{{ plan.name }} <small>{{ plan.code }}</small></td>
             <td>{{ label(plan.billing_cycle) }}</td>
             <td>{{ money(plan.price, plan.currency) }}</td>
             <td>{{ plan.max_employees || 'Unlimited' }}</td>
             <td>{{ label(plan.status) }}</td>
           </tr>
-          <tr v-if="plans.length === 0">
+          <tr v-if="filteredPlans.length === 0">
             <td colspan="5">No plans configured yet.</td>
           </tr>
         </tbody>
@@ -147,15 +154,21 @@
             <th>Status</th>
             <th>Current period</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="subscriptionColumnFilters.company" label="Filter subscription company" /></th>
+            <th><TableColumnFilter v-model="subscriptionColumnFilters.plan" label="Filter subscription plan" /></th>
+            <th><TableColumnFilter v-model="subscriptionColumnFilters.status" label="Filter subscription status" /></th>
+            <th><TableColumnFilter v-model="subscriptionColumnFilters.period" label="Filter subscription period" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="subscription in subscriptions" :key="subscription.id">
+          <tr v-for="subscription in filteredSubscriptions" :key="subscription.id">
             <td>{{ subscription.company?.name || subscription.company_id }}</td>
             <td>{{ subscription.plan?.name || subscription.subscription_plan_id }}</td>
             <td>{{ label(subscription.status) }}</td>
             <td>{{ subscription.current_period_starts_on || '-' }} to {{ subscription.current_period_ends_on || '-' }}</td>
           </tr>
-          <tr v-if="subscriptions.length === 0">
+          <tr v-if="filteredSubscriptions.length === 0">
             <td colspan="4">No company subscriptions yet.</td>
           </tr>
         </tbody>
@@ -238,9 +251,17 @@
             <th>Status</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="invoiceColumnFilters.invoice" label="Filter invoice number" /></th>
+            <th><TableColumnFilter v-model="invoiceColumnFilters.company" label="Filter invoice company" /></th>
+            <th><TableColumnFilter v-model="invoiceColumnFilters.due" label="Filter invoice due date" type="date" /></th>
+            <th><TableColumnFilter v-model="invoiceColumnFilters.total" label="Filter invoice total" /></th>
+            <th><TableColumnFilter v-model="invoiceColumnFilters.status" label="Filter invoice status" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="invoice in invoices" :key="invoice.id">
+          <tr v-for="invoice in filteredInvoices" :key="invoice.id">
             <td>{{ invoice.invoice_number }}</td>
             <td>{{ invoice.company?.name || invoice.company_id }}</td>
             <td>{{ invoice.due_date }}</td>
@@ -250,7 +271,7 @@
               <button v-if="invoice.status !== 'paid'" type="button" class="secondary" @click="markPaid(invoice)">Mark paid</button>
             </td>
           </tr>
-          <tr v-if="invoices.length === 0">
+          <tr v-if="filteredInvoices.length === 0">
             <td colspan="6">No invoices yet.</td>
           </tr>
         </tbody>
@@ -306,6 +327,35 @@ const companies = ref<Company[]>([])
 const plans = ref<Plan[]>([])
 const subscriptions = ref<Subscription[]>([])
 const invoices = ref<Invoice[]>([])
+const { filters: planColumnFilters, filteredRows: filteredPlans } = useTableColumnFilters(
+  plans,
+  [
+    { key: 'plan', value: plan => `${plan.name} ${plan.code}` },
+    { key: 'cycle', value: plan => label(plan.billing_cycle) },
+    { key: 'price', value: plan => money(plan.price, plan.currency) },
+    { key: 'limit', value: plan => plan.max_employees || 'Unlimited' },
+    { key: 'status', value: plan => label(plan.status) },
+  ],
+)
+const { filters: subscriptionColumnFilters, filteredRows: filteredSubscriptions } = useTableColumnFilters(
+  subscriptions,
+  [
+    { key: 'company', value: subscription => subscription.company?.name || subscription.company_id },
+    { key: 'plan', value: subscription => subscription.plan?.name || subscription.subscription_plan_id },
+    { key: 'status', value: subscription => label(subscription.status) },
+    { key: 'period', value: subscription => `${subscription.current_period_starts_on || '-'} to ${subscription.current_period_ends_on || '-'}` },
+  ],
+)
+const { filters: invoiceColumnFilters, filteredRows: filteredInvoices } = useTableColumnFilters(
+  invoices,
+  [
+    { key: 'invoice', value: invoice => invoice.invoice_number },
+    { key: 'company', value: invoice => invoice.company?.name || invoice.company_id },
+    { key: 'due', value: invoice => invoice.due_date },
+    { key: 'total', value: invoice => money(invoice.total_amount, invoice.currency) },
+    { key: 'status', value: invoice => label(invoice.status) },
+  ],
+)
 const loadError = ref('')
 const planError = ref('')
 const subscriptionError = ref('')

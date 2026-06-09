@@ -128,15 +128,21 @@
               <th>Record</th>
               <th>Actor</th>
             </tr>
+            <tr class="column-filter-row">
+              <th><TableColumnFilter v-model="auditColumnFilters.date" label="Filter compliance audit date" /></th>
+              <th><TableColumnFilter v-model="auditColumnFilters.action" label="Filter compliance audit action" /></th>
+              <th><TableColumnFilter v-model="auditColumnFilters.record" label="Filter compliance audit record" /></th>
+              <th><TableColumnFilter v-model="auditColumnFilters.actor" label="Filter compliance audit actor" /></th>
+            </tr>
           </thead>
           <tbody>
-            <tr v-for="log in summary.recent_audit_logs" :key="`${log.action}-${log.auditable_id}-${log.created_at}`">
+            <tr v-for="log in filteredAuditLogs" :key="`${log.action}-${log.auditable_id}-${log.created_at}`">
               <td>{{ log.created_at }}</td>
               <td>{{ actionLabel(log.action) }}</td>
               <td>{{ log.auditable_type }} #{{ log.auditable_id }}</td>
               <td>{{ log.actor_user_id || 'System' }}</td>
             </tr>
-            <tr v-if="summary.recent_audit_logs.length === 0">
+            <tr v-if="filteredAuditLogs.length === 0">
               <td colspan="4">No compliance audit events recorded yet.</td>
             </tr>
           </tbody>
@@ -202,6 +208,16 @@ const config = useRuntimeConfig()
 const loading = ref(true)
 const error = ref('')
 const summary = ref<ComplianceReportSummary | null>(null)
+const auditLogs = computed(() => summary.value?.recent_audit_logs || [])
+const { filters: auditColumnFilters, filteredRows: filteredAuditLogs } = useTableColumnFilters(
+  auditLogs,
+  [
+    { key: 'date', value: log => log.created_at },
+    { key: 'action', value: log => actionLabel(log.action) },
+    { key: 'record', value: log => `${log.auditable_type} #${log.auditable_id}` },
+    { key: 'actor', value: log => log.actor_user_id || 'System' },
+  ],
+)
 
 onMounted(loadReport)
 

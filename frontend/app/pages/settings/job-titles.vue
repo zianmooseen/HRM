@@ -28,9 +28,17 @@
       </div>
     </form>
     <table>
-      <thead><tr><th>Title</th><th>Code</th><th>Status</th><th></th></tr></thead>
+      <thead>
+        <tr><th>Title</th><th>Code</th><th>Status</th><th></th></tr>
+        <tr class="column-filter-row">
+          <th><TableColumnFilter v-model="columnFilters.title" label="Filter job title" /></th>
+          <th><TableColumnFilter v-model="columnFilters.code" label="Filter job title code" /></th>
+          <th><TableColumnFilter v-model="columnFilters.status" label="Filter job title status" /></th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
-        <tr v-for="jobTitle in jobTitles" :key="jobTitle.id">
+        <tr v-for="jobTitle in filteredJobTitles" :key="jobTitle.id">
           <td>{{ jobTitle.title }}</td>
           <td>{{ jobTitle.code }}</td>
           <td>{{ jobTitle.status }}</td>
@@ -49,6 +57,14 @@ definePageMeta({ middleware: ['auth'] })
 
 const api = useApiClient()
 const jobTitles = ref<any[]>([])
+const { filters: columnFilters, filteredRows: filteredJobTitles } = useTableColumnFilters(
+  jobTitles,
+  [
+    { key: 'title', value: jobTitle => jobTitle.title },
+    { key: 'code', value: jobTitle => jobTitle.code },
+    { key: 'status', value: jobTitle => jobTitle.status },
+  ],
+)
 const form = reactive({ title: '', code: '', description: '', status: 'active' })
 const editingId = ref<number | null>(null)
 const saving = ref(false)

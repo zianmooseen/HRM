@@ -109,6 +109,32 @@ th {
   background: #eef2f4;
 }
 
+.column-filter-row th {
+  padding-top: 0;
+}
+
+.column-filter {
+  width: 100%;
+  min-width: 100px;
+  border: 1px solid #d7dfda;
+  border-radius: 7px;
+  background: #fff;
+  padding: 7px 8px;
+  color: #173c2b;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+
+.column-filter::placeholder {
+  color: #8a948f;
+}
+
+.column-filter:focus {
+  border-color: #2f7357;
+  outline: 2px solid rgb(47 115 87 / 15%);
+}
+
 .detail-list {
   display: grid;
   grid-template-columns: 180px 1fr;

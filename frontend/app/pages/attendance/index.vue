@@ -154,9 +154,17 @@
           <th>Source</th>
           <th></th>
         </tr>
+        <tr class="column-filter-row">
+          <th><TableColumnFilter v-model="recordColumnFilters.date" label="Filter attendance date" type="date" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.employee" label="Filter attendance employee" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.status" label="Filter attendance status" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.time" label="Filter attendance time" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.source" label="Filter attendance source" /></th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
-        <tr v-for="record in records" :key="record.id">
+        <tr v-for="record in filteredRecords" :key="record.id">
           <td>{{ record.date }}</td>
           <td>{{ record.employee?.display_name || '-' }}</td>
           <td>{{ label(record.status) }}</td>
@@ -167,7 +175,7 @@
             <button type="button" class="danger" @click="remove(record)">Delete</button>
           </td>
         </tr>
-        <tr v-if="records.length === 0">
+        <tr v-if="filteredRecords.length === 0">
           <td colspan="6">No attendance records found.</td>
         </tr>
       </tbody>
@@ -193,9 +201,17 @@
             <th>Status</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="correctionColumnFilters.date" label="Filter correction date" type="date" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.employee" label="Filter correction employee" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.type" label="Filter correction type" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.requested" label="Filter requested correction" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.status" label="Filter correction status" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="correction in corrections" :key="correction.id">
+          <tr v-for="correction in filteredCorrections" :key="correction.id">
             <td>{{ correction.date }}</td>
             <td>{{ correction.employee?.display_name || '-' }}</td>
             <td>{{ label(correction.correction_type) }}</td>
@@ -206,7 +222,7 @@
               <button v-if="correction.status === 'pending'" type="button" class="danger" @click="rejectCorrection(correction)">Reject</button>
             </td>
           </tr>
-          <tr v-if="corrections.length === 0">
+          <tr v-if="filteredCorrections.length === 0">
             <td colspan="6">No correction requests found.</td>
           </tr>
         </tbody>
@@ -266,6 +282,26 @@ const correctionError = ref('')
 const correctionLoadError = ref('')
 const correctionSaved = ref(false)
 const editingId = ref<number | null>(null)
+const { filters: recordColumnFilters, filteredRows: filteredRecords } = useTableColumnFilters(
+  records,
+  [
+    { key: 'date', value: record => record.date },
+    { key: 'employee', value: record => record.employee?.display_name },
+    { key: 'status', value: record => label(record.status) },
+    { key: 'time', value: record => timeRange(record) },
+    { key: 'source', value: record => label(record.source) },
+  ],
+)
+const { filters: correctionColumnFilters, filteredRows: filteredCorrections } = useTableColumnFilters(
+  corrections,
+  [
+    { key: 'date', value: correction => correction.date },
+    { key: 'employee', value: correction => correction.employee?.display_name },
+    { key: 'type', value: correction => label(correction.correction_type) },
+    { key: 'requested', value: correction => correctionSummary(correction) },
+    { key: 'status', value: correction => label(correction.status) },
+  ],
+)
 const form = reactive({
   employee_id: 0,
   date: new Date().toISOString().slice(0, 10),

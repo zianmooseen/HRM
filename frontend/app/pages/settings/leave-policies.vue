@@ -120,9 +120,21 @@
             <th>Closing</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="columnFilters.employee" label="Filter balance employee" /></th>
+            <th><TableColumnFilter v-model="columnFilters.type" label="Filter balance leave type" /></th>
+            <th><TableColumnFilter v-model="columnFilters.year" label="Filter balance year" /></th>
+            <th><TableColumnFilter v-model="columnFilters.opening" label="Filter opening balance" /></th>
+            <th><TableColumnFilter v-model="columnFilters.accrued" label="Filter accrued balance" /></th>
+            <th><TableColumnFilter v-model="columnFilters.carry" label="Filter carry-forward balance" /></th>
+            <th><TableColumnFilter v-model="columnFilters.used" label="Filter used balance" /></th>
+            <th><TableColumnFilter v-model="columnFilters.pending" label="Filter pending balance" /></th>
+            <th><TableColumnFilter v-model="columnFilters.closing" label="Filter closing balance" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="balance in balances" :key="balance.id">
+          <tr v-for="balance in filteredBalances" :key="balance.id">
             <td>{{ balance.employee?.display_name || '-' }}</td>
             <td>{{ balance.leave_type?.name || '-' }}</td>
             <td>{{ balance.leave_year }}</td>
@@ -136,7 +148,7 @@
               <button type="button" class="secondary" @click="edit(balance)">Edit</button>
             </td>
           </tr>
-          <tr v-if="balances.length === 0">
+          <tr v-if="filteredBalances.length === 0">
             <td colspan="10">No leave balances configured yet.</td>
           </tr>
         </tbody>
@@ -181,6 +193,20 @@ const api = useApiClient()
 const employees = ref<EmployeeOption[]>([])
 const leaveTypes = ref<LeaveType[]>([])
 const balances = ref<LeaveBalance[]>([])
+const { filters: columnFilters, filteredRows: filteredBalances } = useTableColumnFilters(
+  balances,
+  [
+    { key: 'employee', value: balance => balance.employee?.display_name },
+    { key: 'type', value: balance => balance.leave_type?.name },
+    { key: 'year', value: balance => balance.leave_year },
+    { key: 'opening', value: balance => balance.opening_balance },
+    { key: 'accrued', value: balance => balance.accrued_days },
+    { key: 'carry', value: balance => balance.carried_forward_days },
+    { key: 'used', value: balance => balance.used_days },
+    { key: 'pending', value: balance => balance.pending_days },
+    { key: 'closing', value: balance => balance.closing_balance },
+  ],
+)
 const saving = ref(false)
 const accruing = ref(false)
 const loading = ref(true)

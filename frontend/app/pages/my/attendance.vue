@@ -61,16 +61,23 @@
           <th>Status</th>
           <th>Source</th>
         </tr>
+        <tr class="column-filter-row">
+          <th><TableColumnFilter v-model="recordColumnFilters.date" label="Filter my attendance date" type="date" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.checkIn" label="Filter my check in" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.checkOut" label="Filter my check out" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.status" label="Filter my attendance status" /></th>
+          <th><TableColumnFilter v-model="recordColumnFilters.source" label="Filter my attendance source" /></th>
+        </tr>
       </thead>
       <tbody>
-        <tr v-for="record in records" :key="record.id">
+        <tr v-for="record in filteredRecords" :key="record.id">
           <td>{{ record.date }}</td>
           <td>{{ record.check_in || '-' }}</td>
           <td>{{ record.check_out || '-' }}</td>
           <td>{{ label(record.status) }}</td>
           <td>{{ label(record.source) }}</td>
         </tr>
-        <tr v-if="records.length === 0">
+        <tr v-if="filteredRecords.length === 0">
           <td colspan="5">No attendance records yet.</td>
         </tr>
       </tbody>
@@ -89,16 +96,23 @@
             <th>Status</th>
             <th>Rejection reason</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="correctionColumnFilters.date" label="Filter my correction date" type="date" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.type" label="Filter my correction type" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.requested" label="Filter my correction request" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.status" label="Filter my correction status" /></th>
+            <th><TableColumnFilter v-model="correctionColumnFilters.reason" label="Filter my correction rejection reason" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="correction in corrections" :key="correction.id">
+          <tr v-for="correction in filteredCorrections" :key="correction.id">
             <td>{{ correction.date }}</td>
             <td>{{ label(correction.correction_type) }}</td>
             <td>{{ correction.requested_check_in || '-' }} - {{ correction.requested_check_out || '-' }}</td>
             <td>{{ label(correction.status) }}</td>
             <td>{{ correction.rejection_reason || '-' }}</td>
           </tr>
-          <tr v-if="corrections.length === 0">
+          <tr v-if="filteredCorrections.length === 0">
             <td colspan="5">No correction requests yet.</td>
           </tr>
         </tbody>
@@ -134,6 +148,26 @@ const api = useApiClient()
 const statuses = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'remote']
 const records = ref<AttendanceRecord[]>([])
 const corrections = ref<AttendanceCorrectionRequest[]>([])
+const { filters: recordColumnFilters, filteredRows: filteredRecords } = useTableColumnFilters(
+  records,
+  [
+    { key: 'date', value: record => record.date },
+    { key: 'checkIn', value: record => record.check_in },
+    { key: 'checkOut', value: record => record.check_out },
+    { key: 'status', value: record => label(record.status) },
+    { key: 'source', value: record => label(record.source) },
+  ],
+)
+const { filters: correctionColumnFilters, filteredRows: filteredCorrections } = useTableColumnFilters(
+  corrections,
+  [
+    { key: 'date', value: correction => correction.date },
+    { key: 'type', value: correction => label(correction.correction_type) },
+    { key: 'requested', value: correction => `${correction.requested_check_in || '-'} - ${correction.requested_check_out || '-'}` },
+    { key: 'status', value: correction => label(correction.status) },
+    { key: 'reason', value: correction => correction.rejection_reason },
+  ],
+)
 const loading = ref(true)
 const loadingCorrections = ref(true)
 const savingCorrection = ref(false)

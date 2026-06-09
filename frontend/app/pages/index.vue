@@ -145,10 +145,6 @@
             </option>
           </select>
         </label>
-        <p class="muted">
-          Employee, attendance, leave, contract, document, and WPS readiness counts follow this scope.
-          Payroll, WPS batch status, and Emiratisation remain organization-level.
-        </p>
       </section>
 
       <section class="metric-grid">

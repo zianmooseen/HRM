@@ -100,9 +100,16 @@
             <th>Payslips</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="periodColumnFilters.period" label="Filter payroll period" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.payDate" label="Filter pay date" type="date" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.status" label="Filter payroll status" /></th>
+            <th><TableColumnFilter v-model="periodColumnFilters.payslips" label="Filter payslip count" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="period in periods" :key="period.id">
+          <tr v-for="period in filteredPeriods" :key="period.id">
             <td>{{ period.period_start }} to {{ period.period_end }}</td>
             <td>{{ period.pay_date || '-' }}</td>
             <td>{{ label(period.status) }}</td>
@@ -126,7 +133,7 @@
               </button>
             </td>
           </tr>
-          <tr v-if="periods.length === 0">
+          <tr v-if="filteredPeriods.length === 0">
             <td colspan="5">No payroll periods found.</td>
           </tr>
         </tbody>
@@ -157,9 +164,17 @@
             <th>Status</th>
             <th>Pay items</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="payslipColumnFilters.employee" label="Filter payslip employee" /></th>
+            <th><TableColumnFilter v-model="payslipColumnFilters.gross" label="Filter gross pay" /></th>
+            <th><TableColumnFilter v-model="payslipColumnFilters.deductions" label="Filter deductions" /></th>
+            <th><TableColumnFilter v-model="payslipColumnFilters.net" label="Filter net pay" /></th>
+            <th><TableColumnFilter v-model="payslipColumnFilters.status" label="Filter payslip status" /></th>
+            <th><TableColumnFilter v-model="payslipColumnFilters.items" label="Filter pay items" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="payslip in payslips" :key="payslip.id">
+          <tr v-for="payslip in filteredPayslips" :key="payslip.id">
             <td>{{ payslip.employee?.display_name || '-' }}</td>
             <td>{{ payslip.gross_pay }}</td>
             <td>{{ payslip.total_deductions }}</td>
@@ -174,7 +189,7 @@
               </ul>
             </td>
           </tr>
-          <tr v-if="payslips.length === 0">
+          <tr v-if="filteredPayslips.length === 0">
             <td colspan="5">Run payroll to generate payslips.</td>
           </tr>
         </tbody>
@@ -194,9 +209,17 @@
             <th>Status</th>
             <th></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="wpsColumnFilters.batch" label="Filter WPS batch" /></th>
+            <th><TableColumnFilter v-model="wpsColumnFilters.month" label="Filter salary month" /></th>
+            <th><TableColumnFilter v-model="wpsColumnFilters.records" label="Filter WPS record count" /></th>
+            <th><TableColumnFilter v-model="wpsColumnFilters.total" label="Filter WPS total" /></th>
+            <th><TableColumnFilter v-model="wpsColumnFilters.status" label="Filter WPS status" /></th>
+            <th></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="batch in wpsBatches" :key="batch.id">
+          <tr v-for="batch in filteredWpsBatches" :key="batch.id">
             <td>{{ batch.batch_number }}</td>
             <td>{{ batch.salary_month }}</td>
             <td>{{ batch.record_count }}</td>
@@ -211,7 +234,7 @@
               <button v-if="['submitted', 'processing'].includes(batch.status)" type="button" class="secondary" @click="updateWpsStatus(batch, 'rejected')">Mark rejected</button>
             </td>
           </tr>
-          <tr v-if="wpsBatches.length === 0">
+          <tr v-if="filteredWpsBatches.length === 0">
             <td colspan="6">No WPS exports generated yet.</td>
           </tr>
         </tbody>
@@ -281,6 +304,36 @@ const components = ref<SalaryComponent[]>([])
 const periods = ref<PayrollPeriod[]>([])
 const payslips = ref<Payslip[]>([])
 const wpsBatches = ref<WpsPayrollBatch[]>([])
+const { filters: periodColumnFilters, filteredRows: filteredPeriods } = useTableColumnFilters(
+  periods,
+  [
+    { key: 'period', value: period => `${period.period_start} to ${period.period_end}` },
+    { key: 'payDate', value: period => period.pay_date },
+    { key: 'status', value: period => label(period.status) },
+    { key: 'payslips', value: period => period.payslips_count ?? 0 },
+  ],
+)
+const { filters: payslipColumnFilters, filteredRows: filteredPayslips } = useTableColumnFilters(
+  payslips,
+  [
+    { key: 'employee', value: payslip => payslip.employee?.display_name },
+    { key: 'gross', value: payslip => payslip.gross_pay },
+    { key: 'deductions', value: payslip => payslip.total_deductions },
+    { key: 'net', value: payslip => payslip.net_pay },
+    { key: 'status', value: payslip => label(payslip.status) },
+    { key: 'items', value: payslip => (payslip.items || []).map(item => `${item.label} ${item.amount}`).join(' ') },
+  ],
+)
+const { filters: wpsColumnFilters, filteredRows: filteredWpsBatches } = useTableColumnFilters(
+  wpsBatches,
+  [
+    { key: 'batch', value: batch => batch.batch_number },
+    { key: 'month', value: batch => batch.salary_month },
+    { key: 'records', value: batch => batch.record_count },
+    { key: 'total', value: batch => batch.total_amount },
+    { key: 'status', value: batch => label(batch.status) },
+  ],
+)
 const selectedPeriod = ref<PayrollPeriod | null>(null)
 const loading = ref(true)
 const loadError = ref('')

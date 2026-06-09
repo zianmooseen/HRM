@@ -117,9 +117,19 @@
             <th>Status</th>
             <th v-if="auth.hasPermission('settings.update')"></th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="columnFilters.date" label="Filter holiday date" type="date" /></th>
+            <th><TableColumnFilter v-model="columnFilters.name" label="Filter holiday name" /></th>
+            <th><TableColumnFilter v-model="columnFilters.country" label="Filter holiday country" /></th>
+            <th><TableColumnFilter v-model="columnFilters.emirate" label="Filter holiday emirate" /></th>
+            <th><TableColumnFilter v-model="columnFilters.paid" label="Filter paid status" /></th>
+            <th><TableColumnFilter v-model="columnFilters.source" label="Filter holiday source" /></th>
+            <th><TableColumnFilter v-model="columnFilters.status" label="Filter holiday status" /></th>
+            <th v-if="auth.hasPermission('settings.update')"></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="holiday in holidays" :key="holiday.id">
+          <tr v-for="holiday in filteredHolidays" :key="holiday.id">
             <td>{{ holiday.holiday_date }}</td>
             <td>{{ holiday.name }}</td>
             <td>{{ holiday.country_code }}</td>
@@ -132,7 +142,7 @@
               <button type="button" class="danger" @click="deleteHoliday(holiday.id)">Delete</button>
             </td>
           </tr>
-          <tr v-if="holidays.length === 0">
+          <tr v-if="filteredHolidays.length === 0">
             <td :colspan="auth.hasPermission('settings.update') ? 8 : 7">No public holidays configured yet.</td>
           </tr>
         </tbody>
@@ -167,6 +177,18 @@ interface ImportSummary {
 const auth = useAuthStore()
 const api = useApiClient()
 const holidays = ref<PublicHoliday[]>([])
+const { filters: columnFilters, filteredRows: filteredHolidays } = useTableColumnFilters(
+  holidays,
+  [
+    { key: 'date', value: holiday => holiday.holiday_date },
+    { key: 'name', value: holiday => holiday.name },
+    { key: 'country', value: holiday => holiday.country_code },
+    { key: 'emirate', value: holiday => holiday.emirate || 'All' },
+    { key: 'paid', value: holiday => holiday.paid ? 'Yes' : 'No' },
+    { key: 'source', value: holiday => sourceLabel(holiday.source) },
+    { key: 'status', value: holiday => holiday.status },
+  ],
+)
 const loading = ref(true)
 const saving = ref(false)
 const importing = ref(false)

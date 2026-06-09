@@ -81,9 +81,15 @@
             <th>Status</th>
             <th>Default</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="templateColumnFilters.name" label="Filter template name" /></th>
+            <th><TableColumnFilter v-model="templateColumnFilters.tasks" label="Filter template task count" /></th>
+            <th><TableColumnFilter v-model="templateColumnFilters.status" label="Filter template status" /></th>
+            <th><TableColumnFilter v-model="templateColumnFilters.default" label="Filter default template" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="template in templates" :key="template.id">
+          <tr v-for="template in filteredTemplates" :key="template.id">
             <td>{{ template.name }}</td>
             <td>{{ template.tasks?.length || 0 }}</td>
             <td>{{ label(template.status) }}</td>
@@ -105,9 +111,15 @@
             <th>Status</th>
             <th>Progress</th>
           </tr>
+          <tr class="column-filter-row">
+            <th><TableColumnFilter v-model="caseColumnFilters.employee" label="Filter onboarding employee" /></th>
+            <th><TableColumnFilter v-model="caseColumnFilters.template" label="Filter onboarding template" /></th>
+            <th><TableColumnFilter v-model="caseColumnFilters.status" label="Filter onboarding status" /></th>
+            <th><TableColumnFilter v-model="caseColumnFilters.progress" label="Filter onboarding progress" /></th>
+          </tr>
         </thead>
         <tbody>
-          <tr v-for="onboardingCase in cases" :key="onboardingCase.id">
+          <tr v-for="onboardingCase in filteredCases" :key="onboardingCase.id">
             <td>
               <NuxtLink :to="`/employees/${onboardingCase.employee_id}`">
                 {{ onboardingCase.employee?.display_name || `Employee #${onboardingCase.employee_id}` }}
@@ -154,6 +166,24 @@ const auth = useAuthStore()
 const api = useApiClient()
 const templates = ref<OnboardingTemplate[]>([])
 const cases = ref<OnboardingCase[]>([])
+const { filters: templateColumnFilters, filteredRows: filteredTemplates } = useTableColumnFilters(
+  templates,
+  [
+    { key: 'name', value: template => template.name },
+    { key: 'tasks', value: template => template.tasks?.length || 0 },
+    { key: 'status', value: template => label(template.status) },
+    { key: 'default', value: template => template.is_default ? 'Yes' : 'No' },
+  ],
+)
+const { filters: caseColumnFilters, filteredRows: filteredCases } = useTableColumnFilters(
+  cases,
+  [
+    { key: 'employee', value: onboardingCase => onboardingCase.employee?.display_name || `Employee #${onboardingCase.employee_id}` },
+    { key: 'template', value: onboardingCase => onboardingCase.template?.name },
+    { key: 'status', value: onboardingCase => label(onboardingCase.status) },
+    { key: 'progress', value: onboardingCase => `${onboardingCase.progress?.completed_tasks || 0} / ${onboardingCase.progress?.total_tasks || 0}` },
+  ],
+)
 const templatesLoading = ref(true)
 const casesLoading = ref(true)
 const savingTemplate = ref(false)

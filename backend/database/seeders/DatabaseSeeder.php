@@ -17,10 +17,16 @@ class DatabaseSeeder extends Seeder
         // Feature flow step 3: seed UAE statutory leave types before HR users create requests.
         $this->call(LeaveTypeSeeder::class);
 
-        // Feature flow step 4: create a runnable local login only when seed credentials are configured.
+        // Feature flow step 4: seed maintained WPS provider reference data.
+        $this->call(WpsProviderSeeder::class);
+
+        // Feature flow step 5: create a runnable local login only when seed credentials are configured.
         $this->call(DevelopmentAdminSeeder::class);
 
-        // Feature flow step 5: create deterministic demo records for end-to-end manual testing.
+        // Feature flow step 6: create deterministic demo records for end-to-end manual testing.
         $this->call(DemoDataSeeder::class);
+
+        // Feature flow step 7: expand the demo tenant into a comprehensive dashboard scenario dataset.
+        $this->call(DashboardScenarioSeeder::class);
     }
 }

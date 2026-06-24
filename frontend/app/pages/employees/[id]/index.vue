@@ -2,7 +2,12 @@
   <section class="page">
     <header>
       <h1>{{ employee?.display_name || 'Employee' }}</h1>
-      <NuxtLink :to="`/employees/${route.params.id}/edit`">Edit</NuxtLink>
+      <div class="header-actions">
+        <NuxtLink v-if="auth.hasPermission('mohre_establishments.view')" :to="`/employees/${route.params.id}/government`">
+          Government identifiers
+        </NuxtLink>
+        <NuxtLink :to="`/employees/${route.params.id}/edit`">Edit</NuxtLink>
+      </div>
     </header>
     <p v-if="loading">Loading employee...</p>
     <p v-else-if="error" class="error">{{ error }}</p>
@@ -31,11 +36,21 @@
       <dd>{{ employee.skill_level || '-' }}</dd>
       <dt>Work permit type</dt>
       <dd>{{ employee.work_permit_type || '-' }}</dd>
-      <template v-if="employee.basic_salary !== undefined">
+      <template v-if="employee.government_profile !== undefined">
         <dt>Work permit number</dt>
         <dd>{{ employee.work_permit_number || '-' }}</dd>
         <dt>Labor card number</dt>
         <dd>{{ employee.labor_card_number || '-' }}</dd>
+        <dt>MoHRE person code</dt>
+        <dd>{{ employee.government_profile?.person_code || '-' }}</dd>
+        <dt>WPS employee identifier</dt>
+        <dd>{{ employee.government_profile?.wps_employee_identifier || employee.wps_person_id || '-' }}</dd>
+        <dt>Emirates ID number</dt>
+        <dd>{{ employee.government_profile?.emirates_id_number || '-' }}</dd>
+        <dt>Visa file number</dt>
+        <dd>{{ employee.government_profile?.visa_file_number || '-' }}</dd>
+        <dt>Passport number</dt>
+        <dd>{{ employee.government_profile?.passport_number || '-' }}</dd>
       </template>
       <dt>Branch</dt>
       <dd>{{ employee.branch?.name || '-' }}</dd>

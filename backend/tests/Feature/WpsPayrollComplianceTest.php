@@ -118,7 +118,10 @@ class WpsPayrollComplianceTest extends TestCase
 
         $this->postJson("/api/payroll-periods/{$period->id}/wps-export")
             ->assertUnprocessable()
-            ->assertJsonPath('errors.employees.0', 'EMP-NOBANK missing work_permit_number, bank_iban, bank_routing_code, wps_person_id');
+            ->assertJsonPath(
+                'errors.employees.0',
+                'No Bank (EMP-NOBANK): Add a work permit or labour card number. Add the employee\'s UAE bank IBAN. Add the bank routing code. Add the employee\'s MoHRE or WPS identifier.',
+            );
     }
 
     public function test_wps_batch_status_can_be_tracked_after_generation(): void

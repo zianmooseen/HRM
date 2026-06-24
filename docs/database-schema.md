@@ -20,6 +20,7 @@ This document captures the intended relational model for the Laravel migrations.
 ## Employee And Onboarding
 
 - `employees`: HR records, optional login user, employment lifecycle, explicit work permit/labor card identifiers, salary visibility protected by permission, and WPS bank identifiers.
+- `employee_government_profiles`: encrypted MoHRE, work-permit, Emirates ID, visa, passport, and WPS employee identifiers, optionally assigned to one MoHRE establishment.
 - `employee_service_periods`: auditable employment periods for initial hire, contract extension, termination, and rehire.
 - `documents`: private employee files such as passports, visas, Emirates IDs, contracts, and medical certificates.
 - `employee_invitations`: hashed invitation token lifecycle.
@@ -60,6 +61,18 @@ This document captures the intended relational model for the Laravel migrations.
 - `wps_payroll_batches`: WPS export batch per approved payroll period with batch number, salary month, totals, generated file content, status lifecycle, and validation snapshot.
 - `wps_payroll_batch_items`: employee-level WPS export rows linked to payslips with bank identifiers, fixed/variable income, net pay, and row payload.
 - `wps_compliance_alerts`: persisted warning, urgent, and overdue alerts for payroll periods that have not reached accepted WPS status.
+- `mohre_establishments`: company and optional branch-level MoHRE registration records, expiry dates, WPS applicability, and exemption notes.
+- `wps_providers`: platform-managed bank, exchange-house, or financial-institution provider catalog and export profile.
+- `company_wps_settings`: establishment-to-provider mapping, payroll due day, currency, sender/agent values, and portal/customer references.
+- `wps_transfer_proofs`: private transfer evidence or external references with file hashes and verification status.
+
+WPS security and ownership rules:
+
+- Establishments, settings, government profiles, payroll batches, and proofs are company-scoped.
+- Employee government identifiers and payroll bank IBANs use encrypted model casts.
+- Sensitive setup, status, proof, and override actions create audit logs.
+- Payroll periods retain the selected establishment, provider, due date, WPS status, and lock state.
+- Transfer proof files use the configured private filesystem disk and store a SHA-256 hash.
 
 ## Platform Billing
 

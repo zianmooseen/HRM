@@ -8,9 +8,12 @@ use App\Http\Resources\PayrollPeriodResource;
 use App\Http\Resources\PayslipResource;
 use App\Models\EmployeeTermination;
 use App\Models\PayrollPeriod;
+use App\Models\MohreEstablishment;
+use App\Models\WpsProvider;
 use App\Services\Audit\AuditLogger;
 use App\Services\Auth\CompanyAccess;
 use App\Services\Payroll\PayrollRunService;
+use App\Services\Payroll\WpsComplianceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -23,6 +26,7 @@ class PayrollPeriodController extends Controller
         private readonly CompanyAccess $access,
         private readonly AuditLogger $audit,
         private readonly PayrollRunService $payroll,
+        private readonly WpsComplianceService $wpsCompliance,
     ) {
     }
 
@@ -43,12 +47,23 @@ class PayrollPeriodController extends Controller
     public function store(StorePayrollPeriodRequest $request): JsonResponse
     {
         $company = $this->company($request, 'payroll.run');
+        $data = $request->validated();
+        if (! empty($data['mohre_establishment_id'])) {
+            MohreEstablishment::query()->where('company_id', $company->id)->findOrFail($data['mohre_establishment_id']);
+        }
+        if (! empty($data['wps_provider_id'])) {
+            WpsProvider::query()->where('status', 'active')->findOrFail($data['wps_provider_id']);
+        }
 
         $period = $company->payrollPeriods()->create([
-            ...$request->validated(),
+            ...$data,
             'status' => 'draft',
+            'wps_status' => 'not_started',
             'created_by' => $request->user()->id,
         ]);
+        if (! $period->payroll_due_date) {
+            $period->update(['payroll_due_date' => $this->wpsCompliance->dueDate($period)?->toDateString()]);
+        }
         $this->audit->log($request, 'payroll_period.created', $period, null, $period->toArray());
 
         return $this->success('Payroll period created.', [
@@ -95,6 +110,8 @@ class PayrollPeriodController extends Controller
             'status' => 'approved',
             'approved_by' => $request->user()->id,
             'approved_at' => now(),
+            'locked_at' => now(),
+            'locked_by' => $request->user()->id,
         ]);
         $payrollPeriod->payslips()->update(['status' => 'approved']);
         $this->markIncludedTerminationsPaid($request, $payrollPeriod);

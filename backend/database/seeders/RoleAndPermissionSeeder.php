@@ -37,6 +37,18 @@ class RoleAndPermissionSeeder extends Seeder
             ['name' => 'View settings', 'slug' => 'settings.view', 'module' => 'settings'],
             ['name' => 'Update settings', 'slug' => 'settings.update', 'module' => 'settings'],
             ['name' => 'View audit logs', 'slug' => 'audit_logs.view', 'module' => 'audit_logs'],
+            ['name' => 'View MoHRE establishments', 'slug' => 'mohre_establishments.view', 'module' => 'mohre_wps'],
+            ['name' => 'Create MoHRE establishments', 'slug' => 'mohre_establishments.create', 'module' => 'mohre_wps'],
+            ['name' => 'Update MoHRE establishments', 'slug' => 'mohre_establishments.update', 'module' => 'mohre_wps'],
+            ['name' => 'View WPS settings', 'slug' => 'wps_settings.view', 'module' => 'mohre_wps'],
+            ['name' => 'Update WPS settings', 'slug' => 'wps_settings.update', 'module' => 'mohre_wps'],
+            ['name' => 'View salary transfers', 'slug' => 'salary_transfers.view', 'module' => 'mohre_wps'],
+            ['name' => 'Generate salary transfers', 'slug' => 'salary_transfers.generate', 'module' => 'mohre_wps'],
+            ['name' => 'Submit salary transfers', 'slug' => 'salary_transfers.submit', 'module' => 'mohre_wps'],
+            ['name' => 'Update salary transfer status', 'slug' => 'salary_transfers.update_status', 'module' => 'mohre_wps'],
+            ['name' => 'Upload salary transfer proof', 'slug' => 'salary_transfers.upload_proof', 'module' => 'mohre_wps'],
+            ['name' => 'Verify salary transfer proof', 'slug' => 'salary_transfers.verify_proof', 'module' => 'mohre_wps'],
+            ['name' => 'Override salary transfer status', 'slug' => 'salary_transfers.manual_override', 'module' => 'mohre_wps'],
         ])->mapWithKeys(fn ($permission) => [
             $permission['slug'] => Permission::query()->firstOrCreate(
                 ['slug' => $permission['slug']],
@@ -47,8 +59,8 @@ class RoleAndPermissionSeeder extends Seeder
         $roles = [
             'super_admin' => $permissions->keys()->all(),
             'company_admin' => $permissions->keys()->reject(fn ($slug) => $slug === 'companies.create')->values()->all(),
-            'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject', 'documents.view', 'documents.upload', 'documents.delete', 'audit_logs.view'],
-            'payroll_manager' => ['employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export', 'audit_logs.view'],
+            'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject', 'documents.view', 'documents.upload', 'documents.delete', 'audit_logs.view', 'mohre_establishments.view', 'mohre_establishments.create', 'mohre_establishments.update', 'wps_settings.view'],
+            'payroll_manager' => ['employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export', 'audit_logs.view', 'mohre_establishments.view', 'wps_settings.view', 'salary_transfers.view', 'salary_transfers.generate', 'salary_transfers.submit', 'salary_transfers.update_status', 'salary_transfers.upload_proof'],
             'department_manager' => ['employees.view', 'leave.view', 'leave.approve', 'leave.reject'],
             'employee' => ['attendance.view', 'leave.view', 'leave.create', 'documents.view', 'documents.upload'],
         ];

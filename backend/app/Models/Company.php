@@ -134,4 +134,24 @@ class Company extends Model
     {
         return $this->hasMany(WpsPayrollBatch::class);
     }
+
+    public function mohreEstablishments(): HasMany
+    {
+        return $this->hasMany(MohreEstablishment::class);
+    }
+
+    public function wpsSettings(): HasMany
+    {
+        return $this->hasMany(CompanyWpsSetting::class);
+    }
+
+    public function employeeGovernmentProfiles(): HasMany
+    {
+        return $this->hasMany(EmployeeGovernmentProfile::class);
+    }
+
+    public function wpsTransferProofs(): HasMany
+    {
+        return $this->hasMany(WpsTransferProof::class);
+    }
 }

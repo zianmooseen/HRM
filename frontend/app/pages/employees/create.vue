@@ -143,7 +143,16 @@
       </label>
       <label>
         UAE IBAN
-        <input v-model="form.bank_iban" maxlength="34">
+        <input
+          v-model="form.bank_iban"
+          maxlength="34"
+          placeholder="AE07 0331 2345 6789 0123 456"
+          aria-describedby="bank-iban-help"
+          @blur="normalizeIban"
+        >
+        <small id="bank-iban-help" class="field-hint">
+          23 characters starting with AE. Copy the exact IBAN from the bank statement or banking app.
+        </small>
       </label>
       <label>
         Bank routing code
@@ -205,6 +214,10 @@ const form = reactive({
   wps_person_id: '',
 })
 
+function normalizeIban() {
+  form.bank_iban = form.bank_iban.replace(/\s+/g, '').toUpperCase()
+}
+
 onMounted(async () => {
   const [branchResponse, departmentResponse, jobTitleResponse, employeeResponse] = await Promise.all([
     api.get<{ branches: Array<{ id: number, name: string }> }>('/branches'),
@@ -221,6 +234,7 @@ onMounted(async () => {
 async function submit() {
   saving.value = true
   error.value = ''
+  normalizeIban()
 
   try {
     const response = await api.post<{ employee: { id: number } }>('/employees', form)

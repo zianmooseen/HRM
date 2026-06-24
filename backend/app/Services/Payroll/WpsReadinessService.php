@@ -15,6 +15,17 @@ class WpsReadinessService
 {
     public function companyMissingFields(Company $company): array
     {
+        $setting = $company->wpsSettings()->with(['establishment', 'provider'])->where('status', 'active')->first();
+
+        if ($setting) {
+            return collect([
+                'mohre_establishment' => $setting->establishment?->mohre_establishment_number,
+                'wps_provider' => $setting->provider?->id,
+                'wps_agent_code' => $setting->agent_code,
+                'wps_file_sender_id' => $setting->sender_id,
+            ])->filter(fn ($value) => blank($value))->keys()->all();
+        }
+
         return collect([
             'mohre_establishment_number' => $company->mohre_establishment_number,
             'wps_bank_name' => $company->wps_bank_name,
@@ -25,11 +36,13 @@ class WpsReadinessService
 
     public function employeeMissingFields(Employee $employee): array
     {
+        $employee->loadMissing('governmentProfile');
+        $government = $employee->governmentProfile;
         $missing = collect([
-            'work_permit_number' => $employee->work_permit_number ?: $employee->labor_card_number,
+            'work_permit_number' => $government?->work_permit_number ?: $employee->work_permit_number ?: $employee->labor_card_number,
             'bank_iban' => $employee->bank_iban,
             'bank_routing_code' => $employee->bank_routing_code,
-            'wps_person_id' => $employee->wps_person_id,
+            'wps_person_id' => $government?->wps_employee_identifier ?: $employee->wps_person_id,
         ])->filter(fn ($value) => blank($value))->keys();
 
         if (filled($employee->bank_iban) && ! UaeIban::isValid($employee->bank_iban)) {
@@ -115,7 +128,7 @@ class WpsReadinessService
         $daysAfterDue = $dueDate->diffInDays($today, false);
         $accepted = $batch
             && $batch->payroll_period_id === $period->id
-            && $batch->status === 'accepted';
+            && in_array($batch->status, ['accepted', 'paid', 'manual_override'], true);
 
         $status = match (true) {
             $accepted => 'compliant',

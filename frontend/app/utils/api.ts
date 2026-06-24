@@ -3,6 +3,24 @@ import type { ApiResponse, ApiSuccess } from '../../../shared/types/api'
 export function useApiClient() {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBaseUrl
+  const incomingHeaders = import.meta.server
+    ? useRequestHeaders(['cookie', 'host', 'x-forwarded-host', 'x-forwarded-proto'])
+    : {}
+
+  function serverHeaders() {
+    if (!import.meta.server) {
+      return {}
+    }
+
+    const host = incomingHeaders['x-forwarded-host'] || incomingHeaders.host
+    const protocol = incomingHeaders['x-forwarded-proto'] || 'http'
+    const origin = host ? `${protocol}://${host}` : null
+
+    return {
+      ...(incomingHeaders.cookie ? { Cookie: incomingHeaders.cookie } : {}),
+      ...(origin ? { Origin: origin, Referer: `${origin}/` } : {}),
+    }
+  }
 
   function xsrfToken() {
     if (import.meta.server) {
@@ -23,6 +41,7 @@ export function useApiClient() {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
+        ...serverHeaders(),
         ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { 'X-XSRF-TOKEN': token } : {}),
         ...(options.headers || {}),

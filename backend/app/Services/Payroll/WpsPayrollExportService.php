@@ -20,7 +20,7 @@ class WpsPayrollExportService
 
     public function generate(PayrollPeriod $period, int $userId): WpsPayrollBatch
     {
-        $period->loadMissing(['company', 'payslips.employee']);
+        $period->loadMissing(['company', 'payslips.employee.governmentProfile', 'mohreEstablishment.wpsSetting.provider', 'wpsProvider']);
         $this->validatePeriod($period);
 
         $payslips = $period->payslips
@@ -42,7 +42,9 @@ class WpsPayrollExportService
                 ]);
             }
 
-            $exporter = $this->exporters->make($period->company);
+            $setting = $period->mohreEstablishment?->wpsSetting;
+            $provider = $period->wpsProvider ?: $setting?->provider;
+            $exporter = $this->exporters->make($period->company, $provider);
             $rows = $payslips->map(fn (Payslip $payslip) => $this->row($period, $payslip));
             $file = $exporter->generate($period, $rows);
 
@@ -51,9 +53,13 @@ class WpsPayrollExportService
                 [
                     'batch_number' => $existing?->batch_number ?: $this->batchNumber($period),
                     'status' => 'generated',
+                    'proof_status' => 'missing',
                     'file_format' => $file->format,
                     'provider' => $exporter->provider(),
+                    'mohre_establishment_id' => $period->mohre_establishment_id,
+                    'wps_provider_id' => $provider?->id,
                     'salary_month' => $period->period_start->format('Y-m'),
+                    'payroll_due_date' => $period->payroll_due_date ?? $period->pay_date,
                     'record_count' => $payslips->count(),
                     'total_amount' => $payslips->sum(fn (Payslip $payslip) => (float) $payslip->net_pay),
                     'generated_at' => now(),
@@ -63,6 +69,7 @@ class WpsPayrollExportService
                     'rejection_reason' => null,
                     'generated_by' => $userId,
                     'status_updated_by' => null,
+                    'provider_reference' => null,
                     'bank_reference' => null,
                     'response_filename' => null,
                     'response_details_json' => null,
@@ -91,6 +98,12 @@ class WpsPayrollExportService
             }
 
             $batch->update(['file_content' => $file->content]);
+            $batch->update(['file_hash' => hash('sha256', $file->content)]);
+            $period->update([
+                'wps_status' => 'file_generated',
+                'mohre_establishment_id' => $period->mohre_establishment_id ?: $setting?->mohre_establishment_id,
+                'wps_provider_id' => $period->wps_provider_id ?: $provider?->id,
+            ]);
 
             return $batch->fresh(['payrollPeriod', 'items']);
         });
@@ -131,13 +144,33 @@ class WpsPayrollExportService
             $missing = collect($employee ? $this->readiness->employeeMissingFields($employee) : ['employee']);
 
             if ($missing->isNotEmpty()) {
-                $errors[] = ($employee?->employee_code ?? 'Employee #'.$payslip->employee_id).' missing '.$missing->implode(', ');
+                $employeeLabel = $employee
+                    ? "{$employee->display_name} ({$employee->employee_code})"
+                    : "Employee #{$payslip->employee_id}";
+                $reasons = $missing
+                    ->map(fn (string $field): string => $this->employeeReadinessMessage($field))
+                    ->implode(' ');
+
+                $errors[] = "{$employeeLabel}: {$reasons}";
             }
         }
 
         if ($errors !== []) {
             throw ValidationException::withMessages(['employees' => $errors]);
         }
+    }
+
+    private function employeeReadinessMessage(string $field): string
+    {
+        return match ($field) {
+            'work_permit_number' => 'Add a work permit or labour card number.',
+            'bank_iban' => 'Add the employee\'s UAE bank IBAN.',
+            'bank_iban_invalid' => 'Correct the bank IBAN because it is not a valid UAE IBAN.',
+            'bank_routing_code' => 'Add the bank routing code.',
+            'wps_person_id' => 'Add the employee\'s MoHRE or WPS identifier.',
+            'employee' => 'The employee record could not be loaded.',
+            default => 'Complete the missing WPS payroll information.',
+        };
     }
 
     private function row(PayrollPeriod $period, Payslip $payslip): array
@@ -153,7 +186,7 @@ class WpsPayrollExportService
             'employee_id' => $employee->id,
             'employee_code' => $employee->employee_code,
             'employee_name' => $employee->display_name,
-            'wps_person_id' => $employee->wps_person_id,
+            'wps_person_id' => $employee->governmentProfile?->wps_employee_identifier ?: $employee->wps_person_id,
             'bank_routing_code' => $employee->bank_routing_code,
             'bank_iban' => $employee->bank_iban,
             'salary_month' => $period->period_start->format('Y-m'),

@@ -146,8 +146,17 @@
         <input v-model="form.bank_name">
       </label>
       <label>
-        Bank IBAN
-        <input v-model="form.bank_iban">
+        UAE IBAN
+        <input
+          v-model="form.bank_iban"
+          maxlength="34"
+          placeholder="AE07 0331 2345 6789 0123 456"
+          aria-describedby="bank-iban-help"
+          @blur="normalizeIban"
+        >
+        <small id="bank-iban-help" class="field-hint">
+          23 characters starting with AE. Copy the exact IBAN from the bank statement or banking app.
+        </small>
       </label>
       <label>
         Bank routing code
@@ -178,6 +187,10 @@ const jobTitles = ref<Array<{ id: number, title: string }>>([])
 const managers = ref<Array<{ id: number, display_name: string }>>([])
 const form = reactive<any>({})
 
+function normalizeIban() {
+  form.bank_iban = String(form.bank_iban || '').replace(/\s+/g, '').toUpperCase()
+}
+
 onMounted(async () => {
   const [employeeResponse, branchResponse, departmentResponse, jobTitleResponse, employeeListResponse] = await Promise.all([
     api.get<{ employee: any }>(`/employees/${route.params.id}`),
@@ -197,6 +210,7 @@ onMounted(async () => {
 async function submit() {
   saving.value = true
   error.value = ''
+  normalizeIban()
 
   try {
     await api.put(`/employees/${route.params.id}`, form)

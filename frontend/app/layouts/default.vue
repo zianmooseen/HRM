@@ -70,6 +70,7 @@ const navigationGroups = [
         label: 'Administration',
         items: [
           { label: 'Companies', to: '/platform/companies', permission: 'companies.view' },
+          { label: 'WPS providers & risk', to: '/platform/wps', permission: null },
           { label: 'Platform settings', to: '/platform/settings', permission: 'settings.view' },
         ],
       },
@@ -125,6 +126,7 @@ const navigationGroups = [
         label: 'Payroll',
         items: [
           { label: 'Payroll', to: '/payroll', permission: 'payroll.view' },
+          { label: 'WPS salary transfers', to: '/payroll/wps', permission: 'salary_transfers.view' },
           { label: 'Payroll policies', to: '/settings/payroll-policies', permission: 'settings.view' },
         ],
       },
@@ -132,6 +134,7 @@ const navigationGroups = [
         label: 'Compliance',
         items: [
           { label: 'Compliance', to: '/settings/compliance', permission: 'settings.view' },
+          { label: 'MoHRE & WPS setup', to: '/settings/mohre-wps', permission: 'wps_settings.view' },
           { label: 'Leave policies', to: '/settings/leave-policies', permission: 'settings.view' },
           { label: 'Public holidays', to: '/settings/public-holidays', permission: 'settings.view' },
           { label: 'Emiratisation', to: '/settings/emiratisation', permission: 'settings.view' },

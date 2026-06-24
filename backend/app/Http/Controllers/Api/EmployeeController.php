@@ -36,7 +36,7 @@ class EmployeeController extends Controller
         $company = $this->company($request, 'employees.view');
 
         $employees = $company->employees()
-            ->with(['branch', 'department', 'jobTitle', 'manager'])
+            ->with(['branch', 'department', 'jobTitle', 'manager', 'governmentProfile'])
             ->when($request->query('status'), fn ($query, $status) => $query->where('status', $status))
             ->when($request->query('contract_expiring_days'), function ($query, $days): void {
                 // Feature flow step 1: contract expiry filters power dashboard reminders without client-side date guessing.
@@ -109,7 +109,7 @@ class EmployeeController extends Controller
         $this->audit->log($request, 'employee.created', $employee, null, $employee->toArray());
 
         return $this->success('Employee created.', [
-            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle', 'manager'])),
+            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle', 'manager', 'governmentProfile'])),
         ], 201);
     }
 
@@ -119,7 +119,7 @@ class EmployeeController extends Controller
         $this->ensureOwned($employee, $company->id);
 
         return $this->success('Employee retrieved.', [
-            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle', 'manager'])),
+            'employee' => new EmployeeResource($employee->load(['branch', 'department', 'jobTitle', 'manager', 'governmentProfile'])),
         ]);
     }
 
@@ -144,7 +144,7 @@ class EmployeeController extends Controller
         $this->audit->log($request, 'employee.updated', $employee, $before, $employee->fresh()->toArray());
 
         return $this->success('Employee updated.', [
-            'employee' => new EmployeeResource($employee->fresh()->load(['branch', 'department', 'jobTitle', 'manager'])),
+            'employee' => new EmployeeResource($employee->fresh()->load(['branch', 'department', 'jobTitle', 'manager', 'governmentProfile'])),
         ]);
     }
 

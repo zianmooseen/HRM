@@ -17,6 +17,9 @@ class StorePayrollPeriodRequest extends FormRequest
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'pay_date' => ['nullable', 'date', 'after_or_equal:period_end'],
+            'mohre_establishment_id' => ['nullable', 'integer', 'exists:mohre_establishments,id'],
+            'wps_provider_id' => ['nullable', 'integer', 'exists:wps_providers,id'],
+            'payroll_due_date' => ['nullable', 'date', 'after_or_equal:period_end'],
         ];
     }
 }

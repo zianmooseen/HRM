@@ -10,6 +10,8 @@ class EmployeeResource extends JsonResource
     public function toArray(Request $request): array
     {
         $canViewSalary = $request->user()?->hasPermission('employees.view_salary') ?? false;
+        $canViewGovernmentIdentifiers = $request->user()?->hasPermission('mohre_establishments.view') ?? false;
+        $governmentProfile = $this->relationLoaded('governmentProfile') ? $this->governmentProfile : null;
         $contractDaysRemaining = $this->contract_end_date
             ? now()->startOfDay()->diffInDays($this->contract_end_date, false)
             : null;
@@ -36,8 +38,14 @@ class EmployeeResource extends JsonResource
             'skill_level' => $this->skill_level,
             'is_skilled_worker' => $this->is_skilled_worker,
             'work_permit_type' => $this->work_permit_type,
-            'work_permit_number' => $this->when($canViewSalary, $this->work_permit_number),
-            'labor_card_number' => $this->when($canViewSalary, $this->labor_card_number),
+            'work_permit_number' => $this->when(
+                $canViewGovernmentIdentifiers,
+                $governmentProfile?->work_permit_number ?: $this->work_permit_number,
+            ),
+            'labor_card_number' => $this->when(
+                $canViewGovernmentIdentifiers,
+                $governmentProfile?->labour_card_number ?: $this->labor_card_number,
+            ),
             'date_of_birth' => optional($this->date_of_birth)->toDateString(),
             'hire_date' => optional($this->hire_date)->toDateString(),
             'probation_end_date' => optional($this->probation_end_date)->toDateString(),
@@ -54,6 +62,12 @@ class EmployeeResource extends JsonResource
             'bank_iban' => $this->when($canViewSalary, $this->bank_iban),
             'bank_routing_code' => $this->when($canViewSalary, $this->bank_routing_code),
             'wps_person_id' => $this->when($canViewSalary, $this->wps_person_id),
+            'government_profile' => $this->when(
+                $canViewGovernmentIdentifiers && $this->relationLoaded('governmentProfile'),
+                fn () => $this->governmentProfile
+                    ? new EmployeeGovernmentProfileResource($this->governmentProfile)
+                    : null,
+            ),
             'branch' => $this->whenLoaded('branch', fn () => new BranchResource($this->branch)),
             'department' => $this->whenLoaded('department', fn () => new DepartmentResource($this->department)),
             'job_title' => $this->whenLoaded('jobTitle', fn () => new JobTitleResource($this->jobTitle)),

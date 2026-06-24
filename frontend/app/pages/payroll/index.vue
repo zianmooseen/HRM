@@ -70,6 +70,22 @@
 
       <form class="form-grid" @submit.prevent="createPeriod">
         <h2>Payroll Period</h2>
+        <label v-if="canViewWpsSettings">
+          MoHRE establishment
+          <select v-model.number="periodForm.mohre_establishment_id">
+            <option :value="0">Use company default</option>
+            <option v-for="setting in wpsSettings" :key="setting.mohre_establishment_id" :value="setting.mohre_establishment_id">
+              {{ setting.establishment?.establishment_name || `Establishment #${setting.mohre_establishment_id}` }}
+            </option>
+          </select>
+        </label>
+        <label v-if="canViewWpsSettings">
+          WPS provider
+          <select v-model.number="periodForm.wps_provider_id">
+            <option :value="0">Use establishment provider</option>
+            <option v-for="provider in wpsProviders" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
+          </select>
+        </label>
         <label>
           Period start
           <input v-model="periodForm.period_start" type="date" required>
@@ -81,6 +97,10 @@
         <label>
           Pay date
           <input v-model="periodForm.pay_date" type="date">
+        </label>
+        <label v-if="canViewWpsSettings">
+          WPS due date
+          <input v-model="periodForm.payroll_due_date" type="date">
         </label>
         <p v-if="periodError" class="error">{{ periodError }}</p>
         <button type="submit" :disabled="savingPeriod">{{ savingPeriod ? 'Saving...' : 'Create period' }}</button>
@@ -109,30 +129,103 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="period in filteredPeriods" :key="period.id">
-            <td>{{ period.period_start }} to {{ period.period_end }}</td>
-            <td>{{ period.pay_date || '-' }}</td>
-            <td>{{ label(period.status) }}</td>
-            <td>{{ period.payslips_count ?? 0 }}</td>
-            <td class="table-actions">
-              <button type="button" class="secondary" @click="openPeriod(period)">Open</button>
-              <button
-                v-if="period.status !== 'approved'"
-                type="button"
-                class="secondary"
-                @click="runPeriod(period)"
-              >
-                Run
-              </button>
-              <button
-                v-if="period.status === 'processed'"
-                type="button"
-                @click="approvePeriod(period)"
-              >
-                Approve
-              </button>
-            </td>
-          </tr>
+          <template v-for="period in filteredPeriods" :key="period.id">
+            <tr :class="{ 'period-row-active': selectedPeriod?.id === period.id }">
+              <td>{{ period.period_start }} to {{ period.period_end }}</td>
+              <td>{{ period.pay_date || '-' }}</td>
+              <td>{{ label(period.status) }}</td>
+              <td>{{ period.payslips_count ?? 0 }}</td>
+              <td class="table-actions">
+                <button type="button" class="secondary" @click="togglePeriod(period)">
+                  {{ selectedPeriod?.id === period.id ? 'Close' : 'Open' }}
+                </button>
+                <button
+                  v-if="period.status !== 'approved'"
+                  type="button"
+                  class="secondary"
+                  @click="runPeriod(period)"
+                >
+                  Run
+                </button>
+                <button
+                  v-if="period.status === 'processed'"
+                  type="button"
+                  @click="approvePeriod(period)"
+                >
+                  Approve
+                </button>
+              </td>
+            </tr>
+            <tr v-if="selectedPeriod?.id === period.id" class="period-detail-row">
+              <td colspan="5">
+                <section class="period-detail">
+                  <header class="period-detail-heading">
+                    <div>
+                      <h3>Payslips</h3>
+                      <p class="muted">{{ selectedPeriod.period_start }} to {{ selectedPeriod.period_end }}</p>
+                    </div>
+                    <button
+                      v-if="selectedPeriod.status === 'approved' && canGenerateSalaryTransfers"
+                      type="button"
+                      :disabled="generatingWps"
+                      @click="generateWps(selectedPeriod)"
+                    >
+                      {{ generatingWps ? 'Generating...' : 'Generate WPS export' }}
+                    </button>
+                  </header>
+
+                  <section v-if="wpsErrors.length" class="wps-validation">
+                    <strong>WPS export cannot be generated yet</strong>
+                    <p>Correct the following employee details and try again:</p>
+                    <ul>
+                      <li v-for="message in wpsErrors" :key="message">{{ message }}</li>
+                    </ul>
+                  </section>
+
+                  <table class="payslip-table">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Gross</th>
+                        <th>Deductions</th>
+                        <th>Net</th>
+                        <th>Status</th>
+                        <th>Pay items</th>
+                      </tr>
+                      <tr class="column-filter-row">
+                        <th><TableColumnFilter v-model="payslipColumnFilters.employee" label="Filter payslip employee" /></th>
+                        <th><TableColumnFilter v-model="payslipColumnFilters.gross" label="Filter gross pay" /></th>
+                        <th><TableColumnFilter v-model="payslipColumnFilters.deductions" label="Filter deductions" /></th>
+                        <th><TableColumnFilter v-model="payslipColumnFilters.net" label="Filter net pay" /></th>
+                        <th><TableColumnFilter v-model="payslipColumnFilters.status" label="Filter payslip status" /></th>
+                        <th><TableColumnFilter v-model="payslipColumnFilters.items" label="Filter pay items" /></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="payslip in filteredPayslips" :key="payslip.id">
+                        <td>{{ payslip.employee?.display_name || '-' }}</td>
+                        <td>{{ payslip.gross_pay }}</td>
+                        <td>{{ payslip.total_deductions }}</td>
+                        <td>{{ payslip.net_pay }}</td>
+                        <td>{{ label(payslip.status) }}</td>
+                        <td>
+                          <ul class="payslip-items">
+                            <li v-for="item in payslip.items || []" :key="item.id">
+                              <span>{{ item.label }}</span>
+                              <strong>{{ item.type === 'deduction' ? '-' : '+' }}{{ item.amount }}</strong>
+                            </li>
+                          </ul>
+                        </td>
+                      </tr>
+                      <tr v-if="filteredPayslips.length === 0">
+                        <td colspan="6">Run payroll to generate payslips.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+              </td>
+            </tr>
+          </template>
           <tr v-if="filteredPeriods.length === 0">
             <td colspan="5">No payroll periods found.</td>
           </tr>
@@ -140,65 +233,14 @@
       </table>
     </section>
 
-    <section v-if="selectedPeriod">
-      <h2>Payslips</h2>
-      <p class="muted">{{ selectedPeriod.period_start }} to {{ selectedPeriod.period_end }}</p>
-      <div class="section-actions">
-        <button
-          v-if="selectedPeriod.status === 'approved'"
-          type="button"
-          :disabled="generatingWps"
-          @click="generateWps(selectedPeriod)"
-        >
-          {{ generatingWps ? 'Generating...' : 'Generate WPS export' }}
-        </button>
+    <section v-if="canViewSalaryTransfers">
+      <div class="section-heading">
+        <div>
+          <h2>WPS Exports</h2>
+          <p class="muted">Generated payroll files for UAE Wage Protection System submission tracking.</p>
+        </div>
+        <NuxtLink class="secondary-link" to="/payroll/wps">Open WPS operations</NuxtLink>
       </div>
-      <p v-if="wpsError" class="error">{{ wpsError }}</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Gross</th>
-            <th>Deductions</th>
-            <th>Net</th>
-            <th>Status</th>
-            <th>Pay items</th>
-          </tr>
-          <tr class="column-filter-row">
-            <th><TableColumnFilter v-model="payslipColumnFilters.employee" label="Filter payslip employee" /></th>
-            <th><TableColumnFilter v-model="payslipColumnFilters.gross" label="Filter gross pay" /></th>
-            <th><TableColumnFilter v-model="payslipColumnFilters.deductions" label="Filter deductions" /></th>
-            <th><TableColumnFilter v-model="payslipColumnFilters.net" label="Filter net pay" /></th>
-            <th><TableColumnFilter v-model="payslipColumnFilters.status" label="Filter payslip status" /></th>
-            <th><TableColumnFilter v-model="payslipColumnFilters.items" label="Filter pay items" /></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="payslip in filteredPayslips" :key="payslip.id">
-            <td>{{ payslip.employee?.display_name || '-' }}</td>
-            <td>{{ payslip.gross_pay }}</td>
-            <td>{{ payslip.total_deductions }}</td>
-            <td>{{ payslip.net_pay }}</td>
-            <td>{{ label(payslip.status) }}</td>
-            <td>
-              <ul class="payslip-items">
-                <li v-for="item in payslip.items || []" :key="item.id">
-                  <span>{{ item.label }}</span>
-                  <strong>{{ item.type === 'deduction' ? '-' : '+' }}{{ item.amount }}</strong>
-                </li>
-              </ul>
-            </td>
-          </tr>
-          <tr v-if="filteredPayslips.length === 0">
-            <td colspan="5">Run payroll to generate payslips.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section>
-      <h2>WPS Exports</h2>
-      <p class="muted">Generated payroll files for UAE Wage Protection System submission tracking.</p>
       <table>
         <thead>
           <tr>
@@ -265,8 +307,20 @@ interface PayrollPeriod {
   period_start: string
   period_end: string
   pay_date: string | null
+  payroll_due_date: string | null
+  wps_status: string
   status: string
   payslips_count?: number
+}
+
+interface WpsProvider {
+  id: number
+  name: string
+}
+
+interface WpsSetting {
+  mohre_establishment_id: number
+  establishment?: { establishment_name: string } | null
 }
 
 interface WpsPayrollBatch {
@@ -299,11 +353,17 @@ interface PayslipItem {
 }
 
 const api = useApiClient()
+const auth = useAuthStore()
 const employees = ref<EmployeeOption[]>([])
 const components = ref<SalaryComponent[]>([])
 const periods = ref<PayrollPeriod[]>([])
 const payslips = ref<Payslip[]>([])
 const wpsBatches = ref<WpsPayrollBatch[]>([])
+const wpsSettings = ref<WpsSetting[]>([])
+const wpsProviders = ref<WpsProvider[]>([])
+const canViewWpsSettings = computed(() => auth.hasPermission('wps_settings.view'))
+const canViewSalaryTransfers = computed(() => auth.hasPermission('salary_transfers.view'))
+const canGenerateSalaryTransfers = computed(() => auth.hasPermission('salary_transfers.generate'))
 const { filters: periodColumnFilters, filteredRows: filteredPeriods } = useTableColumnFilters(
   periods,
   [
@@ -340,7 +400,7 @@ const loadError = ref('')
 const componentError = ref('')
 const assignmentError = ref('')
 const periodError = ref('')
-const wpsError = ref('')
+const wpsErrors = ref<string[]>([])
 const savingComponent = ref(false)
 const savingAssignment = ref(false)
 const savingPeriod = ref(false)
@@ -364,9 +424,12 @@ const assignmentForm = reactive({
   status: 'active',
 })
 const periodForm = reactive({
+  mohre_establishment_id: 0,
+  wps_provider_id: 0,
   period_start: today.slice(0, 8) + '01',
   period_end: today,
   pay_date: '',
+  payroll_due_date: '',
 })
 
 onMounted(async () => {
@@ -386,7 +449,24 @@ async function loadAll() {
     employees.value = employeeResponse.data.employees
     components.value = componentResponse.data.salary_components
     periods.value = periodResponse.data.payroll_periods
-    await loadWpsBatches()
+
+    if (canViewWpsSettings.value) {
+      try {
+        const wpsResponse = await api.get<{ wps_settings: WpsSetting[], wps_providers: WpsProvider[] }>('/wps-settings')
+        wpsSettings.value = wpsResponse.data.wps_settings
+        wpsProviders.value = wpsResponse.data.wps_providers
+      } catch (err) {
+        wpsErrors.value = apiErrorMessages(err, 'Unable to load WPS settings.')
+      }
+    }
+
+    if (canViewSalaryTransfers.value) {
+      try {
+        await loadWpsBatches()
+      } catch (err) {
+        wpsErrors.value = apiErrorMessages(err, 'Unable to load WPS exports.')
+      }
+    }
   } catch {
     loadError.value = 'Unable to load payroll data.'
   } finally {
@@ -434,7 +514,10 @@ async function createPeriod() {
   try {
     await api.post('/payroll-periods', {
       ...periodForm,
+      mohre_establishment_id: periodForm.mohre_establishment_id || null,
+      wps_provider_id: periodForm.wps_provider_id || null,
       pay_date: periodForm.pay_date || null,
+      payroll_due_date: periodForm.payroll_due_date || null,
     })
     await loadAll()
   } catch (err) {
@@ -448,7 +531,23 @@ async function openPeriod(period: PayrollPeriod) {
   const response = await api.get<{ payroll_period: PayrollPeriod, payslips: Payslip[] }>(`/payroll-periods/${period.id}`)
   selectedPeriod.value = response.data.payroll_period
   payslips.value = response.data.payslips
-  await loadWpsBatches(period.id)
+  wpsErrors.value = []
+
+  if (canViewSalaryTransfers.value) {
+    await loadWpsBatches(period.id)
+  }
+}
+
+async function togglePeriod(period: PayrollPeriod) {
+  if (selectedPeriod.value?.id === period.id) {
+    selectedPeriod.value = null
+    payslips.value = []
+    wpsErrors.value = []
+
+    return
+  }
+
+  await openPeriod(period)
 }
 
 async function runPeriod(period: PayrollPeriod) {
@@ -471,14 +570,14 @@ async function loadWpsBatches(periodId?: number) {
 
 async function generateWps(period: PayrollPeriod) {
   generatingWps.value = true
-  wpsError.value = ''
+  wpsErrors.value = []
 
   try {
     // Feature flow step 4: payroll users generate WPS only from the selected approved payroll period.
     await api.post(`/payroll-periods/${period.id}/wps-export`, {})
     await loadWpsBatches(period.id)
   } catch (err) {
-    wpsError.value = apiErrorMessage(err, 'Unable to generate WPS export.')
+    wpsErrors.value = apiErrorMessages(err, 'Unable to generate WPS export.')
   } finally {
     generatingWps.value = false
   }
@@ -500,6 +599,19 @@ function downloadWpsUrl(batch: WpsPayrollBatch) {
 
 function label(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function apiErrorMessages(error: unknown, fallback: string) {
+  if (error && typeof error === 'object' && 'errors' in error) {
+    const errors = (error as { errors?: Record<string, string[]> }).errors
+    const messages = errors ? Object.values(errors).flat() : []
+
+    if (messages.length) {
+      return messages
+    }
+  }
+
+  return [apiErrorMessage(error, fallback)]
 }
 </script>
 
@@ -531,16 +643,71 @@ function label(value: string) {
   color: #41505a;
 }
 
-.section-actions {
+.section-heading {
   display: flex;
-  justify-content: flex-end;
-  margin: 10px 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.period-row-active td {
+  padding-top: 24px;
+  padding-bottom: 24px;
+  border-bottom-color: transparent;
+  background: #f5f9f7;
+}
+
+.period-detail-row > td {
+  padding: 0 18px 24px;
+  background: #f5f9f7;
+}
+
+.period-detail {
+  border: 1px solid #cbdad3;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 20px;
+}
+
+.period-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.period-detail-heading h3 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.payslip-table {
+  margin: 0;
 }
 
 .secondary-link {
   color: #176b54;
   font-weight: 700;
   text-decoration: none;
+}
+
+.wps-validation {
+  margin: 10px 0;
+  border: 1px solid #e0a7ac;
+  border-radius: 8px;
+  background: #fff5f5;
+  padding: 14px 16px;
+  color: #a52631;
+}
+
+.wps-validation p {
+  margin: 4px 0 8px;
+}
+
+.wps-validation ul {
+  margin: 0;
+  padding-left: 20px;
 }
 
 .form-grid h2,

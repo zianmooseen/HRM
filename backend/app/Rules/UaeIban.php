@@ -9,8 +9,16 @@ class UaeIban implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (! is_string($value) || ! self::isValid($value)) {
-            $fail('The :attribute must be a valid UAE IBAN.');
+        $iban = is_string($value) ? self::normalize($value) : null;
+
+        if ($iban === null || preg_match('/^AE\d{21}$/', $iban) !== 1) {
+            $fail('Enter a 23-character UAE IBAN starting with AE followed by 21 digits.');
+
+            return;
+        }
+
+        if (! self::hasValidChecksum($iban)) {
+            $fail('The UAE IBAN checksum is invalid. Copy the exact IBAN from the employee\'s bank statement or banking app.');
         }
     }
 
@@ -31,6 +39,11 @@ class UaeIban implements ValidationRule
             return false;
         }
 
+        return self::hasValidChecksum($iban);
+    }
+
+    private static function hasValidChecksum(string $iban): bool
+    {
         $rearranged = substr($iban, 4).substr($iban, 0, 4);
         $numeric = '';
 

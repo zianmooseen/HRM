@@ -16,12 +16,16 @@ class WpsPayrollBatchItem extends Model
         'bank_iban',
         'bank_routing_code',
         'wps_person_id',
+        'provider_employee_reference',
+        'provider_transaction_reference',
         'fixed_income',
         'variable_income',
         'net_pay',
         'days_in_period',
         'row_payload_json',
         'status',
+        'paid_at',
+        'failure_reason',
     ];
 
     protected $casts = [
@@ -30,6 +34,8 @@ class WpsPayrollBatchItem extends Model
         'net_pay' => 'decimal:2',
         'days_in_period' => 'integer',
         'row_payload_json' => 'array',
+        'bank_iban' => 'encrypted',
+        'paid_at' => 'datetime',
     ];
 
     public function batch(): BelongsTo

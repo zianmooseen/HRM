@@ -30,6 +30,12 @@ use App\Http\Controllers\Api\PublicHolidayController;
 use App\Http\Controllers\Api\SalaryComponentController;
 use App\Http\Controllers\Api\SelfServiceController;
 use App\Http\Controllers\Api\WpsPayrollBatchController;
+use App\Http\Controllers\Api\MohreEstablishmentController;
+use App\Http\Controllers\Api\WpsSettingController;
+use App\Http\Controllers\Api\WpsProviderController;
+use App\Http\Controllers\Api\EmployeeGovernmentProfileController;
+use App\Http\Controllers\Api\WpsTransferProofController;
+use App\Http\Controllers\Api\WpsComplianceController;
 use Illuminate\Support\Facades\Route;
 
 // Feature flow step 1: API login must always return JSON, never Laravel's guest redirect to /home.
@@ -56,12 +62,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/platform/billing/invoices', [PlatformBillingController::class, 'invoices']);
     Route::post('/platform/billing/companies/{company}/invoices', [PlatformBillingController::class, 'storeInvoice']);
     Route::post('/platform/billing/invoices/{invoice}/mark-paid', [PlatformBillingController::class, 'markInvoicePaid']);
+    Route::get('/platform/wps-providers', [WpsProviderController::class, 'index']);
+    Route::post('/platform/wps-providers', [WpsProviderController::class, 'store']);
+    Route::put('/platform/wps-providers/{provider}', [WpsProviderController::class, 'update']);
+    Route::get('/platform/wps-risk', [WpsComplianceController::class, 'risk']);
 
     Route::apiResource('branches', BranchController::class)->except(['show']);
     Route::apiResource('departments', DepartmentController::class)->except(['show']);
     Route::apiResource('job-titles', JobTitleController::class)->except(['show']);
     Route::apiResource('employees', EmployeeController::class);
     Route::post('/employees/{employee}/account', [EmployeeAccountController::class, 'store']);
+    Route::get('/employees/{employee}/government-profile', [EmployeeGovernmentProfileController::class, 'show']);
+    Route::put('/employees/{employee}/government-profile', [EmployeeGovernmentProfileController::class, 'update']);
     Route::get('/employees/{employee}/service-periods', [EmployeeServicePeriodController::class, 'index']);
     Route::post('/employees/{employee}/service-periods/extend', [EmployeeServicePeriodController::class, 'extend']);
     Route::post('/employees/{employee}/service-periods/rehire', [EmployeeServicePeriodController::class, 'rehire']);
@@ -104,7 +116,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/wps-payroll-batches/{batch}', [WpsPayrollBatchController::class, 'show']);
     Route::get('/wps-payroll-batches/{batch}/download', [WpsPayrollBatchController::class, 'download']);
     Route::post('/wps-payroll-batches/{batch}/status', [WpsPayrollBatchController::class, 'updateStatus']);
+    Route::post('/wps-payroll-batches/{batch}/proofs', [WpsTransferProofController::class, 'store']);
+    Route::post('/wps-transfer-proofs/{proof}/verify', [WpsTransferProofController::class, 'verify']);
+    Route::get('/wps-transfer-proofs/{proof}/download', [WpsTransferProofController::class, 'download']);
     Route::post('/payroll-periods/{payrollPeriod}/wps-export', [WpsPayrollBatchController::class, 'generate']);
+    Route::apiResource('mohre-establishments', MohreEstablishmentController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('/wps-settings', [WpsSettingController::class, 'index']);
+    Route::post('/wps-settings', [WpsSettingController::class, 'store']);
+    Route::get('/wps-compliance', [WpsComplianceController::class, 'summary']);
     Route::get('/compliance/legal-rules', [ComplianceController::class, 'legalRules']);
     Route::get('/compliance/settings', [ComplianceController::class, 'settings']);
     Route::put('/compliance/settings', [ComplianceController::class, 'updateSettings']);

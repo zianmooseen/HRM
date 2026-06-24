@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Company;
 use App\Models\WpsComplianceAlert;
 use App\Services\Payroll\WpsReadinessService;
+use App\Services\Payroll\WpsComplianceService;
 use Illuminate\Console\Command;
 
 class MonitorWpsDeadlines extends Command
@@ -13,12 +14,18 @@ class MonitorWpsDeadlines extends Command
 
     protected $description = 'Create or resolve WPS payroll deadline alerts';
 
-    public function handle(WpsReadinessService $readiness): int
+    public function handle(WpsReadinessService $readiness, WpsComplianceService $compliance): int
     {
-        Company::query()->where('status', 'active')->each(function (Company $company) use ($readiness): void {
+        Company::query()->where('status', 'active')->each(function (Company $company) use ($readiness, $compliance): void {
             $period = $company->payrollPeriods()->latest('period_start')->latest('id')->first();
 
-            if (! $period?->pay_date) {
+            if (! $period) {
+                return;
+            }
+
+            $batch = $company->wpsPayrollBatches()->where('payroll_period_id', $period->id)->latest('id')->first();
+            $status = $compliance->status($period, $batch);
+            if (! $status['due_date']) {
                 return;
             }
 
@@ -37,12 +44,25 @@ class MonitorWpsDeadlines extends Command
                     'due_date' => $summary['payment_due_date'],
                     'resolved_at' => null,
                 ])->save();
-
-                return;
+            } elseif ($alert->exists && $alert->resolved_at === null) {
+                $alert->update(['resolved_at' => now()]);
             }
 
-            if ($alert->exists && $alert->resolved_at === null) {
-                $alert->update(['resolved_at' => now()]);
+            $proofAlert = WpsComplianceAlert::query()->firstOrNew([
+                'company_id' => $company->id,
+                'payroll_period_id' => $period->id,
+                'type' => 'missing_transfer_proof',
+            ]);
+
+            if ($batch && in_array($batch->status, ['submitted', 'processing', 'paid'], true) && $batch->proof_status === 'missing') {
+                $proofAlert->fill([
+                    'severity' => $status['days_after_due'] >= 0 ? 'urgent' : 'warning',
+                    'message' => 'WPS transfer proof or provider reference is missing for the latest payroll period.',
+                    'due_date' => $status['due_date'],
+                    'resolved_at' => null,
+                ])->save();
+            } elseif ($proofAlert->exists && $proofAlert->resolved_at === null) {
+                $proofAlert->update(['resolved_at' => now()]);
             }
         });
 

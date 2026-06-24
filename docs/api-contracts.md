@@ -635,6 +635,22 @@ Implemented endpoints:
 - `GET /api/wps-payroll-batches/{batch}/download`
 - `POST /api/wps-payroll-batches/{batch}/status`
 - `POST /api/payroll-periods/{payroll_period}/wps-export`
+- `POST /api/wps-payroll-batches/{batch}/proofs`
+- `POST /api/wps-transfer-proofs/{proof}/verify`
+- `GET /api/wps-transfer-proofs/{proof}/download`
+- `GET /api/mohre-establishments`
+- `POST /api/mohre-establishments`
+- `PUT /api/mohre-establishments/{establishment}`
+- `DELETE /api/mohre-establishments/{establishment}`
+- `GET /api/wps-settings`
+- `POST /api/wps-settings`
+- `GET /api/wps-compliance`
+- `GET /api/employees/{employee}/government-profile`
+- `PUT /api/employees/{employee}/government-profile`
+- `GET /api/platform/wps-providers`
+- `POST /api/platform/wps-providers`
+- `PUT /api/platform/wps-providers/{provider}`
+- `GET /api/platform/wps-risk`
 
 Allowance or deduction request:
 
@@ -687,18 +703,21 @@ Rules:
 
 WPS export rules:
 
-- WPS export requires `payroll.export`.
+- WPS export requires `salary_transfers.generate`.
 - Only approved payroll periods can be exported.
-- Company WPS setup must include `mohre_establishment_number`, `wps_bank_name`, `wps_agent_code`, and `wps_file_sender_id`.
-- Every exported employee must have a work permit or labor card number, a checksum-valid UAE `bank_iban`, `bank_routing_code`, and `wps_person_id`.
+- A payroll period may select a normalized MoHRE establishment and WPS provider; legacy company WPS fields remain a compatibility fallback.
+- Every exported employee must have a work permit or labor card number, a checksum-valid UAE `bank_iban`, `bank_routing_code`, and WPS person identifier.
+- Employee government profiles are preferred over legacy employee identifier columns and are encrypted at rest.
 - UAE IBANs are normalized to uppercase without spaces during employee writes.
-- Export files use the selected company `wps_provider` profile and download with a `.sif` extension.
+- Export files use the selected provider export profile, include a SHA-256 hash, and download with a `.sif` extension.
 - Bundled profiles must be checked against the current template supplied by the selected bank or WPS agent before production submission.
 - One WPS batch is stored per payroll period; generated batches may be regenerated until they are submitted or accepted.
-- Batch statuses are `generated`, `submitted`, `processing`, `accepted`, `partially_accepted`, `rejected`, `corrected`, and `cancelled`.
-- Status updates may store bank references, response filenames, and structured response details.
-- WPS generation and status changes create audit logs.
-- `php artisan wps:monitor-deadlines` persists dashboard alerts after 3, 10, and 15 days from the payroll pay date and resolves them after accepted status.
+- Batch statuses include `generated`, `submitted`, `processing`, `accepted`, `partially_accepted`, `rejected`, `corrected`, `paid`, `partially_paid`, `failed`, `needs_review`, `manual_override`, and `cancelled`.
+- Status transitions are validated server-side. A manual override requires a reason and a dedicated permission.
+- Status updates may store bank/provider references, failure or rejection reasons, response filenames, and structured response details.
+- Proofs may be file uploads or external references. Verification updates the batch proof status.
+- WPS generation, status changes, proof actions, government identifiers, and setup changes create audit logs.
+- `php artisan wps:monitor-deadlines` persists escalating alerts based on the configured payroll due date and also flags missing proof where applicable.
 
 Update WPS status request:
 

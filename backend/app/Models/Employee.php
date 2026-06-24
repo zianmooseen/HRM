@@ -63,6 +63,7 @@ class Employee extends Model
         'contract_end_date' => 'date',
         'basic_salary' => 'decimal:2',
         'monthly_salary' => 'decimal:2',
+        'bank_iban' => 'encrypted',
     ];
 
     public function company(): BelongsTo
@@ -143,5 +144,10 @@ class Employee extends Model
     public function wpsPayrollBatchItems(): HasMany
     {
         return $this->hasMany(WpsPayrollBatchItem::class);
+    }
+
+    public function governmentProfile(): HasOne
+    {
+        return $this->hasOne(EmployeeGovernmentProfile::class);
     }
 }

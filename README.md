@@ -14,6 +14,13 @@ scripts/    Local helper scripts
 
 ## Local Development
 
+Requirements:
+
+- PHP 8.5
+- Composer 2
+- Node.js and npm
+- Docker Desktop or another Docker Compose-compatible runtime
+
 1. Copy environment examples.
 
 ```bash
@@ -44,6 +51,30 @@ composer install
 php artisan migrate
 php artisan serve
 ```
+
+## Scenario Data
+
+Reset the local database and generate the complete dashboard test dataset:
+
+```bash
+cd backend
+php artisan migrate:fresh --seed
+```
+
+The seed creates 160 employees and scenario records for organization setup, onboarding, attendance, corrections, leave, documents, payroll, WPS, compliance, terminations, audit logs, and billing.
+
+Local seeded accounts use the username as the password:
+
+| Role | Username |
+| --- | --- |
+| System admin | `sys.admin` |
+| Company admin | `com.admin` |
+| HR manager | `hr.manager` |
+| Payroll manager | `payroll.manager` |
+| Department manager | `department.manager` |
+| Employee | `employee.demo` |
+
+These credentials are for local development only and can be overridden with the `SEED_*` environment variables.
 
 ## Implementation Notes
 

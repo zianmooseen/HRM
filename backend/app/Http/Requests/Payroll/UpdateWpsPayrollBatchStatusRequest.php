@@ -14,9 +14,12 @@ class UpdateWpsPayrollBatchStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', 'in:draft,generated,submitted,processing,accepted,partially_accepted,rejected,corrected,cancelled'],
+            'status' => ['required', 'in:draft,generated,submitted,processing,accepted,partially_accepted,rejected,corrected,paid,partially_paid,failed,needs_review,manual_override,cancelled'],
             'rejection_reason' => ['nullable', 'required_if:status,rejected', 'string', 'max:1000'],
+            'failure_reason' => ['nullable', 'required_if:status,failed', 'string', 'max:1000'],
+            'manual_override_reason' => ['nullable', 'required_if:status,manual_override', 'string', 'max:1000'],
             'bank_reference' => ['nullable', 'string', 'max:255'],
+            'provider_reference' => ['nullable', 'string', 'max:255'],
             'response_filename' => ['nullable', 'string', 'max:255'],
             'response_details' => ['nullable', 'array'],
         ];

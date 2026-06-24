@@ -18,6 +18,7 @@ use App\Models\User;
 use Database\Seeders\LegalRuleSeeder;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -141,6 +142,39 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('data.dashboard.alerts.contracts_expiring.0.display_name', 'Dashboard Worker')
             ->assertJsonPath('data.dashboard.alerts.documents_expiring.0.title', 'Passport')
             ->assertJsonPath('data.dashboard.recent_audit_logs.0.action', 'employee.created');
+    }
+
+    public function test_legacy_plaintext_employee_iban_is_encrypted_before_dashboard_readiness_check(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+
+        [$company, $user] = $this->companyAdmin();
+        $employee = Employee::query()->create([
+            'company_id' => $company->id,
+            'employee_code' => 'DASH-WPS-001',
+            'first_name' => 'Legacy',
+            'last_name' => 'Payroll',
+            'display_name' => 'Legacy Payroll',
+            'status' => 'active',
+        ]);
+        DB::table('employees')->where('id', $employee->id)->update([
+            'bank_iban' => 'AE070331234567890123456',
+        ]);
+
+        $migration = require database_path('migrations/0001_01_01_000019_encrypt_legacy_wps_bank_ibans.php');
+        $migration->up();
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.dashboard.wps.active_employees', 1);
+
+        $this->assertSame('AE070331234567890123456', $employee->fresh()->bank_iban);
+        $this->assertNotSame(
+            'AE070331234567890123456',
+            DB::table('employees')->where('id', $employee->id)->value('bank_iban'),
+        );
     }
 
     public function test_dashboard_requires_employee_view_permission(): void

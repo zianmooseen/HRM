@@ -216,7 +216,7 @@ async function submit() {
     await api.put(`/employees/${route.params.id}`, form)
     await router.push(`/employees/${route.params.id}`)
   } catch (err) {
-    error.value = apiErrorMessage(err, 'Unable to save employee.')
+    error.value = apiErrorMessage(err, 'Unable to save employee. ')
   } finally {
     saving.value = false
   }

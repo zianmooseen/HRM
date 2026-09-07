@@ -34,6 +34,10 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Prepare Nuxt generated files
+        working-directory: frontend
+        run: npx nuxi prepare
+
       - name: Lint frontend
         working-directory: frontend
         run: npm run lint

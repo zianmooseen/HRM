@@ -31,19 +31,21 @@ class EmployeeSelfServiceTest extends TestCase
         $employee = $this->employee($company);
         Sanctum::actingAs($admin);
 
-        $this->postJson("/api/employees/{$employee->id}/account", [
+        $response = $this->postJson("/api/employees/{$employee->id}/account", [
             'username' => 'emp.one',
             'email' => 'emp.one@example.test',
             'password' => 'employee1',
         ])
             ->assertCreated()
-            ->assertJsonPath('data.user.username', 'emp.one')
-            ->assertJsonPath('data.employee.user_id', 2);
+            ->assertJsonPath('data.user.username', 'emp.one');
 
+        $createdUserId = $response->json('data.user.id');
+
+        $this->assertSame($createdUserId, $response->json('data.employee.user_id'));
         $this->assertDatabaseHas('users', ['username' => 'emp.one']);
-        $this->assertDatabaseHas('employees', ['id' => $employee->id, 'user_id' => 2]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id, 'user_id' => $createdUserId]);
         $this->assertDatabaseHas('user_roles', [
-            'user_id' => 2,
+            'user_id' => $createdUserId,
             'company_id' => $company->id,
             'scope' => 'self',
         ]);

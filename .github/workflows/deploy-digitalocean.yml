@@ -123,6 +123,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Validate deploy secrets
         run: |
           test -n "$DROPLET_HOST" || { echo "Missing GitHub secret: DROPLET_HOST"; exit 1; }
@@ -130,6 +137,12 @@ jobs:
           test -n "$DROPLET_PORT" || { echo "Missing GitHub secret: DROPLET_PORT"; exit 1; }
           test -n "$DROPLET_SSH_KEY" || { echo "Missing GitHub secret: DROPLET_SSH_KEY"; exit 1; }
           test -n "$DEPLOY_PATH" || { echo "Missing GitHub secret: DEPLOY_PATH"; exit 1; }
+
+      - name: Build frontend artifact
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
 
       - name: Configure SSH
         run: |
@@ -159,7 +172,6 @@ jobs:
             --exclude='backend/vendor/' \
             --exclude='frontend/node_modules/' \
             --exclude='frontend/.nuxt/' \
-            --exclude='frontend/.output/' \
             --exclude='backend/storage/app/' \
             --exclude='backend/storage/framework/cache/' \
             --exclude='backend/storage/framework/sessions/' \

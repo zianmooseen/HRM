@@ -64,12 +64,15 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-log "Installing Nuxt production dependencies"
 cd "$FRONTEND_DIR"
-npm ci
 
-log "Building Nuxt app"
-npm run build
+if [[ -f ".output/server/index.mjs" ]]; then
+  log "Using Nuxt artifact built by GitHub Actions"
+else
+  log "Nuxt artifact is missing; building on droplet"
+  npm ci
+  npm run build
+fi
 
 log "Restarting services"
 run_systemctl restart "${DEPLOY_FRONTEND_SERVICE:-hrm-frontend}"

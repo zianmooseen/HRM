@@ -114,6 +114,7 @@ jobs:
       DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
       DROPLET_USER: ${{ secrets.DROPLET_USER }}
       DROPLET_PORT: ${{ secrets.DROPLET_PORT || '22' }}
+      DROPLET_SSH_KEY: ${{ secrets.DROPLET_SSH_KEY }}
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
       DEPLOY_FRONTEND_SERVICE: ${{ secrets.DEPLOY_FRONTEND_SERVICE }}
       DEPLOY_PHP_FPM_SERVICE: ${{ secrets.DEPLOY_PHP_FPM_SERVICE }}
@@ -122,10 +123,18 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Validate deploy secrets
+        run: |
+          test -n "$DROPLET_HOST" || { echo "Missing GitHub secret: DROPLET_HOST"; exit 1; }
+          test -n "$DROPLET_USER" || { echo "Missing GitHub secret: DROPLET_USER"; exit 1; }
+          test -n "$DROPLET_PORT" || { echo "Missing GitHub secret: DROPLET_PORT"; exit 1; }
+          test -n "$DROPLET_SSH_KEY" || { echo "Missing GitHub secret: DROPLET_SSH_KEY"; exit 1; }
+          test -n "$DEPLOY_PATH" || { echo "Missing GitHub secret: DEPLOY_PATH"; exit 1; }
+
       - name: Configure SSH
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/digitalocean_deploy_key
+          printf '%s\n' "$DROPLET_SSH_KEY" > ~/.ssh/digitalocean_deploy_key
           chmod 600 ~/.ssh/digitalocean_deploy_key
           ssh-keyscan -p "$DROPLET_PORT" -H "$DROPLET_HOST" >> ~/.ssh/known_hosts
 

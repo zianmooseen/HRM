@@ -136,7 +136,11 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DROPLET_SSH_KEY" > ~/.ssh/digitalocean_deploy_key
           chmod 600 ~/.ssh/digitalocean_deploy_key
-          ssh-keyscan -p "$DROPLET_PORT" -H "$DROPLET_HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -T 20 -p "$DROPLET_PORT" -H "$DROPLET_HOST" >> ~/.ssh/known_hosts || {
+            echo "Could not reach SSH on $DROPLET_HOST:$DROPLET_PORT."
+            echo "Check DROPLET_HOST, DROPLET_PORT, the droplet firewall, and whether sshd is running."
+            exit 1
+          }
 
       - name: Ensure remote deploy directory exists
         run: |

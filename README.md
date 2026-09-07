@@ -82,3 +82,7 @@ These credentials are for local development only and can be overridden with the 
 - Frontend route access can improve UX, but backend authorization is authoritative.
 - Compliance, leave, and payroll rules must be configurable and versioned instead of hardcoded into controllers.
 - API responses must use the standard success/error envelopes documented in `docs/api-contracts.md`.
+
+## Deployment
+
+DigitalOcean Droplet deployment is documented in `docs/deployment-digitalocean.md`.

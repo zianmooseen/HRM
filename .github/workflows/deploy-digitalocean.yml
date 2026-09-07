@@ -1,0 +1,157 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "22"
+  PHP_VERSION: "8.5"
+
+jobs:
+  verify-frontend:
+    name: Verify frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  verify-backend:
+    name: Verify backend
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: uae_hrm
+          POSTGRES_USER: uae_hrm
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U uae_hrm -d uae_hrm"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo_pgsql, pgsql
+          coverage: none
+
+      - name: Validate Composer files
+        working-directory: backend
+        run: composer validate --strict
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare backend test environment
+        working-directory: backend
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Run backend tests
+        working-directory: backend
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: uae_hrm
+          DB_USERNAME: uae_hrm
+          DB_PASSWORD: secret
+        run: php artisan test
+
+  deploy:
+    name: Deploy to droplet
+    runs-on: ubuntu-latest
+    needs:
+      - verify-frontend
+      - verify-backend
+    if: github.ref == 'refs/heads/main'
+
+    env:
+      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_USER: ${{ secrets.DROPLET_USER }}
+      DROPLET_PORT: ${{ secrets.DROPLET_PORT || '22' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_FRONTEND_SERVICE: ${{ secrets.DEPLOY_FRONTEND_SERVICE }}
+      DEPLOY_PHP_FPM_SERVICE: ${{ secrets.DEPLOY_PHP_FPM_SERVICE }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/digitalocean_deploy_key
+          chmod 600 ~/.ssh/digitalocean_deploy_key
+          ssh-keyscan -p "$DROPLET_PORT" -H "$DROPLET_HOST" >> ~/.ssh/known_hosts
+
+      - name: Ensure remote deploy directory exists
+        run: |
+          ssh -i ~/.ssh/digitalocean_deploy_key -p "$DROPLET_PORT" "$DROPLET_USER@$DROPLET_HOST" \
+            "mkdir -p '$DEPLOY_PATH'"
+
+      - name: Sync source to droplet
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/digitalocean_deploy_key -p $DROPLET_PORT" \
+            --exclude='.git/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='backend/.env' \
+            --exclude='frontend/.env' \
+            --exclude='backend/vendor/' \
+            --exclude='frontend/node_modules/' \
+            --exclude='frontend/.nuxt/' \
+            --exclude='frontend/.output/' \
+            --exclude='backend/storage/app/' \
+            --exclude='backend/storage/framework/cache/' \
+            --exclude='backend/storage/framework/sessions/' \
+            --exclude='backend/storage/framework/testing/' \
+            --exclude='backend/storage/framework/views/' \
+            --exclude='backend/storage/logs/' \
+            ./ "$DROPLET_USER@$DROPLET_HOST:$DEPLOY_PATH/"
+
+      - name: Run remote deploy script
+        run: |
+          ssh -i ~/.ssh/digitalocean_deploy_key -p "$DROPLET_PORT" "$DROPLET_USER@$DROPLET_HOST" \
+            "cd '$DEPLOY_PATH' && chmod +x scripts/deploy-production.sh && APP_ROOT='$DEPLOY_PATH' DEPLOY_FRONTEND_SERVICE='$DEPLOY_FRONTEND_SERVICE' DEPLOY_PHP_FPM_SERVICE='$DEPLOY_PHP_FPM_SERVICE' scripts/deploy-production.sh"

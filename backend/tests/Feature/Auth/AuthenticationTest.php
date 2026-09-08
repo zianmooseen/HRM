@@ -46,4 +46,24 @@ class AuthenticationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('success', true);
     }
+
+    public function test_json_login_without_stateful_session_returns_user_payload(): void
+    {
+        User::query()->create([
+            'name' => 'Admin User',
+            'username' => 'sys.admin',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+        ]);
+
+        $this
+            ->postJson('/api/login', [
+                'login' => 'sys.admin',
+                'password' => 'password',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.user.username', 'sys.admin');
+    }
 }

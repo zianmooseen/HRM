@@ -31,8 +31,10 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        // Feature flow step 2: regenerate the session to prevent fixation.
-        $request->session()->regenerate();
+        // Feature flow step 2: regenerate browser sessions when Sanctum has attached one.
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         $user = $request->user()->load('roles.permissions', 'scopedCompanies');
 
@@ -46,8 +48,10 @@ class AuthenticatedSessionController extends Controller
     {
         Auth::guard('web')->logout();
 
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
+        if (request()->hasSession()) {
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+        }
 
         return $this->success('Logged out successfully.');
     }

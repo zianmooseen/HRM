@@ -36,6 +36,7 @@ backend/database/database.sqlite-*
 !backend/storage/logs/.gitignore
 
 # Test and tool output
+/tmp/
 .phpunit.cache/
 backend/.phpunit.cache/
 backend/.phpunit.result.cache

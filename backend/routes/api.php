@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\EmployeeServicePeriodController;
 use App\Http\Controllers\Api\EmployeeTerminationController;
 use App\Http\Controllers\Api\JobTitleController;
 use App\Http\Controllers\Api\LeaveRequestController;
+use App\Http\Controllers\Api\LeaveCalendarController;
 use App\Http\Controllers\Api\LeaveTypeController;
 use App\Http\Controllers\Api\EmployeeSalaryComponentController;
 use App\Http\Controllers\Api\EmployeeOnboardingController;
@@ -97,6 +98,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/attendance-correction-requests/{correction}/reject', [AttendanceCorrectionRequestController::class, 'reject']);
     Route::apiResource('attendance-records', AttendanceRecordController::class);
     Route::get('/leave-types', [LeaveTypeController::class, 'index']);
+    Route::get('/leave-calendar', LeaveCalendarController::class);
     Route::get('/leave-balances', [EmployeeLeaveBalanceController::class, 'index']);
     Route::post('/leave-balances/accrue-annual', [EmployeeLeaveBalanceController::class, 'accrueAnnual']);
     Route::post('/leave-balances', [EmployeeLeaveBalanceController::class, 'store']);

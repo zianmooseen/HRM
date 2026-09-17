@@ -120,6 +120,7 @@ const navigationGroups = [
         items: [
           { label: 'Attendance', to: '/attendance', permission: 'attendance.view' },
           { label: 'Leave', to: '/leave', permission: 'leave.view' },
+          { label: 'Leave calendar', to: '/leave/calendar', permission: 'leave.view' },
         ],
       },
       {
@@ -160,6 +161,7 @@ const navigationGroups = [
           { label: 'My profile', to: '/my/profile', permission: null },
           { label: 'My documents', to: '/my/documents', permission: 'documents.view' },
           { label: 'My leave', to: '/my/leave', permission: 'leave.view' },
+          { label: 'Leave calendar', to: '/leave/calendar', permission: 'leave.view' },
           { label: 'My attendance', to: '/my/attendance', permission: 'attendance.view' },
         ],
       },

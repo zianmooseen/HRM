@@ -437,6 +437,16 @@ Rules:
 
 ## Leave Management
 
+### Approved leave calendar
+
+1. Company users open `/leave/calendar` from Time & Leave or My Workspace and select a month.
+2. `GET /api/leave-calendar?month=2026-09` requires authentication and `leave.view` in the current company. Employee-only users must have a linked employee in that company.
+3. The backend returns approved requests overlapping the month, including requests crossing month/year boundaries. The company is resolved from the session, never a query parameter.
+4. Each entry contains only `id`, `employee_id`, `employee_name`, `is_self`, `start_date`, and `end_date`. Reasons, leave types, documents, balances, and pay details are excluded. Existing private leave endpoints retain their access rules.
+5. The page displays each employee once per day across the inclusive approved date range, highlights the viewer's own leave, and scrolls each day's list independently. Dates describe the approved absence period, not payroll chargeable days.
+
+Success data: `{ "month": "2026-09", "entries": [...] }`. `month` is required in `YYYY-MM` format (years 1000–9999); invalid values return 422. An empty month returns `entries: []`.
+
 Implemented endpoints:
 
 - `GET /api/leave-types`

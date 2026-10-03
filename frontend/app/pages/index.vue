@@ -127,7 +127,7 @@
     <p v-else-if="error" class="error">{{ error }}</p>
 
     <template v-else-if="dashboard">
-      <section class="scope-panel">
+      <section v-if="!organizationScope.enabled" class="scope-panel">
         <label v-if="dashboard.scope.can_select_company">
           Organization
           <select v-model.number="selectedCompanyId" @change="changeCompany">
@@ -500,6 +500,7 @@ interface EmployeeDashboardSummary {
 }
 
 const auth = useAuthStore()
+const organizationScope = useOrganizationScopeStore()
 const api = useApiClient()
 const dashboard = ref<DashboardSummary | null>(null)
 const employeeDashboard = ref<EmployeeDashboardSummary | null>(null)
@@ -760,11 +761,11 @@ async function loadDashboard() {
     // Feature flow step 1: the dashboard consumes a single backend summary so module counts stay consistent.
     const params = new URLSearchParams()
 
-    if (selectedCompanyId.value) {
+    if (!organizationScope.enabled && selectedCompanyId.value) {
       params.set('company_id', String(selectedCompanyId.value))
     }
 
-    if (selectedBranchId.value) {
+    if (!organizationScope.enabled && selectedBranchId.value) {
       params.set('branch_id', selectedBranchId.value)
     }
 

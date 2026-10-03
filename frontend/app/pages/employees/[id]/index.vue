@@ -447,7 +447,6 @@ definePageMeta({ middleware: ['auth'] })
 const route = useRoute()
 const api = useApiClient()
 const auth = useAuthStore()
-const config = useRuntimeConfig()
 const loading = ref(true)
 const error = ref('')
 const employee = ref<any>(null)
@@ -885,11 +884,11 @@ async function deleteDocument(document: EmployeeDocument) {
 }
 
 function downloadHref(document: EmployeeDocument) {
-  return `${config.public.apiBaseUrl.replace(/\/api$/, '')}${document.download_url}`
+  return api.url(document.download_url.replace(/^\/api/, ''))
 }
 
 function previewHref(document: EmployeeDocument) {
-  return document.preview_url ? `${config.public.apiBaseUrl.replace(/\/api$/, '')}${document.preview_url}` : ''
+  return document.preview_url ? api.url(document.preview_url.replace(/^\/api/, '')) : ''
 }
 
 function label(value: string) {

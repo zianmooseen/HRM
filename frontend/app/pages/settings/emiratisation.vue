@@ -77,7 +77,7 @@
         <button
           v-if="auth.hasPermission('settings.update')"
           type="button"
-          :disabled="savingSnapshot || !snapshot"
+          :disabled="savingSnapshot || !snapshot || Boolean(organizationScope.branchId)"
           @click="saveSnapshot"
         >
           {{ savingSnapshot ? 'Saving...' : 'Save snapshot' }}
@@ -147,6 +147,7 @@ interface EmiratisationSnapshot {
 
 const api = useApiClient()
 const auth = useAuthStore()
+const organizationScope = useOrganizationScopeStore()
 const loading = ref(true)
 const savingSettings = ref(false)
 const savingSnapshot = ref(false)

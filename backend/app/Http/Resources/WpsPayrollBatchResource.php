@@ -9,6 +9,8 @@ class WpsPayrollBatchResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $branchSelected = (bool) \App\Services\Auth\OrganizationContext::current()?->branchId;
+
         return [
             'id' => $this->id,
             'company_id' => $this->company_id,
@@ -21,8 +23,8 @@ class WpsPayrollBatchResource extends JsonResource
             'provider' => $this->provider,
             'salary_month' => $this->salary_month,
             'payroll_due_date' => optional($this->payroll_due_date)->toDateString(),
-            'record_count' => $this->record_count,
-            'total_amount' => $this->total_amount,
+            'record_count' => $branchSelected ? $this->items()->count() : $this->record_count,
+            'total_amount' => $branchSelected ? number_format((float) $this->items()->sum('net_pay'), 2, '.', '') : $this->total_amount,
             'generated_at' => optional($this->generated_at)->toIso8601String(),
             'submitted_at' => optional($this->submitted_at)->toIso8601String(),
             'accepted_at' => optional($this->accepted_at)->toIso8601String(),
@@ -36,8 +38,8 @@ class WpsPayrollBatchResource extends JsonResource
             'provider_reference' => $this->provider_reference,
             'file_hash' => $this->file_hash,
             'response_filename' => $this->response_filename,
-            'response_details' => $this->response_details_json,
-            'validation_errors' => $this->validation_errors_json,
+            'response_details' => $branchSelected ? null : $this->response_details_json,
+            'validation_errors' => $branchSelected ? null : $this->validation_errors_json,
             'payroll_period' => $this->whenLoaded('payrollPeriod', fn () => new PayrollPeriodResource($this->payrollPeriod)),
             'items' => $this->whenLoaded('items', fn () => WpsPayrollBatchItemResource::collection($this->items)),
             'mohre_establishment' => $this->whenLoaded('mohreEstablishment', fn () => new MohreEstablishmentResource($this->mohreEstablishment)),

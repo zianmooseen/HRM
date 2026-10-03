@@ -231,6 +231,13 @@ class DashboardController extends Controller
         $user = $request->user()->loadMissing('roles.permissions', 'scopedCompanies');
         $this->access->ensurePermission($user, 'employees.view');
 
+        if ($context = \App\Services\Auth\OrganizationContext::current()) {
+            $company = $this->access->ensureCompany($user);
+            $branch = $context->branchId ? Branch::query()->findOrFail($context->branchId) : null;
+
+            return [$company, $branch];
+        }
+
         if ($user->hasRole('super_admin')) {
             $company = $request->integer('company_id')
                 ? Company::query()->findOrFail($request->integer('company_id'))

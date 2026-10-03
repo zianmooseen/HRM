@@ -102,7 +102,22 @@ Includes:
 - Recent company audit events.
 - Available organizations and branches for the dashboard scope selector.
 
-Employee, attendance, leave, contract, document, and WPS-readiness metrics respect the selected branch. Payroll periods, WPS batch status, audit activity, and Emiratisation remain organization-level because those records are currently company-scoped.
+With the universal selector, employee, attendance, leave, contract, document, WPS-readiness, payroll membership, and audit metrics respect the selected branch. Emiratisation remains a company-wide obligation. Legacy dashboard-only query parameters remain available for other manager roles.
+
+## Universal Company and Branch Scope
+
+1. After authentication, system and company admins load `GET /api/organization-scope`. It returns `data.companies`, each with `id`, `name`, and `branches` (`id`, `company_id`, `name`, `code`). System admins can select any company; company admins see only companies where they have a company-scoped admin assignment.
+2. The shared layout shows Company → Branch on every protected page. Selection persists in a per-user cookie, is validated against fresh authorized options, and defaults to the first available company and All branches. Changing company resets the branch. Logout clears the saved selection.
+3. All business requests and generated download/preview/export URLs carry `scope_company_id` and optional `scope_branch_id`. The auth and scope-options endpoints are independent of selection. Middleware authenticates and validates these IDs before route model binding. Invalid IDs return 422/404; unauthorized companies or non-admin scope selection return 403. Existing endpoint permissions still apply, using permissions assigned in the selected company.
+4. `OrganizationScope`, registered centrally for tenant models, filters root queries, nested relations, counts, and route bindings. Employees and their leave, calendar entries, balances, attendance, documents, onboarding, salaries, payslips, service periods and terminations follow their primary branch. Branch records filter by ID. Departments and establishments include the selected branch and shared records with no branch. Filters combine with page search/status/date filters.
+5. Payroll periods appear when they contain matching payslips; payslip counts and details are branch-filtered. WPS batches appear when they contain matching employees; their displayed record counts and amounts are recalculated for the visible branch without changing stored company totals. Raw provider responses and validation payloads are omitted in branch views.
+6. Company settings, leave/salary definitions, public holidays, billing, and Emiratisation remain company-wide and apply to the selected branch. The layout labels this behavior. Global legal rules, provider definitions and subscription plans remain shared reference data. Company-wide compliance calculations explicitly use the whole selected company, never a branch as a substitute for that company's workforce.
+7. Writes cannot reference employees or branches outside the selection. New employees/departments/establishments default to the selected branch. Creating branches, running/approving payroll, changing WPS batches/proofs, saving compliance snapshots and downloading complete bank files/proofs require All branches (422 otherwise). This prevents a branch view from mutating or exporting a partial company payroll.
+8. Audit lists/exports match branch IDs in before/after snapshots, employee IDs belonging to the branch, and direct employee/branch events. Company-wide events without a branch association appear under All branches. Refreshing filters remounts the current page to discard old rows, totals and form choices; employee detail pages return to the employee list. Branch mutations refresh filter options.
+
+New tenant models must be added to `OrganizationScope::MODELS` and supplied with appropriate branch mapping. Requests without the explicit universal scope retain existing endpoint authorization; employee self-service does not gain access to the admin selector. No database migration is required.
+
+Verification: `cd backend && php artisan test`; `cd frontend && npm run lint && npm run build`; with Node 22.6+ run `node --experimental-strip-types --test tests/organization-scope.test.mjs tests/leave-calendar.test.ts`.
 
 ## Audit Logs
 
@@ -441,7 +456,7 @@ Rules:
 
 1. Company users open `/leave/calendar` from Time & Leave or My Workspace and select a month.
 2. `GET /api/leave-calendar?month=2026-09` requires authentication and `leave.view` in the current company. Employee-only users must have a linked employee in that company.
-3. The backend returns approved requests overlapping the month, including requests crossing month/year boundaries. The company is resolved from the session, never a query parameter.
+3. The backend returns approved requests overlapping the month, including requests crossing month/year boundaries. The company is resolved from the authenticated user's company or the validated universal admin scope; selected branches filter the calendar too.
 4. Each entry contains only `id`, `employee_id`, `employee_name`, `is_self`, `start_date`, and `end_date`. Reasons, leave types, documents, balances, and pay details are excluded. Existing private leave endpoints retain their access rules.
 5. The page displays each employee once per day across the inclusive approved date range, highlights the viewer's own leave, and scrolls each day's list independently. Dates describe the approved absence period, not payroll chargeable days.
 

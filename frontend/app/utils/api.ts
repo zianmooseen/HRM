@@ -1,8 +1,10 @@
 import type { ApiResponse, ApiSuccess } from '../../../shared/types/api'
+import { scopedApiUrl } from './organization-scope'
 
 export function useApiClient() {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBaseUrl
+  const scope = useOrganizationScopeStore()
   const incomingHeaders = import.meta.server
     ? useRequestHeaders(['cookie', 'host', 'x-forwarded-host', 'x-forwarded-proto'])
     : {}
@@ -35,9 +37,12 @@ export function useApiClient() {
   }
 
   async function request<T>(path: string, options: RequestInit = {}): Promise<ApiSuccess<T>> {
+    if (scope.enabled && (!scope.ready || !scope.companyId) && !['/me', '/login', '/logout', '/organization-scope'].includes(path)) {
+      throw { success: false, message: 'Select an available company before loading this page.' }
+    }
     const token = xsrfToken()
     const isFormData = options.body instanceof FormData
-    const response = await fetch(`${baseURL}${path}`, {
+    const response = await fetch(url(path), {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
@@ -55,10 +60,25 @@ export function useApiClient() {
       throw payload
     }
 
+    if (scope.enabled && options.method && /^\/branches(?:\/\d+)?$/.test(path)) {
+      try {
+        const refresh = await request<import('../../../shared/types/organization-scope').OrganizationScopePayload>('/organization-scope')
+        scope.refreshOptions(refresh.data.companies)
+      } catch {
+        scope.ready = false
+        scope.error = 'Branch saved, but company filters could not be refreshed. Please retry.'
+      }
+    }
+
     return payload
   }
 
+  function url(path: string) {
+    return scopedApiUrl(baseURL, path, scope.enabled && scope.ready ? scope : null)
+  }
+
   return {
+    url,
     csrf: () => fetch(`${baseURL.replace(/\/api$/, '')}/sanctum/csrf-cookie`, { credentials: 'include' }),
     get: <T>(path: string) => request<T>(path),
     post: <T>(path: string, body: unknown) =>

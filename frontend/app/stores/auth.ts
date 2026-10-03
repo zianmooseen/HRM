@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Feature flow step 2: clear the client state even if the session already expired server-side.
       user.value = null
       loaded.value = true
+      useOrganizationScopeStore().reset()
     }
   }
 

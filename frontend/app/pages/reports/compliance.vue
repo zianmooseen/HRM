@@ -204,7 +204,6 @@ interface ComplianceReportSummary {
 }
 
 const api = useApiClient()
-const config = useRuntimeConfig()
 const loading = ref(true)
 const error = ref('')
 const summary = ref<ComplianceReportSummary | null>(null)
@@ -236,7 +235,7 @@ async function loadReport() {
 }
 
 function downloadUrl(type: string) {
-  return `${config.public.apiBaseUrl}/compliance/reports/export?type=${encodeURIComponent(type)}`
+  return api.url(`/compliance/reports/export?type=${encodeURIComponent(type)}`)
 }
 
 function exportLabel(type: string) {

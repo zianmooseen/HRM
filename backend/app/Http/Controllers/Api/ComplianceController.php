@@ -198,6 +198,8 @@ class ComplianceController extends Controller
     private function emiratisationCounts(int $companyId): array
     {
         $baseQuery = Employee::query()
+            // Statutory company obligations must never be recalculated as branch obligations.
+            ->withoutGlobalScope(\App\Models\Scopes\OrganizationScope::class)
             ->where('company_id', $companyId)
             ->where('status', 'active');
 

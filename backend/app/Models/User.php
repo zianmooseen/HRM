@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Auth\OrganizationContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -64,6 +64,9 @@ class User extends Authenticatable
     public function hasPermission(string $permission): bool
     {
         return $this->roles
+            ->filter(fn (Role $role) => ! ($context = OrganizationContext::current())
+                || $role->slug === 'super_admin'
+                || (int) $role->pivot->company_id === $context->companyId)
             ->flatMap(fn (Role $role) => $role->permissions)
             ->contains('slug', $permission);
     }

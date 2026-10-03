@@ -73,7 +73,6 @@ interface EmployeeDocument {
 }
 
 const api = useApiClient()
-const config = useRuntimeConfig()
 const employee = ref<any>(null)
 const documents = ref<EmployeeDocument[]>([])
 const { filters: columnFilters, filteredRows: filteredDocuments } = useTableColumnFilters(
@@ -144,7 +143,7 @@ async function uploadDocument() {
 }
 
 function downloadHref(document: EmployeeDocument) {
-  return `${config.public.apiBaseUrl.replace(/\/api$/, '')}${document.download_url}`
+  return api.url(document.download_url.replace(/^\/api/, ''))
 }
 
 function label(value: string) {

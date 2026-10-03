@@ -194,6 +194,7 @@ class EmployeeController extends Controller
     private function ensureUniqueEmployeeCode(int $companyId, string $employeeCode, ?int $ignoreId = null): void
     {
         $exists = Employee::query()
+            ->withoutGlobalScope(\App\Models\Scopes\OrganizationScope::class)
             ->where('company_id', $companyId)
             ->where('employee_code', $employeeCode)
             ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))

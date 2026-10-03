@@ -34,7 +34,7 @@
               <td>{{ label(batch.proof_status || 'missing') }}</td>
               <td class="table-actions">
                 <button type="button" class="secondary" @click="selectBatch(batch)">Manage</button>
-                <a class="secondary-link" :href="downloadUrl(batch)" target="_blank">SIF</a>
+                <a v-if="!organizationScope.branchId" class="secondary-link" :href="downloadUrl(batch)" target="_blank">SIF</a>
               </td>
             </tr>
             <tr v-if="batches.length === 0"><td colspan="8">No WPS salary transfer batches generated.</td></tr>
@@ -57,7 +57,7 @@
           <label v-if="statusForm.status === 'failed'">Failure reason<textarea v-model="statusForm.failure_reason" required rows="3" /></label>
           <label v-if="statusForm.status === 'manual_override'">Override reason<textarea v-model="statusForm.manual_override_reason" required rows="3" /></label>
           <p v-if="statusError" class="error">{{ statusError }}</p>
-          <button type="submit" :disabled="updatingStatus || !statusForm.status">
+          <button type="submit" :disabled="updatingStatus || !statusForm.status || Boolean(organizationScope.branchId)">
             {{ updatingStatus ? 'Updating...' : 'Update batch status' }}
           </button>
         </form>
@@ -80,7 +80,7 @@
           <label>Evidence file<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx" @change="setProofFile"></label>
           <label>Notes<textarea v-model="proofForm.notes" rows="3" /></label>
           <p v-if="proofError" class="error">{{ proofError }}</p>
-          <button type="submit" :disabled="uploadingProof">{{ uploadingProof ? 'Uploading...' : 'Save transfer proof' }}</button>
+          <button type="submit" :disabled="uploadingProof || Boolean(organizationScope.branchId)">{{ uploadingProof ? 'Uploading...' : 'Save transfer proof' }}</button>
         </form>
 
         <section>
@@ -93,9 +93,9 @@
                 <small>{{ label(proof.status) }} · {{ proof.created_at }}</small>
               </div>
               <div class="table-actions">
-                <a v-if="proof.original_file_name" class="secondary-link" :href="proofDownloadUrl(proof)" target="_blank">Download</a>
-                <button v-if="proof.status === 'uploaded'" type="button" class="secondary" @click="verifyProof(proof, 'verified')">Verify</button>
-                <button v-if="proof.status === 'uploaded'" type="button" class="secondary" @click="verifyProof(proof, 'rejected')">Reject</button>
+                <a v-if="!organizationScope.branchId && proof.original_file_name" class="secondary-link" :href="proofDownloadUrl(proof)" target="_blank">Download</a>
+                <button v-if="!organizationScope.branchId && proof.status === 'uploaded'" type="button" class="secondary" @click="verifyProof(proof, 'verified')">Verify</button>
+                <button v-if="!organizationScope.branchId && proof.status === 'uploaded'" type="button" class="secondary" @click="verifyProof(proof, 'rejected')">Reject</button>
               </div>
             </li>
             <li v-if="selectedBatch.proofs.length === 0">No transfer proof uploaded.</li>
@@ -163,7 +163,7 @@ interface Summary {
 }
 
 const api = useApiClient()
-const config = useRuntimeConfig()
+const organizationScope = useOrganizationScopeStore()
 const batches = ref<Batch[]>([])
 const summary = ref<Summary | null>(null)
 const selectedBatch = ref<Batch | null>(null)
@@ -270,10 +270,10 @@ function availableStatuses(status: string) {
   return transitions[status] || []
 }
 function downloadUrl(batch: Batch) {
-  return `${config.public.apiBaseUrl}/wps-payroll-batches/${batch.id}/download`
+  return api.url(`/wps-payroll-batches/${batch.id}/download`)
 }
 function proofDownloadUrl(proof: Proof) {
-  return `${config.public.apiBaseUrl}/wps-transfer-proofs/${proof.id}/download`
+  return api.url(`/wps-transfer-proofs/${proof.id}/download`)
 }
 function label(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, letter => letter.toUpperCase())

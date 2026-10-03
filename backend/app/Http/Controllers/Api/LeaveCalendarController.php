@@ -19,7 +19,7 @@ class LeaveCalendarController extends Controller
         // Feature flow step 1: authorize the current company before sharing colleague absences.
         $user = $request->user()->loadMissing('roles.permissions', 'scopedCompanies');
         $company = $access->ensureCompany($user);
-        abort_unless($user->roles->contains(fn ($role) => (int) $role->pivot->company_id === $company->id
+        abort_unless($user->hasRole('super_admin') || $user->roles->contains(fn ($role) => (int) $role->pivot->company_id === $company->id
             && $role->permissions->contains('slug', 'leave.view')
         ), 403, 'You are not authorized to perform this action.');
 

@@ -45,6 +45,10 @@ Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', CurrentUserController::class);
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
+    Route::get('/organization-scope', \App\Http\Controllers\Api\OrganizationScopeController::class);
+});
+
+Route::middleware(['auth:sanctum', \App\Http\Middleware\ApplyOrganizationScope::class])->group(function (): void {
     Route::get('/self/dashboard', [SelfServiceController::class, 'dashboard']);
     Route::get('/self/profile', [SelfServiceController::class, 'profile']);
     Route::get('/dashboard', DashboardController::class);

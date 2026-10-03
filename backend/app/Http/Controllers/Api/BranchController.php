@@ -95,6 +95,7 @@ class BranchController extends Controller
     private function ensureUniqueCode(int $companyId, string $code, ?int $ignoreId = null): void
     {
         $exists = Branch::query()
+            ->withoutGlobalScope(\App\Models\Scopes\OrganizationScope::class)
             ->where('company_id', $companyId)
             ->where('code', $code)
             ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))

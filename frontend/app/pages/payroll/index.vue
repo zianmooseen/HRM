@@ -103,7 +103,7 @@
           <input v-model="periodForm.payroll_due_date" type="date">
         </label>
         <p v-if="periodError" class="error">{{ periodError }}</p>
-        <button type="submit" :disabled="savingPeriod">{{ savingPeriod ? 'Saving...' : 'Create period' }}</button>
+        <button type="submit" :disabled="savingPeriod || Boolean(organizationScope.branchId)">{{ savingPeriod ? 'Saving...' : 'Create period' }}</button>
       </form>
     </section>
 
@@ -140,7 +140,7 @@
                   {{ selectedPeriod?.id === period.id ? 'Close' : 'Open' }}
                 </button>
                 <button
-                  v-if="period.status !== 'approved'"
+                  v-if="!organizationScope.branchId && period.status !== 'approved'"
                   type="button"
                   class="secondary"
                   @click="runPeriod(period)"
@@ -148,7 +148,7 @@
                   Run
                 </button>
                 <button
-                  v-if="period.status === 'processed'"
+                  v-if="!organizationScope.branchId && period.status === 'processed'"
                   type="button"
                   @click="approvePeriod(period)"
                 >
@@ -165,7 +165,7 @@
                       <p class="muted">{{ selectedPeriod.period_start }} to {{ selectedPeriod.period_end }}</p>
                     </div>
                     <button
-                      v-if="selectedPeriod.status === 'approved' && canGenerateSalaryTransfers"
+                      v-if="!organizationScope.branchId && selectedPeriod.status === 'approved' && canGenerateSalaryTransfers"
                       type="button"
                       :disabled="generatingWps"
                       @click="generateWps(selectedPeriod)"
@@ -267,7 +267,7 @@
             <td>{{ batch.record_count }}</td>
             <td>{{ batch.total_amount }}</td>
             <td>{{ label(batch.status) }}</td>
-            <td class="table-actions">
+            <td v-if="!organizationScope.branchId" class="table-actions">
               <a class="secondary-link" :href="downloadWpsUrl(batch)" target="_blank">Download</a>
               <button v-if="batch.status === 'generated'" type="button" class="secondary" @click="updateWpsStatus(batch, 'submitted')">Mark submitted</button>
               <button v-if="batch.status === 'submitted'" type="button" class="secondary" @click="updateWpsStatus(batch, 'processing')">Mark processing</button>
@@ -275,6 +275,7 @@
               <button v-if="['submitted', 'processing'].includes(batch.status)" type="button" class="secondary" @click="updateWpsStatus(batch, 'partially_accepted')">Mark partial</button>
               <button v-if="['submitted', 'processing'].includes(batch.status)" type="button" class="secondary" @click="updateWpsStatus(batch, 'rejected')">Mark rejected</button>
             </td>
+            <td v-else>Company-wide actions</td>
           </tr>
           <tr v-if="filteredWpsBatches.length === 0">
             <td colspan="6">No WPS exports generated yet.</td>
@@ -354,6 +355,7 @@ interface PayslipItem {
 
 const api = useApiClient()
 const auth = useAuthStore()
+const organizationScope = useOrganizationScopeStore()
 const employees = ref<EmployeeOption[]>([])
 const components = ref<SalaryComponent[]>([])
 const periods = ref<PayrollPeriod[]>([])
@@ -405,7 +407,6 @@ const savingComponent = ref(false)
 const savingAssignment = ref(false)
 const savingPeriod = ref(false)
 const generatingWps = ref(false)
-const config = useRuntimeConfig()
 const today = new Date().toISOString().slice(0, 10)
 const componentForm = reactive({
   code: '',
@@ -594,7 +595,7 @@ async function updateWpsStatus(batch: WpsPayrollBatch, status: string) {
 }
 
 function downloadWpsUrl(batch: WpsPayrollBatch) {
-  return `${config.public.apiBaseUrl}/wps-payroll-batches/${batch.id}/download`
+  return api.url(`/wps-payroll-batches/${batch.id}/download`)
 }
 
 function label(value: string) {

@@ -10,6 +10,10 @@ class CompanyAccess
 {
     public function currentCompany(User $user): ?Company
     {
+        if ($context = OrganizationContext::current()) {
+            return Company::query()->find($context->companyId);
+        }
+
         if ($user->hasRole('super_admin')) {
             return Company::query()->orderBy('id')->first();
         }

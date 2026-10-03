@@ -29,7 +29,7 @@
       </label>
       <p v-if="error" class="error">{{ error }}</p>
       <div class="button-row">
-        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : editingId ? 'Save branch' : 'Create branch' }}</button>
+        <button type="submit" :disabled="saving || (!editingId && Boolean(organizationScope.branchId))">{{ saving ? 'Saving...' : editingId ? 'Save branch' : 'Create branch' }}</button>
         <button v-if="editingId" type="button" class="secondary" @click="resetForm">Cancel</button>
       </div>
     </form>
@@ -64,6 +64,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 const api = useApiClient()
+const organizationScope = useOrganizationScopeStore()
 const branches = ref<any[]>([])
 const { filters: columnFilters, filteredRows: filteredBranches } = useTableColumnFilters(
   branches,

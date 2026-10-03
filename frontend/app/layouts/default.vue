@@ -42,13 +42,16 @@
       </div>
     </aside>
     <main class="content" data-tour="page-content">
-      <slot />
+      <OrganizationScopeFilter />
+      <slot v-if="!scope.enabled || (scope.ready && scope.companyId)" />
+      <p v-else-if="!scope.error" role="status">{{ scope.ready ? 'No company is assigned to this account.' : 'Loading company filters…' }}</p>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
 const auth = useAuthStore()
+const scope = useOrganizationScopeStore()
 const { startTour, hasTour } = useFeatureTour()
 const route = useRoute()
 const loggingOut = ref(false)
@@ -90,7 +93,7 @@ const navigationGroups = [
   },
   {
     label: 'Company',
-    roles: ['company_admin', 'hr_manager', 'payroll_manager', 'department_manager'],
+    roles: ['super_admin', 'company_admin', 'hr_manager', 'payroll_manager', 'department_manager'],
     sections: [
       {
         label: 'Dashboard',

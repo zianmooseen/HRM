@@ -95,7 +95,7 @@ class DepartmentController extends Controller
 
     private function ensureUniqueCode(int $companyId, string $code, ?int $ignoreId = null): void
     {
-        $exists = Department::query()->where('company_id', $companyId)->where('code', $code)->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))->exists();
+        $exists = Department::query()->withoutGlobalScope(\App\Models\Scopes\OrganizationScope::class)->where('company_id', $companyId)->where('code', $code)->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))->exists();
 
         if ($exists) {
             throw ValidationException::withMessages(['code' => ['The department code is already used for this company.']]);

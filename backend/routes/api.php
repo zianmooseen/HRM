@@ -1,42 +1,48 @@
 <?php
 
-use App\Http\Controllers\Api\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Api\Auth\CurrentUserController;
-use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AttendanceCorrectionRequestController;
 use App\Http\Controllers\Api\AttendanceRecordController;
+use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Api\Auth\CurrentUserController;
 use App\Http\Controllers\Api\BranchController;
-use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CompanyBillingController;
+use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ComplianceController;
 use App\Http\Controllers\Api\ComplianceReportController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\DocumentController;
-use App\Http\Controllers\Api\EmployeeLeaveBalanceController;
-use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeAccountController;
+use App\Http\Controllers\Api\EmployeeController;
+use App\Http\Controllers\Api\EmployeeGovernmentProfileController;
+use App\Http\Controllers\Api\EmployeeLeaveBalanceController;
+use App\Http\Controllers\Api\EmployeeOnboardingController;
+use App\Http\Controllers\Api\EmployeeSalaryComponentController;
 use App\Http\Controllers\Api\EmployeeServicePeriodController;
 use App\Http\Controllers\Api\EmployeeTerminationController;
 use App\Http\Controllers\Api\JobTitleController;
-use App\Http\Controllers\Api\LeaveRequestController;
 use App\Http\Controllers\Api\LeaveCalendarController;
+use App\Http\Controllers\Api\LeaveRequestController;
 use App\Http\Controllers\Api\LeaveTypeController;
-use App\Http\Controllers\Api\EmployeeSalaryComponentController;
-use App\Http\Controllers\Api\EmployeeOnboardingController;
+use App\Http\Controllers\Api\MohreEstablishmentController;
 use App\Http\Controllers\Api\OnboardingTemplateController;
+use App\Http\Controllers\Api\OrganizationScopeController;
 use App\Http\Controllers\Api\PayrollPeriodController;
 use App\Http\Controllers\Api\PlatformBillingController;
+use App\Http\Controllers\Api\PlatformClientController;
 use App\Http\Controllers\Api\PublicHolidayController;
 use App\Http\Controllers\Api\SalaryComponentController;
 use App\Http\Controllers\Api\SelfServiceController;
-use App\Http\Controllers\Api\WpsPayrollBatchController;
-use App\Http\Controllers\Api\MohreEstablishmentController;
-use App\Http\Controllers\Api\WpsSettingController;
-use App\Http\Controllers\Api\WpsProviderController;
-use App\Http\Controllers\Api\EmployeeGovernmentProfileController;
-use App\Http\Controllers\Api\WpsTransferProofController;
 use App\Http\Controllers\Api\WpsComplianceController;
+use App\Http\Controllers\Api\WpsPayrollBatchController;
+use App\Http\Controllers\Api\WpsProviderController;
+use App\Http\Controllers\Api\WpsSettingController;
+use App\Http\Controllers\Api\WpsTransferProofController;
+use App\Http\Middleware\ApplyOrganizationScope;
+use App\Http\Middleware\ApplyPlatformCompanyScope;
+use App\Http\Middleware\EnterClientForSupport;
+use App\Http\Middleware\RequirePlatformAdmin;
 use Illuminate\Support\Facades\Route;
 
 // Feature flow step 1: API login must always return JSON, never Laravel's guest redirect to /home.
@@ -45,21 +51,13 @@ Route::post('/login', [AuthenticatedSessionController::class, 'store']);
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/me', CurrentUserController::class);
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
-    Route::get('/organization-scope', \App\Http\Controllers\Api\OrganizationScopeController::class);
+    Route::get('/organization-scope', OrganizationScopeController::class);
 });
 
-Route::middleware(['auth:sanctum', \App\Http\Middleware\ApplyOrganizationScope::class])->group(function (): void {
-    Route::get('/self/dashboard', [SelfServiceController::class, 'dashboard']);
-    Route::get('/self/profile', [SelfServiceController::class, 'profile']);
-    Route::get('/dashboard', DashboardController::class);
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);
-    Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
-
-    Route::get('/companies', [CompanyController::class, 'index']);
-    Route::get('/company', [CompanyController::class, 'current']);
-    Route::put('/company', [CompanyController::class, 'update']);
-    Route::get('/billing/current', [CompanyBillingController::class, 'current']);
-
+Route::middleware(['auth:sanctum', RequirePlatformAdmin::class, ApplyPlatformCompanyScope::class])->group(function (): void {
+    Route::get('/platform/clients', [PlatformClientController::class, 'index']);
+    Route::post('/platform/clients', [PlatformClientController::class, 'store']);
+    Route::post('/platform/clients/{client}/retry', [PlatformClientController::class, 'retry']);
     Route::get('/platform/billing/plans', [PlatformBillingController::class, 'plans']);
     Route::post('/platform/billing/plans', [PlatformBillingController::class, 'storePlan']);
     Route::get('/platform/billing/subscriptions', [PlatformBillingController::class, 'subscriptions']);
@@ -71,6 +69,19 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\ApplyOrganizationScope::
     Route::post('/platform/wps-providers', [WpsProviderController::class, 'store']);
     Route::put('/platform/wps-providers/{provider}', [WpsProviderController::class, 'update']);
     Route::get('/platform/wps-risk', [WpsComplianceController::class, 'risk']);
+});
+
+Route::middleware(['auth:sanctum', EnterClientForSupport::class, ApplyOrganizationScope::class])->group(function (): void {
+    Route::get('/self/dashboard', [SelfServiceController::class, 'dashboard']);
+    Route::get('/self/profile', [SelfServiceController::class, 'profile']);
+    Route::get('/dashboard', DashboardController::class);
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
+
+    Route::get('/companies', [CompanyController::class, 'index']);
+    Route::get('/company', [CompanyController::class, 'current']);
+    Route::put('/company', [CompanyController::class, 'update']);
+    Route::get('/billing/current', [CompanyBillingController::class, 'current']);
 
     Route::apiResource('branches', BranchController::class)->except(['show']);
     Route::apiResource('departments', DepartmentController::class)->except(['show']);

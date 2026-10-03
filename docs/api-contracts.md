@@ -814,3 +814,16 @@ Rules:
 - Termination creation and payment recording create audit logs.
 
 Every write endpoint must validate input, authorize server-side, and write audit logs for sensitive changes.
+
+
+## Client database provisioning
+
+Platform-only (central `super_admin` session):
+
+- `GET /api/platform/clients`: client code, company, setup status, maintenance flag and latest sanitized attempt.
+- `POST /api/platform/clients`: `client_code`, `company_name`, `admin_name`, `admin_username`, `admin_email`, `admin_password` (12–72 characters); optional `country`, `emirate`, `timezone`, `subscription_plan_id`. Returns HTTP 201 with `data.client`. Inspect `provisioning_status`: `ready` permits login, `failed` requires repair/retry. Database names and bootstrap credentials are never returned.
+- `POST /api/platform/clients/{client}/retry`: retries the existing client's setup; completed setup is idempotent. Returns `data.client`; an active provisioning lock returns 409.
+
+`POST /api/login` accepts optional `client_code`. Supply it for client accounts; omit it for platform accounts. Client login requires a stateful browser session. `/api/me` and login include `data.user.client_id` (null for platform). The server-side session chooses the database on later requests. Tenant sessions cannot access `/api/platform/*`, even with a tenant-local super-admin role. Client maintenance revokes sessions; sign in again after resume.
+
+Platform admins use the existing `scope_company_id` to open a provisioned client's HR records. Client accounts cannot use that selector to change databases. Platform billing remains in the central database and accepts company-level filters; client creation/listing is independent of the selected company. See [client database operations](client-databases.md).

@@ -3,7 +3,11 @@
     <form class="login-form" @submit.prevent="submit">
       <h1>Sign in</h1>
       <label>
-        Username
+        Client code
+        <input v-model="clientCode" autocomplete="organization" placeholder="Leave blank for platform administration">
+      </label>
+      <label>
+        Username or email
         <input v-model="login" autocomplete="username" required>
       </label>
       <label>
@@ -21,6 +25,7 @@ definePageMeta({ layout: false })
 
 const auth = useAuthStore()
 const login = ref('')
+const clientCode = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -30,10 +35,10 @@ async function submit() {
   error.value = ''
 
   try {
-    await auth.login(login.value, password.value)
-    await navigateTo('/')
+    await auth.login(login.value, password.value, clientCode.value.trim())
+    await navigateTo(auth.hasRole('super_admin') && !auth.user?.client_id ? '/platform/companies' : '/')
   } catch {
-    error.value = 'Invalid username or password.'
+    error.value = 'Check your client code, username and password.'
   } finally {
     loading.value = false
   }

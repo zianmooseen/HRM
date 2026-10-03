@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
@@ -25,7 +26,9 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            $client = app(TenantDatabaseManager::class)->current()?->uuid ?? 'platform';
+
+            return Limit::perMinute(60)->by($client.':'.($request->user()?->id ?: $request->ip()));
         });
 
         $this->routes(function () {

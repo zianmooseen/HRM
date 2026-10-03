@@ -1,5 +1,5 @@
 import type { ApiResponse, ApiSuccess } from '../../../shared/types/api'
-import { scopedApiUrl } from './organization-scope'
+import { requiresCompanyScope, scopedApiUrl } from './organization-scope'
 
 export function useApiClient() {
   const config = useRuntimeConfig()
@@ -37,7 +37,7 @@ export function useApiClient() {
   }
 
   async function request<T>(path: string, options: RequestInit = {}): Promise<ApiSuccess<T>> {
-    if (scope.enabled && (!scope.ready || !scope.companyId) && !['/me', '/login', '/logout', '/organization-scope'].includes(path)) {
+    if (scope.enabled && (!scope.ready || !scope.companyId) && requiresCompanyScope(path)) {
       throw { success: false, message: 'Select an available company before loading this page.' }
     }
     const token = xsrfToken()

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Http\Resources\BillingInvoiceResource;
 use App\Http\Resources\CompanySubscriptionResource;
+use App\Models\Company;
 use App\Services\Auth\CompanyAccess;
+use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -14,15 +16,18 @@ class CompanyBillingController extends Controller
 {
     use RespondsWithApiEnvelope;
 
-    public function __construct(private readonly CompanyAccess $access)
-    {
-    }
+    public function __construct(private readonly CompanyAccess $access) {}
 
     public function current(Request $request): JsonResponse
     {
         $user = $request->user()->loadMissing('roles.permissions', 'scopedCompanies');
         $this->access->ensurePermission($user, 'companies.view');
         $company = $this->access->ensureCompany($user);
+
+        // Billing is platform-owned and is not rolled back with client HR records.
+        if (app(TenantDatabaseManager::class)->current()) {
+            $company = Company::on(config('tenancy.central_connection'))->findOrFail($company->id);
+        }
 
         $subscription = $company->subscriptions()->with('plan')->latest('id')->first();
         $invoices = $company->billingInvoices()->latest('issue_date')->latest('id')->limit(5)->get();

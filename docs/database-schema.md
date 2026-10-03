@@ -83,3 +83,12 @@ WPS security and ownership rules:
 ## Audit
 
 - `audit_logs`: actor, company, auditable record, action, before/after snapshots, IP, user agent.
+
+
+## Database per client
+
+The central database adds `platform_clients` (UUID, unique client code, company directory ID, generated database name, provisioning status, encrypted temporary setup payload, readiness/maintenance timestamps, session version and creator) and `tenant_provisioning_runs` (attempt state, step, timestamps, sanitized failure and non-secret snapshot). These migrations live in `backend/database/migrations/platform`.
+
+Each client receives the HRM schema from the root migration directory, including local users and access-control tables. `tenant_identity` stores the immutable owning client UUID and initialization timestamp. `users.platform_user_id` is a nullable unique reference to a platform support actor; it intentionally has no cross-database foreign key and is not mass-assignable. Client company IDs mirror the central directory's globally unique company IDs. The platform directory and billing are not part of a client's rollback boundary.
+
+See [client database operations](client-databases.md) for provisioning, schema updates, backup boundaries and restore steps.

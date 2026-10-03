@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,6 +12,7 @@ class UserResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'client_id' => app(TenantDatabaseManager::class)->current()?->id,
             'name' => $this->name,
             'username' => $this->username,
             'email' => $this->email,

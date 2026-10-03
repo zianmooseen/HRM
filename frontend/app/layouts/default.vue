@@ -42,8 +42,8 @@
       </div>
     </aside>
     <main class="content" data-tour="page-content">
-      <OrganizationScopeFilter />
-      <slot v-if="!scope.enabled || (scope.ready && scope.companyId)" />
+      <OrganizationScopeFilter v-if="route.path !== '/platform/companies'" />
+      <slot v-if="isPlatformAdministration || !scope.enabled || (scope.ready && scope.companyId)" />
       <p v-else-if="!scope.error" role="status">{{ scope.ready ? 'No company is assigned to this account.' : 'Loading company filters…' }}</p>
     </main>
   </div>
@@ -54,6 +54,7 @@ const auth = useAuthStore()
 const scope = useOrganizationScopeStore()
 const { startTour, hasTour } = useFeatureTour()
 const route = useRoute()
+const isPlatformAdministration = computed(() => auth.hasRole('super_admin') && !auth.user?.client_id && route.path.startsWith('/platform/'))
 const loggingOut = ref(false)
 const expandedSections = ref<Record<string, boolean>>({})
 
@@ -72,7 +73,7 @@ const navigationGroups = [
       {
         label: 'Administration',
         items: [
-          { label: 'Companies', to: '/platform/companies', permission: 'companies.view' },
+          { label: 'Clients & companies', to: '/platform/companies', permission: 'companies.view' },
           { label: 'WPS providers & risk', to: '/platform/wps', permission: null },
           { label: 'Platform settings', to: '/platform/settings', permission: 'settings.view' },
         ],

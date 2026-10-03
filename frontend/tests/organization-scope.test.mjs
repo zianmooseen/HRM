@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ref, computed } from 'vue'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
-import { scopedApiUrl } from '../app/utils/organization-scope.ts'
+import { requiresCompanyScope, scopedApiUrl } from '../app/utils/organization-scope.ts'
 
 const cookie = ref(null)
 Object.assign(globalThis, { ref, computed, defineStore, useCookie: () => cookie, apiErrorMessage: (_error, fallback) => fallback })
@@ -73,4 +73,28 @@ test('API requests and download URLs share scope while authentication stays inde
   assert.equal(scopedApiUrl('/api', '/me', selection), '/api/me')
   assert.equal(scopedApiUrl('/api', '/organization-scope', selection), '/api/organization-scope')
   assert.equal(scopedApiUrl('/api', '/employees?scope_branch_id=10', { companyId: 2, branchId: null }), '/api/employees?scope_company_id=2')
+})
+
+
+test('client administration works before the first company exists', () => {
+  assert.equal(requiresCompanyScope('/platform/clients'), false)
+  assert.equal(requiresCompanyScope('/platform/billing/plans'), false)
+  assert.equal(requiresCompanyScope('/companies'), false)
+  assert.equal(requiresCompanyScope('/employees'), true)
+  const selection = { companyId: 2, branchId: 20 }
+  assert.equal(scopedApiUrl('/api', '/platform/clients', selection), '/api/platform/clients')
+  assert.equal(scopedApiUrl('/api', '/platform/clients/1/retry', selection), '/api/platform/clients/1/retry')
+  assert.equal(scopedApiUrl('/api', '/companies', selection), '/api/companies')
+  assert.equal(scopedApiUrl('/api', '/platform/billing/invoices', selection), '/api/platform/billing/invoices?scope_company_id=2')
+})
+
+test('identical user ids in different clients do not reuse the previous selection', async () => {
+  setActivePinia(createPinia())
+  const scope = useOrganizationScopeStore()
+  await scope.initialize({ ...user, client_id: 1 }, options)
+  scope.selectCompany(2)
+  await scope.initialize({ ...user, client_id: 2 }, async () => ({ success: true, data: { companies: [companies[0]] } }))
+  assert.equal(scope.companyId, 1)
+  assert.equal(scope.branchId, null)
+  assert.equal(cookie.value.clientId, 2)
 })

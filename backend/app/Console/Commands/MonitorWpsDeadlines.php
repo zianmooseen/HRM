@@ -3,9 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Models\Company;
+use App\Models\PlatformClient;
 use App\Models\WpsComplianceAlert;
-use App\Services\Payroll\WpsReadinessService;
 use App\Services\Payroll\WpsComplianceService;
+use App\Services\Payroll\WpsReadinessService;
+use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Console\Command;
 
 class MonitorWpsDeadlines extends Command
@@ -16,7 +18,7 @@ class MonitorWpsDeadlines extends Command
 
     public function handle(WpsReadinessService $readiness, WpsComplianceService $compliance): int
     {
-        Company::query()->where('status', 'active')->each(function (Company $company) use ($readiness, $compliance): void {
+        $monitor = function (Company $company) use ($readiness, $compliance): void {
             $period = $company->payrollPeriods()->latest('period_start')->latest('id')->first();
 
             if (! $period) {
@@ -64,9 +66,29 @@ class MonitorWpsDeadlines extends Command
             } elseif ($proofAlert->exists && $proofAlert->resolved_at === null) {
                 $proofAlert->update(['resolved_at' => now()]);
             }
+        };
+
+        $clients = PlatformClient::query()->get()->keyBy('company_id');
+        $failed = false;
+        Company::query()->where('status', 'active')->each(function (Company $company) use ($monitor, $clients, &$failed): void {
+            $client = $clients->get($company->id);
+            if ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
+                return;
+            }
+            try {
+                if ($client) {
+                    app(TenantDatabaseManager::class)->run($client, fn () => $monitor(Company::query()->findOrFail($company->id)));
+                } else {
+                    $monitor($company);
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+                $this->error('Could not monitor company '.$company->id.'.');
+                $failed = true;
+            }
         });
 
-        return self::SUCCESS;
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 
     private function message(string $severity, int $daysAfterDue): string

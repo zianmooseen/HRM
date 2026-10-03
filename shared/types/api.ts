@@ -17,6 +17,7 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiFailure
 
 export interface AuthUser {
   id: number
+  client_id?: number | null
   name: string
   username: string | null
   email: string

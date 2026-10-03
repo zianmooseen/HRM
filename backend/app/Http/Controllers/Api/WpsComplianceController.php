@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Models\Company;
 use App\Models\PayrollPeriod;
+use App\Models\PlatformClient;
 use App\Services\Auth\CompanyAccess;
 use App\Services\Payroll\WpsComplianceService;
+use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -18,8 +20,7 @@ class WpsComplianceController extends Controller
     public function __construct(
         private readonly CompanyAccess $access,
         private readonly WpsComplianceService $compliance,
-    ) {
-    }
+    ) {}
 
     public function summary(Request $request): JsonResponse
     {
@@ -42,7 +43,16 @@ class WpsComplianceController extends Controller
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->get()
-                ->map(fn (Company $company) => $this->companySummary($company))
+                ->map(function (Company $company) {
+                    $client = PlatformClient::query()->where('company_id', $company->id)->first();
+                    if ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
+                        return ['company_id' => $company->id, 'company_name' => $company->name, 'risk_status' => 'unavailable', 'open_alerts' => null, 'periods' => []];
+                    }
+
+                    return $client
+                        ? app(TenantDatabaseManager::class)->run($client, fn () => $this->companySummary(Company::query()->findOrFail($company->id)))
+                        : $this->companySummary($company);
+                })
                 ->all(),
         ]);
     }

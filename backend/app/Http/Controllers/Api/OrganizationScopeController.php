@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
+use App\Models\Branch;
 use App\Models\Company;
+use App\Models\PlatformClient;
+use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
@@ -15,6 +18,25 @@ class OrganizationScopeController extends Controller
     {
         $user = $request->user()->loadMissing('roles');
         abort_unless($user->hasRole('super_admin') || $user->hasRole('company_admin'), 403);
+        if (! app(TenantDatabaseManager::class)->current() && $user->hasRole('super_admin')) {
+            $databases = app(TenantDatabaseManager::class);
+            $clients = PlatformClient::query()->get()->keyBy('company_id');
+            $companies = Company::query()->orderBy('name')->get()->flatMap(function (Company $company) use ($clients, $databases) {
+                $client = $clients->get($company->id);
+                if ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
+                    return [];
+                }
+                $read = fn () => Branch::query()->where('company_id', $company->id)
+                    ->orderBy('name')->get(['id', 'company_id', 'name', 'code'])->toArray();
+
+                return [[
+                    'id' => $company->id, 'name' => $company->name,
+                    'branches' => $client ? $databases->run($client, $read) : $read(),
+                ]];
+            })->values();
+
+            return $this->success('Organization filter options retrieved.', ['companies' => $companies]);
+        }
         $companyIds = $user->roles->filter(fn ($role) => $role->slug === 'company_admin' && $role->pivot->scope === 'company')->pluck('pivot.company_id');
 
         $companies = Company::query()

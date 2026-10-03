@@ -153,3 +153,10 @@ git push origin main
 ```
 
 You can also run the workflow manually from the GitHub Actions tab.
+
+
+## Client database provisioning
+
+Run `php artisan migrate --force` for the platform schema. New clients created through **Clients & companies → Add client** get a dedicated database and initial company administrator. The configured database server must permit database creation; provider snapshots alone do not grant that privilege. Use a shared locking cache and stable session storage for multiple app instances.
+
+Existing client databases need the separate `clients:migrate` maintenance workflow. Configure server backups/PITR and file versioning separately; no backup service is activated by this code change. Follow [client database operations and restore runbook](client-databases.md) before enabling client creation in production.

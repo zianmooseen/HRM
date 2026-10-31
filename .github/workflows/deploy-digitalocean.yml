@@ -73,7 +73,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, pdo_pgsql, pgsql
+          extensions: mbstring, pdo_pgsql, pgsql, pdo_sqlite
           coverage: none
 
       - name: Validate Composer files

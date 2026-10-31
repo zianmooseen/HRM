@@ -33,11 +33,24 @@ class ClientTenancyTest extends TestCase
 
     private User $platformAdmin;
 
+    private string $centralConnection;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->directory = sys_get_temp_dir().'/hrm-clients-'.bin2hex(random_bytes(8));
-        config(['tenancy.sqlite_directory' => $this->directory]);
+        $this->centralConnection = DB::getDefaultConnection();
+        // These tests inspect/copy SQLite tenant files, even when CI uses PostgreSQL centrally.
+        config([
+            'tenancy.sqlite_directory' => $this->directory,
+            'tenancy.template_connection' => 'tenant_test_template',
+            'database.connections.tenant_test_template' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ],
+        ]);
         $this->seed(RoleAndPermissionSeeder::class);
         $this->platformAdmin = User::factory()->create(['status' => 'active']);
         $this->platformAdmin->roles()->attach(Role::where('slug', 'super_admin')->firstOrFail()->id, ['scope' => 'global']);
@@ -74,7 +87,7 @@ class ClientTenancyTest extends TestCase
             $this->assertTrue(Hash::check('Strong-test-password-123', User::first()->password));
             $this->assertFalse(Schema::hasTable('platform_clients'));
         });
-        $this->assertSame('sqlite', DB::getDefaultConnection());
+        $this->assertSame($this->centralConnection, DB::getDefaultConnection());
     }
 
     public function test_clients_can_use_the_same_username_without_sharing_data_or_sessions(): void
@@ -173,7 +186,7 @@ class ClientTenancyTest extends TestCase
         } catch (RuntimeException $exception) {
             $this->assertSame('test', $exception->getMessage());
         }
-        $this->assertSame('sqlite', DB::getDefaultConnection());
+        $this->assertSame($this->centralConnection, DB::getDefaultConnection());
         $this->assertNull($manager->current());
         $manager->run($client, fn () => DB::table('tenant_identity')->update(['uuid' => 'unrelated-client']));
         try {
@@ -181,7 +194,7 @@ class ClientTenancyTest extends TestCase
         } catch (RuntimeException $exception) {
             $this->assertStringContainsString('identity', $exception->getMessage());
         }
-        $this->assertSame('sqlite', DB::getDefaultConnection());
+        $this->assertSame($this->centralConnection, DB::getDefaultConnection());
         $this->assertNull($manager->current());
     }
 

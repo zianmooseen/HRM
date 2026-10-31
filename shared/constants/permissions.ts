@@ -1,4 +1,7 @@
 export const PERMISSIONS = [
+  'temporary_workers.view',
+  'temporary_workers.manage',
+  'temporary_workers.pay',
   'companies.view',
   'companies.create',
   'companies.update',

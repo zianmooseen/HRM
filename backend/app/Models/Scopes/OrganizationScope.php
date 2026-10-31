@@ -12,6 +12,7 @@ class OrganizationScope implements Scope
 {
     // All tenant data used by lists, nested resources, aggregates and route bindings.
     public const MODELS = [
+        Models\TemporaryWorker::class, Models\TemporaryWorkerEntry::class,
         Models\Company::class, Models\Branch::class, Models\Department::class,
         Models\Employee::class, Models\JobTitle::class, Models\AttendanceRecord::class,
         Models\AttendanceCorrectionRequest::class, Models\Document::class,
@@ -69,8 +70,10 @@ class OrganizationScope implements Scope
 
         if ($model instanceof Models\Branch) {
             $builder->where($model->qualifyColumn('id'), $context->branchId);
-        } elseif ($model instanceof Models\Employee) {
+        } elseif ($model instanceof Models\Employee || $model instanceof Models\TemporaryWorker) {
             $builder->where($model->qualifyColumn('branch_id'), $context->branchId);
+        } elseif ($model instanceof Models\TemporaryWorkerEntry) {
+            $builder->whereHas('temporaryWorker');
         } elseif ($model instanceof Models\Department || $model instanceof Models\MohreEstablishment) {
             // Unassigned organization structures are shared by all branches.
             $column = $model->qualifyColumn('branch_id');
@@ -97,11 +100,17 @@ class OrganizationScope implements Scope
     private function scopeAudit(Builder $builder, int $branchId): void
     {
         $employeeIds = Models\Employee::withTrashed()->select('id');
-        $builder->where(function (Builder $query) use ($branchId, $employeeIds): void {
+        $jsonEmployeeIds = clone $employeeIds;
+        if ($builder->getModel()->getConnection()->getDriverName() === 'pgsql') {
+            // PostgreSQL extracts JSON IDs as text. Cast trusted IDs, not potentially malformed snapshots.
+            $jsonEmployeeIds->select($builder->getModel()->getConnection()->raw('CAST(employees.id AS TEXT)'));
+        }
+
+        $builder->where(function (Builder $query) use ($branchId, $employeeIds, $jsonEmployeeIds): void {
             $query->where('before_json->branch_id', $branchId)
                 ->orWhere('after_json->branch_id', $branchId)
-                ->orWhereIn('before_json->employee_id', $employeeIds)
-                ->orWhereIn('after_json->employee_id', $employeeIds)
+                ->orWhereIn('before_json->employee_id', $jsonEmployeeIds)
+                ->orWhereIn('after_json->employee_id', $jsonEmployeeIds)
                 ->orWhere(fn (Builder $employee) => $employee->where('auditable_type', Models\Employee::class)->whereIn('auditable_id', $employeeIds))
                 ->orWhere(fn (Builder $branch) => $branch->where('auditable_type', Models\Branch::class)->where('auditable_id', $branchId));
         });

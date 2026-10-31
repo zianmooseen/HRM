@@ -827,3 +827,28 @@ Platform-only (central `super_admin` session):
 `POST /api/login` accepts optional `client_code`. Supply it for client accounts; omit it for platform accounts. Client login requires a stateful browser session. `/api/me` and login include `data.user.client_id` (null for platform). The server-side session chooses the database on later requests. Tenant sessions cannot access `/api/platform/*`, even with a tenant-local super-admin role. Client maintenance revokes sessions; sign in again after resume.
 
 Platform admins use the existing `scope_company_id` to open a provisioned client's HR records. Client accounts cannot use that selector to change databases. Platform billing remains in the central database and accepts company-level filters; client creation/listing is independent of the selected company. See [client database operations](client-databases.md).
+
+
+## Employee self-service navigation
+
+The employee sidebar groups the supported views under Home, Personal, My Company, Job, Pay, Workforce Management and Documents. Sign out stays in the account panel. Personal and pay screens are read-only; changes are requested through HR. Skills, reviews, goals, awards, education, opportunities and career-development modules are not implemented and are not shown as empty links. The personal contact view reflects existing name/email/telephone fields; residential address and emergency contacts need their own data model before becoming menu items.
+
+Feature flow:
+
+1. Employee signs in and chooses a self-service menu item.
+2. The backend resolves their employee record from the authenticated user; query parameters cannot select another employee or company.
+3. Company and directory views return whitelisted informational fields. Pay views return only that employee's compensation, masked bank account and approved statements.
+4. The view renders a loading, error, empty or populated state. Existing leave, attendance and authorized document workflows remain available.
+
+New authenticated read endpoints:
+
+| Endpoint | Response |
+| --- | --- |
+| `GET /api/self/company` | `company`: current company name/legal name, country, emirate, time zone/currency and the employee's branch office details. |
+| `GET /api/self/directory?search=&page=1` | `employees`, `pagination`: active colleagues in the same company; name, position, department, branch, work email and branch office telephone only. Personal phone/email, salaries, bank and identification fields are excluded. |
+| `GET /api/self/pay?year=2026` | `currency`, `compensation`, `direct_deposit`, `ytd`, `current_statement`. Bank IBAN is masked to the last four characters. Only statements and periods both marked `approved` are released. |
+| `GET /api/self/pay/history?page=1` | `currency`, `statements`, `pagination`: the employee's approved statements and line items, newest period first, twelve per page. Calculation snapshots/internal metadata are excluded. |
+
+YTD sums approved statements by their scheduled `pay_date` in the requested year through today in the company time zone. It is a payroll summary, not evidence of bank payment. Without a year, the backend uses the current company-local year. Current compensation is the recorded basic/monthly salary; no benefits-based total compensation estimate is fabricated.
+
+The directory is intentionally a limited colleague contact view; employees do not gain the `employees.view`, salary-view or payroll administration permissions. Existing generic profile responses still hide salary unless authorized. Identification Documents reuses the authorized document workflow, filtered to passports, visas, labour cards and Emirates IDs. Document lists require a linked profile for employee-only accounts, and the personal document UI always requests the signed-in employee's records.

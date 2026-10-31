@@ -111,7 +111,7 @@ async function save() {
 </script>
 
 <style scoped>
-.muted { color: #5d6a72; }
+.muted { color: var(--color-muted); }
 .profile-form { max-width: 760px; }
-.notice { color: #5d6a72; }
+.notice { color: var(--color-muted); }
 </style>

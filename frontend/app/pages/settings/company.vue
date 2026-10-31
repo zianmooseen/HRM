@@ -141,7 +141,7 @@ function label(value: string) {
   display: grid;
   gap: 6px;
   margin-bottom: 20px;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #ffffff;
   padding: 16px;
@@ -153,6 +153,6 @@ function label(value: string) {
 }
 
 .muted {
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 </style>

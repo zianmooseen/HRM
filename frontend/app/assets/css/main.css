@@ -1,7 +1,20 @@
 :root {
-  color: #172026;
-  background: #f6f7f9;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ui: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
+  --color-navy: #193f70;
+  --color-accent: #0079b5;
+  --color-accent-hover: #006394;
+  --color-accent-soft: #edf8fd;
+  --color-canvas: #f4f4f4;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f6f6f6;
+  --color-text: #303030;
+  --color-muted: #686868;
+  --color-border: #dedede;
+  --color-input-border: #b7b7b7;
+  --radius-card: 20px;
+  color: var(--color-text);
+  background: var(--color-canvas);
+  font-family: var(--font-ui);
 }
 
 * {
@@ -36,8 +49,8 @@ a {
 .page header a,
 .page button {
   border: 0;
-  border-radius: 6px;
-  background: #16765f;
+  border-radius: 999px;
+  background: var(--color-accent);
   color: #ffffff;
   cursor: pointer;
   padding: 10px 14px;
@@ -45,7 +58,7 @@ a {
 
 .page button.secondary {
   background: #e8eef1;
-  color: #172026;
+  color: var(--color-text);
 }
 
 .page button.danger {
@@ -65,7 +78,7 @@ a {
 }
 
 .form-grid .field-hint {
-  color: #5f6c72;
+  color: var(--color-muted);
   font-size: 0.85rem;
   font-weight: 400;
   line-height: 1.4;
@@ -93,27 +106,30 @@ a {
 .form-grid select,
 .form-grid textarea {
   min-height: 40px;
-  border: 1px solid #b8c1c8;
+  border: 1px solid var(--color-input-border);
   border-radius: 6px;
   padding: 8px 10px;
 }
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
   background: #ffffff;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
 }
 
 th,
 td {
-  border-bottom: 1px solid #e5e9ed;
+  border-bottom: 1px solid var(--color-border);
   padding: 12px;
   text-align: left;
 }
 
 th {
-  background: #eef2f4;
+  background: var(--color-surface-muted);
 }
 
 .column-filter-row th {
@@ -123,22 +139,22 @@ th {
 .column-filter {
   width: 100%;
   min-width: 100px;
-  border: 1px solid #d7dfda;
+  border: 1px solid var(--color-border);
   border-radius: 7px;
   background: #fff;
   padding: 7px 8px;
-  color: #173c2b;
+  color: var(--color-text);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 400;
 }
 
 .column-filter::placeholder {
-  color: #8a948f;
+  color: var(--color-muted);
 }
 
 .column-filter:focus {
-  border-color: #2f7357;
+  border-color: var(--color-accent);
   outline: 2px solid rgb(47 115 87 / 15%);
 }
 
@@ -147,18 +163,18 @@ th {
   grid-template-columns: 180px 1fr;
   max-width: 760px;
   background: #ffffff;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
 }
 
 .detail-list dt,
 .detail-list dd {
-  border-bottom: 1px solid #e5e9ed;
+  border-bottom: 1px solid var(--color-border);
   margin: 0;
   padding: 12px;
 }
 
 .detail-list dt {
-  background: #eef2f4;
+  background: var(--color-surface-muted);
   font-weight: 700;
 }
 
@@ -185,7 +201,7 @@ th {
   max-width: 340px;
   border-radius: 8px;
   color: #0a120f;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
 }
 
 .hrm-driver-popover .driver-popover-title {
@@ -201,14 +217,62 @@ th {
 
 .hrm-driver-popover .driver-popover-next-btn,
 .hrm-driver-popover .driver-popover-prev-btn {
-  border: 1px solid #064027;
+  border: 1px solid var(--color-accent);
   border-radius: 999px;
-  background: #064027;
+  background: var(--color-accent);
   color: #ffffff;
   text-shadow: none;
 }
 
 .hrm-driver-popover .driver-popover-prev-btn {
   background: #ffffff;
-  color: #064027;
+  color: var(--color-accent);
 }
+
+/* Shared dashboard theme: typography and surfaces are consistent across every role. */
+body { font-size: 16px; line-height: 1.5; font-weight: 400; }
+button, input, select, textarea { font: inherit; }
+button, a, input, select, textarea, summary { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+input, select, textarea { accent-color: var(--color-accent); }
+.app-shell .page { min-width: 0; gap: 24px; }
+.app-shell .page h1 { font-size: clamp(1.65rem, 2.2vw, 2.25rem); line-height: 1.25; font-weight: 700; letter-spacing: -.025em; color: var(--color-text); }
+.app-shell .page h2 { font-size: 1.35rem; line-height: 1.3; font-weight: 700; color: var(--color-text); }
+.app-shell .page h3 { font-size: 1.1rem; font-weight: 600; }
+.app-shell .page > header, .app-shell .page > h1, .app-shell .page > .client-heading { padding: 26px 28px; margin: 0; background: white; border: 1px solid var(--color-border); border-radius: var(--radius-card); }
+.app-shell .page header { flex-wrap: wrap; }
+.app-shell .page p { line-height: 1.5; }
+.app-shell .page .muted { color: var(--color-muted); font-size: .95rem; font-weight: 400; }
+.app-shell .page :is(.panel, .report-panel, .billing-panel, .pay-statement, .client-form, .period-detail, .document-card, .scope-panel) { border: 1px solid var(--color-border); border-radius: var(--radius-card); background: white; box-shadow: none; }
+.app-shell .page :is(.summary-grid, .metrics-grid) > article { background: white; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 24px; }
+.app-shell .page > .form-grid, .app-shell .page > section.form-grid, .app-shell .panel-grid > .form-grid { background: white; border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: 24px; }
+.app-shell .page button, .app-shell .page header a { font-weight: 600; min-height: 40px; border-radius: 999px; }
+.app-shell .page button:hover:not(:disabled) { filter: brightness(.95); }
+.app-shell .page button.secondary { background: var(--color-accent-soft); color: var(--color-accent-hover); }
+.app-shell .page header a { display: inline-flex; align-items: center; justify-content: center; background: var(--color-accent-soft); color: var(--color-accent-hover); }
+.app-shell .page .primary-action { background: var(--color-accent); color: white; }
+.app-shell .page .ghost-action { border: 1px solid var(--color-accent); background: white; color: var(--color-accent); }
+.app-shell .page :is(td, dd) a { color: var(--color-accent-hover); text-underline-offset: 3px; }
+.app-shell .page :is(td, dd) a:hover { text-decoration: underline; }
+.app-shell .page :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { max-width: 100%; min-width: 0; min-height: 42px; padding: 9px 12px; border: 1px solid var(--color-input-border); border-radius: 8px; color: var(--color-text); background: white; font: inherit; font-weight: 400; }
+.app-shell .page label { font-weight: 600; }
+.app-shell .page :is(.button-row, .table-actions, .actions, .section-heading, .client-heading) { flex-wrap: wrap; }
+.app-shell .page th { font-weight: 600; font-size: .9rem; color: #505050; }
+.app-shell .page td { font-weight: 400; font-size: .95rem; }
+.app-shell .page th, .app-shell .page td { padding: 14px 16px; }
+.app-shell .page tbody tr:last-child > td { border-bottom: 0; }
+.app-shell .page tbody tr:hover > td { background: #f9fbfd; }
+.app-shell .detail-list { width: 100%; border-radius: 12px; overflow: hidden; margin: 0; }
+.app-shell .detail-list dt { font-weight: 600; color: var(--color-muted); }
+.app-shell .detail-list dd { overflow-wrap: anywhere; }
+/* Preserve table column sizing on desktop; keep wide tables scrollable on smaller screens. */
+@media (max-width: 1100px) {
+  .app-shell .page > table, .app-shell .page section > table { display: block; max-width: 100%; overflow-x: auto; }
+}
+@media (max-width: 600px) {
+  .app-shell .page > header, .app-shell .page > h1, .app-shell .page > .client-heading { padding: 22px 20px; }
+  .app-shell .detail-list { grid-template-columns: minmax(100px, .8fr) minmax(0, 1.2fr); }
+  .app-shell .page > .form-grid { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }

@@ -11,6 +11,10 @@ class RoleAndPermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = collect([
+            ['name' => 'View temporary workers', 'slug' => 'temporary_workers.view', 'module' => 'temporary_workers'],
+            ['name' => 'Manage temporary workers', 'slug' => 'temporary_workers.manage', 'module' => 'temporary_workers'],
+            ['name' => 'Pay temporary workers', 'slug' => 'temporary_workers.pay', 'module' => 'temporary_workers'],
+
             ['name' => 'View companies', 'slug' => 'companies.view', 'module' => 'companies'],
             ['name' => 'Create companies', 'slug' => 'companies.create', 'module' => 'companies'],
             ['name' => 'Update companies', 'slug' => 'companies.update', 'module' => 'companies'],
@@ -60,7 +64,7 @@ class RoleAndPermissionSeeder extends Seeder
             'super_admin' => $permissions->keys()->all(),
             'company_admin' => $permissions->keys()->reject(fn ($slug) => $slug === 'companies.create')->values()->all(),
             'hr_manager' => ['employees.view', 'employees.create', 'employees.update', 'attendance.view', 'attendance.create', 'attendance.update', 'leave.view', 'leave.approve', 'leave.reject', 'documents.view', 'documents.upload', 'documents.delete', 'audit_logs.view', 'mohre_establishments.view', 'mohre_establishments.create', 'mohre_establishments.update', 'wps_settings.view'],
-            'payroll_manager' => ['employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export', 'audit_logs.view', 'mohre_establishments.view', 'wps_settings.view', 'salary_transfers.view', 'salary_transfers.generate', 'salary_transfers.submit', 'salary_transfers.update_status', 'salary_transfers.upload_proof'],
+            'payroll_manager' => ['temporary_workers.view', 'temporary_workers.manage', 'temporary_workers.pay', 'employees.view', 'employees.view_salary', 'payroll.view', 'payroll.run', 'payroll.approve', 'payroll.export', 'audit_logs.view', 'mohre_establishments.view', 'wps_settings.view', 'salary_transfers.view', 'salary_transfers.generate', 'salary_transfers.submit', 'salary_transfers.update_status', 'salary_transfers.upload_proof'],
             'department_manager' => ['employees.view', 'leave.view', 'leave.approve', 'leave.reject'],
             'employee' => ['attendance.view', 'leave.view', 'leave.create', 'documents.view', 'documents.upload'],
         ];

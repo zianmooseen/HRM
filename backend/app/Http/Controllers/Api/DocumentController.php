@@ -20,9 +20,7 @@ class DocumentController extends Controller
 {
     use RespondsWithApiEnvelope;
 
-    public function __construct(private readonly CompanyAccess $access, private readonly AuditLogger $audit)
-    {
-    }
+    public function __construct(private readonly CompanyAccess $access, private readonly AuditLogger $audit) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -146,7 +144,10 @@ class DocumentController extends Controller
             return null;
         }
 
-        return $this->access->employeeFor($user)?->id;
+        $employee = $this->access->employeeFor($user);
+        abort_unless($employee, 403, 'No employee profile is linked to this account.');
+
+        return $employee->id;
     }
 
     private function ensureSelfEmployee(Request $request, int $employeeId): void

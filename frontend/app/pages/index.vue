@@ -3,7 +3,7 @@
     <template v-if="isEmployeeSelfService">
       <header class="dashboard-hero">
         <div>
-          <h1>Welcome, {{ employeeDashboard?.employee.display_name || auth.user?.name }}</h1>
+          <h1>Welcome back, {{ employeeDashboard?.employee.display_name || auth.user?.name }}</h1>
           <p class="muted">Your personal HR workspace.</p>
         </div>
         <div class="hero-actions">
@@ -187,22 +187,6 @@
 
       <section class="dashboard-layout">
         <div class="main-column">
-          <section class="panel analytics-panel">
-            <header>
-              <div>
-                <h2>HR Analytics</h2>
-                <p class="muted">Today, leave, and lifecycle signals.</p>
-              </div>
-              <NuxtLink to="/attendance">View attendance</NuxtLink>
-            </header>
-            <div class="bar-chart" aria-label="HR activity chart">
-              <div v-for="bar in analyticsBars" :key="bar.label" class="bar-column">
-                <span class="bar" :class="{ striped: bar.striped }" :style="{ height: `${bar.height}%` }"></span>
-                <small>{{ bar.label }}</small>
-              </div>
-            </div>
-          </section>
-
           <section class="panel">
             <header>
               <div>
@@ -557,20 +541,6 @@ const emiratisationDetail = computed(() => {
 
   return `${snapshot.missing_uae_citizens} missing of ${snapshot.required_uae_citizens} required`
 })
-const analyticsBars = computed(() => {
-  const attendance = dashboard.value?.attendance_today
-  const leave = dashboard.value?.leave
-
-  return [
-    { label: 'P', height: percent(attendance?.present, attendance?.recorded), striped: false },
-    { label: 'L', height: percent(attendance?.late, attendance?.recorded), striped: false },
-    { label: 'A', height: percent(attendance?.absent, attendance?.recorded), striped: true },
-    { label: 'R', height: percent(attendance?.remote, attendance?.recorded), striped: false },
-    { label: 'O', height: percent(attendance?.on_leave, attendance?.recorded), striped: true },
-    { label: 'V', height: Math.min((leave?.approved_this_month ?? 0) * 8 + 26, 86), striped: false },
-    { label: 'Q', height: Math.min((leave?.pending_requests ?? 0) * 10 + 22, 90), striped: true },
-  ]
-})
 const dashboardQuestions = computed(() => [
   {
     question: 'What should I set up first?',
@@ -795,19 +765,12 @@ function label(value: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-function percent(value = 0, total = 0) {
-  if (!total) {
-    return 34
-  }
-
-  return Math.max(24, Math.min(88, Math.round((value / total) * 88)))
-}
 </script>
 
 <style scoped>
 .dashboard-page {
   gap: 24px;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-ui);
 }
 
 .scope-panel {
@@ -815,7 +778,7 @@ function percent(value = 0, total = 0) {
   grid-template-columns: repeat(2, minmax(220px, 320px)) 1fr;
   align-items: end;
   gap: 16px;
-  border: 1px solid #dce5df;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   background: #ffffff;
   padding: 18px;
@@ -824,7 +787,7 @@ function percent(value = 0, total = 0) {
 .scope-panel label {
   display: grid;
   gap: 6px;
-  color: #263b31;
+  color: var(--color-text);
   font-weight: 700;
 }
 
@@ -850,13 +813,13 @@ function percent(value = 0, total = 0) {
 }
 
 .employee-summary dt {
-  color: #7d8782;
+  color: var(--color-muted);
 }
 
 .employee-summary dd {
   margin: 0;
-  color: #173c2b;
-  font-weight: 700;
+  color: var(--color-text);
+  font-weight: 400;
 }
 
 .wps-warning {
@@ -866,7 +829,7 @@ function percent(value = 0, total = 0) {
 
 .muted {
   margin: 8px 0 0;
-  color: #7d8782;
+  color: var(--color-muted);
   font-size: 1.05rem;
   font-weight: 400;
   line-height: 1.35;
@@ -877,11 +840,11 @@ function percent(value = 0, total = 0) {
 }
 
 .dashboard-hero h1 {
-  color: #050908;
-  font-size: clamp(2.25rem, 3.4vw, 3rem);
-  font-weight: 500;
+  color: var(--color-text);
+  font-size: clamp(1.65rem, 2.2vw, 2.25rem);
+  font-weight: 700;
   letter-spacing: 0;
-  line-height: 0.98;
+  line-height: 1.25;
 }
 
 .hero-actions {
@@ -903,18 +866,18 @@ function percent(value = 0, total = 0) {
 }
 
 .primary-action {
-  background: linear-gradient(135deg, #063b24, #238457);
+  background: var(--color-accent);
   color: #ffffff;
 }
 
 .ghost-action {
-  border: 1px solid #064027;
-  color: #063b24;
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
 }
 
 .metric-grid {
   display: grid;
-  grid-template-columns: 1.25fr repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -922,18 +885,16 @@ function percent(value = 0, total = 0) {
 .panel {
   display: grid;
   gap: 14px;
-  border: 1px solid rgba(14, 50, 35, 0.05);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   background: #ffffff;
-  box-shadow: 0 18px 50px rgba(20, 33, 27, 0.06);
+  box-shadow: none;
   padding: 26px;
 }
 
 .metric-card-feature {
-  background:
-    radial-gradient(circle at 72% 76%, rgba(110, 226, 154, 0.2), transparent 34%),
-    linear-gradient(135deg, #08391f, #20804f);
-  color: #ffffff;
+  background: white;
+  color: var(--color-text);
 }
 
 .metric-topline {
@@ -955,32 +916,29 @@ function percent(value = 0, total = 0) {
   border: 1px solid currentColor;
   border-radius: 999px;
   background: #ffffff;
-  color: #050908;
+  color: var(--color-text);
   font-weight: 800;
 }
 
 .metric-card strong {
-  color: #060b09;
-  font-size: clamp(3rem, 4.8vw, 4.15rem);
+  color: var(--color-text);
+  font-size: clamp(2rem, 3.2vw, 3rem);
   font-weight: 500;
   letter-spacing: 0;
-  line-height: 0.95;
+  line-height: 1.2;
 }
 
-.metric-card-feature strong,
-.metric-card-feature small {
-  color: #ffffff;
-}
+.metric-card-feature strong { color: var(--color-text); }
 
 .metric-card small {
-  color: #2d7a50;
+  color: var(--color-muted);
   font-size: 0.94rem;
   font-weight: 400;
 }
 
 .dashboard-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -998,57 +956,18 @@ function percent(value = 0, total = 0) {
 .panel h2,
 .compliance-card h2 {
   margin: 0;
-  color: #050908;
+  color: var(--color-text);
   font-size: 1.35rem;
-  font-weight: 500;
+  font-weight: 700;
   line-height: 1.15;
 }
 
 .panel header a,
 .focus-panel a,
 .compliance-card a {
-  color: #064027;
+  color: var(--color-accent);
   font-size: 0.96rem;
   font-weight: 500;
-}
-
-.analytics-panel {
-  min-height: 250px;
-}
-
-.bar-chart {
-  min-height: 160px;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(32px, 1fr));
-  align-items: end;
-  gap: 24px;
-  padding-top: 12px;
-}
-
-.bar-column {
-  display: grid;
-  gap: 8px;
-  justify-items: center;
-}
-
-.bar {
-  width: min(62px, 100%);
-  min-height: 42px;
-  display: block;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #0c4a2d, #2b9660);
-}
-
-.bar.striped {
-  background:
-    repeating-linear-gradient(135deg, #8fa59a 0 4px, transparent 4px 10px),
-    #f5f7f4;
-}
-
-.bar-column small {
-  color: #7d8782;
-  font-size: 0.95rem;
-  font-weight: 400;
 }
 
 .reminder-list,
@@ -1061,12 +980,12 @@ function percent(value = 0, total = 0) {
 }
 
 .qa-list details {
-  border-bottom: 1px solid #edf1ee;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 12px;
 }
 
 .qa-list summary {
-  color: #050908;
+  color: var(--color-text);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
@@ -1075,13 +994,13 @@ function percent(value = 0, total = 0) {
 
 .qa-list p {
   margin: 8px 0 10px;
-  color: #6f7b75;
+  color: var(--color-muted);
   font-size: 0.9rem;
   line-height: 1.45;
 }
 
 .qa-list a {
-  color: #064027;
+  color: var(--color-accent);
   font-size: 0.9rem;
   font-weight: 500;
 }
@@ -1098,7 +1017,7 @@ function percent(value = 0, total = 0) {
 .reminder-row,
 .document-row {
   justify-content: space-between;
-  border-bottom: 1px solid #edf1ee;
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 12px;
 }
 
@@ -1112,7 +1031,7 @@ function percent(value = 0, total = 0) {
 .operation-row strong,
 .document-row span {
   display: block;
-  color: #050908;
+  color: var(--color-text);
   font-size: 1rem;
   font-weight: 400;
   line-height: 1.25;
@@ -1122,7 +1041,7 @@ function percent(value = 0, total = 0) {
 .activity-row small,
 .operation-row small,
 .document-row small {
-  color: #8a918d;
+  color: var(--color-muted);
   font-size: 0.86rem;
   font-weight: 400;
 }
@@ -1144,7 +1063,7 @@ function percent(value = 0, total = 0) {
   height: 34px;
   flex: 0 0 auto;
   border-radius: 12px;
-  background: #0f6d42;
+  background: var(--color-accent);
 }
 
 .activity-dot {
@@ -1154,7 +1073,7 @@ function percent(value = 0, total = 0) {
 }
 
 .operation-icon {
-  background: conic-gradient(from 45deg, #0f6d42, #6fceb0, #0f6d42);
+  background: var(--color-accent);
 }
 
 .icon-absent {
@@ -1171,7 +1090,7 @@ function percent(value = 0, total = 0) {
 
 .focus-panel strong,
 .compliance-card strong {
-  color: #064027;
+  color: var(--color-accent);
   font-size: 1.85rem;
   font-weight: 500;
   line-height: 1.1;
@@ -1184,25 +1103,24 @@ function percent(value = 0, total = 0) {
 .compliance-card {
   display: grid;
   gap: 10px;
-  border-radius: 8px;
-  background:
-    radial-gradient(circle at 90% 20%, rgba(97, 180, 122, 0.4), transparent 30%),
-    linear-gradient(135deg, #052414, #0e633b);
-  color: #ffffff;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  background: white;
+  color: var(--color-text);
   padding: 26px;
-  box-shadow: 0 18px 50px rgba(20, 33, 27, 0.08);
+  box-shadow: none;
 }
 
 .compliance-card h2,
 .compliance-card strong,
 .compliance-card p,
 .compliance-card a {
-  color: #ffffff;
+  color: var(--color-text);
 }
 
 .empty-state,
 .loading-state {
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: #ffffff;
   padding: 20px;
 }
@@ -1213,7 +1131,6 @@ function percent(value = 0, total = 0) {
     grid-template-columns: 1fr 1fr;
   }
 
-  .metric-card-feature,
   .main-column {
     grid-column: 1 / -1;
   }
@@ -1242,8 +1159,12 @@ function percent(value = 0, total = 0) {
     grid-template-columns: 1fr;
   }
 
-  .bar-chart {
-    gap: 10px;
-  }
 }
+.metric-card { min-width: 0; min-height: 210px; align-content: start; gap: 22px; }
+.metric-card strong { overflow-wrap: anywhere; }
+.metric-topline { font-weight: 600; }
+.metric-topline a { width: 32px; height: 32px; border: 0; color: var(--color-accent); background: var(--color-accent-soft); }
+.panel header a { flex-shrink: 0; }
+.compliance-card a { color: var(--color-accent); }
+@media (max-width: 600px) { .metric-card { min-height: 180px; } }
 </style>

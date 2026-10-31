@@ -302,7 +302,7 @@ function money(value: string | number) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .metric-grid,
@@ -315,7 +315,7 @@ function money(value: string | number) {
 
 .metric-grid article,
 .report-panel {
-  border: 1px solid #d8e0e4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #ffffff;
   padding: 18px;
@@ -323,7 +323,7 @@ function money(value: string | number) {
 
 .metric-grid span,
 .details-grid dt {
-  color: #5d6a72;
+  color: var(--color-muted);
   font-size: 13px;
 }
 
@@ -331,7 +331,7 @@ function money(value: string | number) {
 .details-grid dd {
   display: block;
   margin: 4px 0 0;
-  color: #102027;
+  color: var(--color-text);
   font-size: 20px;
   font-weight: 700;
 }
@@ -339,7 +339,7 @@ function money(value: string | number) {
 .metric-grid small {
   display: block;
   margin-top: 4px;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .report-panel {
@@ -354,9 +354,9 @@ function money(value: string | number) {
   display: grid;
   min-height: 44px;
   place-items: center;
-  border: 1px solid #2f7d68;
+  border: 1px solid var(--color-accent);
   border-radius: 6px;
-  color: #1f6f5b;
+  color: var(--color-accent);
   font-weight: 700;
 }
 

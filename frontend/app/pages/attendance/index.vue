@@ -512,7 +512,7 @@ function correctionSummary(correction: AttendanceCorrectionRequest) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .full {
@@ -530,7 +530,7 @@ function correctionSummary(correction: AttendanceCorrectionRequest) {
   display: grid;
   gap: 14px;
   margin-top: 20px;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #ffffff;
   padding: 16px;
@@ -548,7 +548,7 @@ function correctionSummary(correction: AttendanceCorrectionRequest) {
 .filters input,
 .filters select {
   min-height: 40px;
-  border: 1px solid #b8c1c8;
+  border: 1px solid var(--color-input-border);
   border-radius: 6px;
   padding: 8px 10px;
 }

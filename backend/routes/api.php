@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeGovernmentProfileController;
 use App\Http\Controllers\Api\EmployeeLeaveBalanceController;
 use App\Http\Controllers\Api\EmployeeOnboardingController;
+use App\Http\Controllers\Api\EmployeePayController;
 use App\Http\Controllers\Api\EmployeeSalaryComponentController;
 use App\Http\Controllers\Api\EmployeeServicePeriodController;
 use App\Http\Controllers\Api\EmployeeTerminationController;
@@ -74,7 +75,17 @@ Route::middleware(['auth:sanctum', RequirePlatformAdmin::class, ApplyPlatformCom
 Route::middleware(['auth:sanctum', EnterClientForSupport::class, ApplyOrganizationScope::class])->group(function (): void {
     Route::get('/self/dashboard', [SelfServiceController::class, 'dashboard']);
     Route::get('/self/profile', [SelfServiceController::class, 'profile']);
+    Route::get('/self/company', [SelfServiceController::class, 'company']);
+    Route::get('/self/directory', [SelfServiceController::class, 'directory']);
+    Route::get('/self/pay', [EmployeePayController::class, 'overview']);
+    Route::get('/self/pay/history', [EmployeePayController::class, 'history']);
     Route::get('/dashboard', DashboardController::class);
+    Route::get('/temporary-workers', [\App\Http\Controllers\Api\TemporaryWorkerController::class, 'index']);
+    Route::post('/temporary-workers', [\App\Http\Controllers\Api\TemporaryWorkerController::class, 'store']);
+    Route::get('/temporary-workers/{id}', [\App\Http\Controllers\Api\TemporaryWorkerController::class, 'show'])->whereNumber('id');
+    Route::put('/temporary-workers/{id}', [\App\Http\Controllers\Api\TemporaryWorkerController::class, 'update'])->whereNumber('id');
+    Route::post('/temporary-workers/{id}/entries', [\App\Http\Controllers\Api\TemporaryWorkerController::class, 'record'])->whereNumber('id');
+    Route::post('/temporary-workers/{id}/entries/{entry}/void', [\App\Http\Controllers\Api\TemporaryWorkerController::class, 'void'])->whereNumber(['id', 'entry']);
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
     Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
 

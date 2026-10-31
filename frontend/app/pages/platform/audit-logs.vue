@@ -1,9 +1,9 @@
 <template>
-  <section class="page">
+  <section class="page audit-page">
     <header>
       <div>
         <h1>Audit Logs</h1>
-        <p class="muted">Search company activity and inspect before/after snapshots for authorized records.</p>
+        <p class="muted">Search company activity and understand what changed.</p>
       </div>
     </header>
 
@@ -53,7 +53,8 @@
         </header>
 
         <p v-if="loading">Loading audit logs...</p>
-        <table v-else>
+        <div v-else class="audit-table-scroll" role="region" aria-label="Audit activity" tabindex="0">
+        <table>
           <thead>
             <tr>
               <th>Date</th>
@@ -61,7 +62,7 @@
               <th>Action</th>
               <th>Record</th>
               <th>Actor</th>
-              <th></th>
+              <th class="audit-action-column">Details</th>
             </tr>
             <tr class="column-filter-row">
               <th><TableColumnFilter v-model="columnFilters.date" label="Filter audit date" /></th>
@@ -69,23 +70,24 @@
               <th><TableColumnFilter v-model="columnFilters.action" label="Filter audit action" /></th>
               <th><TableColumnFilter v-model="columnFilters.record" label="Filter audit record" /></th>
               <th><TableColumnFilter v-model="columnFilters.actor" label="Filter audit actor" /></th>
-              <th></th>
+              <th class="audit-action-column" />
             </tr>
           </thead>
           <tbody>
-            <tr v-for="log in filteredLogs" :key="log.id">
+            <tr v-for="log in filteredLogs" :key="log.id" :class="{ selected: selectedLog?.id === log.id }">
               <td>{{ formatDate(log.created_at) }}</td>
               <td>{{ moduleLabel(log.module) }}</td>
               <td>{{ actionLabel(log.action) }}</td>
               <td>{{ log.auditable_type }} #{{ log.auditable_id || '-' }}</td>
               <td>{{ log.actor_user_id || 'System' }}</td>
-              <td><button type="button" class="secondary" @click="selectLog(log.id)">Details</button></td>
+              <td class="audit-action-column"><button type="button" class="secondary" :aria-label="`Details for event ${log.id}`" @click="selectLog(log.id)">Details</button></td>
             </tr>
             <tr v-if="filteredLogs.length === 0">
               <td colspan="6">No audit logs match these filters.</td>
             </tr>
           </tbody>
         </table>
+        </div>
 
         <div class="pagination">
           <button type="button" class="secondary" :disabled="meta.current_page <= 1 || loading" @click="loadLogs(meta.current_page - 1)">
@@ -102,13 +104,14 @@
         <header>
           <div>
             <h2>Event Detail</h2>
-            <p class="muted">Select an event to view its audit snapshot.</p>
+            <p class="muted">Select an event to see what happened.</p>
           </div>
         </header>
 
         <p v-if="detailLoading">Loading event...</p>
         <p v-else-if="detailError" class="error">{{ detailError }}</p>
         <template v-else-if="selectedLog">
+          <p class="event-explanation">{{ explanation.summary }}</p>
           <dl class="details-grid">
             <div>
               <dt>Action</dt>
@@ -116,7 +119,7 @@
             </div>
             <div>
               <dt>Record</dt>
-              <dd>{{ selectedLog.auditable_type }} #{{ selectedLog.auditable_id || '-' }}</dd>
+              <dd>{{ selectedLog.reference_labels?._record?.[String(selectedLog.auditable_id)] || `${selectedLog.auditable_type} #${selectedLog.auditable_id || '-'}` }}</dd>
             </div>
             <div>
               <dt>IP address</dt>
@@ -132,10 +135,21 @@
             Snapshot details are hidden because this event contains sensitive data outside your permissions.
           </p>
           <template v-else>
-            <h3>Before</h3>
-            <pre>{{ json(selectedLog.before) }}</pre>
-            <h3>After</h3>
-            <pre>{{ json(selectedLog.after) }}</pre>
+            <div class="detail-heading">
+              <h3>What was recorded</h3>
+              <button type="button" class="secondary" :aria-expanded="showRaw" aria-controls="raw-audit-snapshots" @click="showRaw = !showRaw">{{ showRaw ? 'Hide raw' : 'Raw' }}</button>
+            </div>
+            <ul v-if="explanation.details.length" class="event-facts">
+              <li v-for="(detail, index) in explanation.details" :key="index">{{ detail }}</li>
+            </ul>
+            <p v-else class="muted">No additional field changes were recorded for this event.</p>
+            <p v-if="Object.keys(selectedLog.reference_labels || {}).length" class="muted">Names reflect current records. Raw preserves the recorded IDs.</p>
+            <div v-if="showRaw" id="raw-audit-snapshots">
+              <h3>Before</h3>
+              <pre>{{ json(selectedLog.before) }}</pre>
+              <h3>After</h3>
+              <pre>{{ json(selectedLog.after) }}</pre>
+            </div>
           </template>
         </template>
         <p v-else class="muted">No event selected.</p>
@@ -145,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { explainAuditEvent, type AuditEmployeeContext } from '../../utils/audit-explanation'
 definePageMeta({ middleware: ['auth'] })
 
 interface AuditLogRow {
@@ -158,6 +173,8 @@ interface AuditLogRow {
   ip_address: string | null
   user_agent: string | null
   created_at: string
+  reference_labels?: Record<string, Record<string, string>>
+  employees?: AuditEmployeeContext[]
   snapshots_visible: boolean
   before: Record<string, unknown> | null
   after: Record<string, unknown> | null
@@ -183,6 +200,9 @@ const { filters: columnFilters, filteredRows: filteredLogs } = useTableColumnFil
   ],
 )
 const selectedLog = ref<AuditLogRow | null>(null)
+const showRaw = ref(false)
+const explanation = computed(() => selectedLog.value ? explainAuditEvent(selectedLog.value) : { summary: '', details: [] })
+let detailRequest = 0
 const modules = ref<string[]>([])
 const loading = ref(true)
 const detailLoading = ref(false)
@@ -208,6 +228,11 @@ onMounted(() => loadLogs())
 async function loadLogs(page = 1) {
   loading.value = true
   error.value = ''
+  detailRequest++
+  selectedLog.value = null
+  detailLoading.value = false
+  detailError.value = ''
+  showRaw.value = false
 
   try {
     const query = new URLSearchParams({ page: String(page), per_page: String(meta.per_page) })
@@ -232,16 +257,19 @@ async function loadLogs(page = 1) {
 }
 
 async function selectLog(id: number) {
+  const request = ++detailRequest
+  showRaw.value = false
+  selectedLog.value = null
   detailLoading.value = true
   detailError.value = ''
 
   try {
     const response = await api.get<{ audit_log: AuditLogRow }>(`/audit-logs/${id}`)
-    selectedLog.value = response.data.audit_log
+    if (request === detailRequest) selectedLog.value = response.data.audit_log
   } catch (err) {
-    detailError.value = apiErrorMessage(err, 'Unable to load audit log detail.')
+    if (request === detailRequest) detailError.value = apiErrorMessage(err, 'Unable to load audit log detail.')
   } finally {
-    detailLoading.value = false
+    if (request === detailRequest) detailLoading.value = false
   }
 }
 
@@ -284,7 +312,7 @@ function json(value: unknown) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .filter-grid {
@@ -297,13 +325,14 @@ function json(value: unknown) {
 
 .audit-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  align-items: start;
   gap: 20px;
 }
 
 .panel {
   min-width: 0;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #ffffff;
   padding: 16px;
@@ -322,13 +351,13 @@ function json(value: unknown) {
 }
 
 .details-grid dt {
-  color: #5d6a72;
+  color: var(--color-muted);
   font-size: 13px;
 }
 
 .details-grid dd {
   margin: 4px 0 0;
-  color: #102027;
+  color: var(--color-text);
   font-weight: 700;
 }
 
@@ -336,6 +365,7 @@ function json(value: unknown) {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 16px;
 }
@@ -343,7 +373,7 @@ function json(value: unknown) {
 pre {
   max-height: 280px;
   overflow: auto;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   background: #f6f8fa;
   padding: 12px;
@@ -352,9 +382,20 @@ pre {
   word-break: break-word;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1250px) {
   .audit-layout {
     grid-template-columns: 1fr;
   }
 }
+/* Keep wide columns inside Activity and pin its Details buttons while scrolling. */
+.audit-table-scroll { max-width: 100%; overflow-x: auto; margin-top: 16px; border: 1px solid var(--color-border); border-radius: 12px; }
+.audit-page .audit-table-scroll > table { display: table; min-width: 780px; border: 0; border-radius: 0; overflow: visible; }
+.audit-page .audit-action-column { position: sticky; right: 0; z-index: 1; width: 110px; min-width: 110px; background: white; border-left: 1px solid var(--color-border); }
+.audit-page th.audit-action-column { background: var(--color-surface-muted); }
+.audit-page .selected td { background: var(--color-accent-soft); }
+.details-grid > div { min-width: 0; }
+.details-grid dd, .event-explanation, .event-facts { overflow-wrap: anywhere; }
+.event-explanation { padding: 16px; background: var(--color-accent-soft); border-radius: 10px; font-size: 1rem; line-height: 1.6; }
+.detail-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.event-facts { display: grid; gap: 12px; padding-left: 20px; line-height: 1.6; }
 </style>

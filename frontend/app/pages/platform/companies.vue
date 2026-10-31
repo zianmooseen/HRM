@@ -158,10 +158,10 @@ function label(value: string) { return value.replace(/_/g, ' ').replace(/\b\w/g,
 
 <style scoped>
 .client-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.client-form { padding: 20px; border: 1px solid #d8dee4; border-radius: 8px; margin: 16px 0; }
+.client-form { padding: 20px; border: 1px solid var(--color-border); border-radius: 8px; margin: 16px 0; }
 .client-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 20px; }
 .client-fields label { display: grid; gap: 6px; align-content: start; }
-.client-fields input, .client-fields select { width: 100%; min-height: 40px; padding: 8px; border: 1px solid #b8c1c8; border-radius: 6px; }
+.client-fields input, .client-fields select { width: 100%; min-height: 40px; padding: 8px; border: 1px solid var(--color-input-border); border-radius: 6px; }
 small { color: #52616b; }
 .error { color: #9f1d35; }
 caption { text-align: left; font-weight: 600; padding: 16px 0 8px; }

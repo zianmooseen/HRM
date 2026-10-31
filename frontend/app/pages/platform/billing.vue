@@ -499,14 +499,14 @@ function label(value: string) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .panel {
   display: grid;
   gap: 16px;
   margin-top: 20px;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #ffffff;
   padding: 16px;
@@ -522,6 +522,6 @@ function label(value: string) {
 
 small {
   display: block;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 </style>

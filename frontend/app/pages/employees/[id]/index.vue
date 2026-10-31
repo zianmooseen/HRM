@@ -958,7 +958,7 @@ function expiryLabel(document: EmployeeDocument) {
 .start-onboarding select,
 .task-list select {
   min-height: 40px;
-  border: 1px solid #b8c1c8;
+  border: 1px solid var(--color-input-border);
   border-radius: 6px;
   padding: 8px 10px;
 }
@@ -967,7 +967,7 @@ function expiryLabel(document: EmployeeDocument) {
   display: flex;
   justify-content: space-between;
   max-width: 760px;
-  color: #5d6a72;
+  color: var(--color-muted);
   font-weight: 700;
 }
 
@@ -975,14 +975,14 @@ function expiryLabel(document: EmployeeDocument) {
   overflow: hidden;
   max-width: 760px;
   height: 8px;
-  background: #d8dee4;
+  background: var(--color-border);
   border-radius: 999px;
 }
 
 .progress-track span {
   display: block;
   height: 100%;
-  background: #16765f;
+  background: var(--color-accent);
 }
 
 .task-list {
@@ -1000,7 +1000,7 @@ function expiryLabel(document: EmployeeDocument) {
   justify-content: space-between;
   gap: 12px;
   background: #ffffff;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 12px;
 }
@@ -1008,7 +1008,7 @@ function expiryLabel(document: EmployeeDocument) {
 .task-list small {
   display: block;
   margin-top: 4px;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .documents h2,
@@ -1032,7 +1032,7 @@ function expiryLabel(document: EmployeeDocument) {
 }
 
 .document-group > header span {
-  color: #5d6a72;
+  color: var(--color-muted);
   font-weight: 700;
 }
 
@@ -1047,7 +1047,7 @@ function expiryLabel(document: EmployeeDocument) {
   grid-template-rows: 132px 1fr auto;
   overflow: hidden;
   background: #ffffff;
-  border: 1px solid #d8dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
 }
 

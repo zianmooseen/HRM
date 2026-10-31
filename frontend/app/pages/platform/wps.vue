@@ -176,7 +176,7 @@ function label(value: string) {
 </script>
 
 <style scoped>
-.muted { color: #5d6a72; }
+.muted { color: var(--color-muted); }
 .panel-grid { display: grid; grid-template-columns: minmax(280px, 420px) 1fr; gap: 20px; }
 .actions { display: flex; gap: 10px; }
 .status { font-weight: 700; }

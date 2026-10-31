@@ -619,7 +619,7 @@ function apiErrorMessages(error: unknown, fallback: string) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .panel-grid {
@@ -655,16 +655,16 @@ function apiErrorMessages(error: unknown, fallback: string) {
   padding-top: 24px;
   padding-bottom: 24px;
   border-bottom-color: transparent;
-  background: #f5f9f7;
+  background: var(--color-accent-soft);
 }
 
 .period-detail-row > td {
   padding: 0 18px 24px;
-  background: #f5f9f7;
+  background: var(--color-accent-soft);
 }
 
 .period-detail {
-  border: 1px solid #cbdad3;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   background: #ffffff;
   padding: 20px;
@@ -688,8 +688,8 @@ function apiErrorMessages(error: unknown, fallback: string) {
 }
 
 .secondary-link {
-  color: #176b54;
-  font-weight: 700;
+  color: var(--color-accent);
+  font-weight: 600;
   text-decoration: none;
 }
 

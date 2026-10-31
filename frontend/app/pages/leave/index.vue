@@ -671,7 +671,7 @@ function latestNote(request: LeaveRequestRow) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .full {
@@ -693,7 +693,7 @@ function latestNote(request: LeaveRequestRow) {
 
 .filters select {
   min-height: 40px;
-  border: 1px solid #b8c1c8;
+  border: 1px solid var(--color-input-border);
   border-radius: 6px;
   padding: 8px 10px;
 }
@@ -712,13 +712,13 @@ section h2 {
 }
 
 .day-preview strong {
-  color: #102027;
+  color: var(--color-text);
 }
 
 .holiday-list {
   margin: 0;
   padding-left: 18px;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 @media (max-width: 760px) {

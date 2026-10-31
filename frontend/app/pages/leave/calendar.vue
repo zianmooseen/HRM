@@ -95,17 +95,17 @@ function selectMonth(event: Event) {
 .calendar-scroll { overflow-x: auto; border: 1px solid #dce3e8; border-radius: 10px; background: white; }
 .calendar-grid { min-width: 770px; }
 .calendar-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
-.weekday { padding: 12px; color: #5f6c72; font-size: 0.85rem; font-weight: 600; background: #f8fafb; }
+.weekday { padding: 12px; color: var(--color-muted); font-size: 0.85rem; font-weight: 600; background: #f8fafb; }
 .calendar-day { height: 170px; min-width: 0; padding: 8px; border-top: 1px solid #dce3e8; border-right: 1px solid #dce3e8; display: flex; flex-direction: column; gap: 6px; }
 .calendar-day:last-child { border-right: 0; }
 .empty-day { background: #f8fafb; }
-.today { box-shadow: inset 0 0 0 2px #16765f; }
+.today { box-shadow: inset 0 0 0 2px var(--color-accent); }
 .day-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 26px; }
 .day-heading time { font-weight: 600; }
 .today time { color: #125b49; }
-.day-count { font-size: 0.7rem; color: #5f6c72; }
+.day-count { font-size: 0.7rem; color: var(--color-muted); }
 .day-people { list-style: none; margin: 0; padding: 0 3px 0 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-.day-people:focus-visible { outline: 2px solid #16765f; outline-offset: 1px; }
+.day-people:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 .day-people li { display: flex; align-items: baseline; gap: 5px; margin-bottom: 5px; padding: 6px; border-radius: 5px; background: #edf1f5; font-size: 0.78rem; overflow-wrap: anywhere; }
 .day-people li span { flex: 1; min-width: 0; }
 .day-people li.own-leave { background: #d9f2e8; color: #125b49; }

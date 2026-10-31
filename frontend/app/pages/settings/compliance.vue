@@ -283,7 +283,7 @@ function setSettings(nextSettings: ComplianceSettings) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 section h2 {

@@ -283,7 +283,7 @@ function resetEstablishment() {
 </script>
 
 <style scoped>
-.muted { color: #5d6a72; }
+.muted { color: var(--color-muted); }
 .panel-grid { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 20px; }
 .check { display: flex; align-items: center; gap: 8px; }
 .check input { width: auto; }

@@ -210,6 +210,48 @@ class OrganizationScopeTest extends TestCase
         $this->assertSame(1, substr_count($csv, 'leave_request.created'));
     }
 
+    public function test_branch_dashboard_audit_matches_json_ids_and_preserves_company_isolation(): void
+    {
+        $employee = $this->employees[0];
+        $expected = [];
+        foreach ([
+            ['before_json' => ['employee_id' => $employee->id]],
+            ['after_json' => ['employee_id' => $employee->id]],
+            ['before_json' => ['employee_id' => (string) $employee->id]],
+            ['after_json' => ['employee_id' => (string) $employee->id]],
+            ['auditable_type' => Models\Employee::class, 'auditable_id' => $employee->id],
+            ['before_json' => ['branch_id' => $this->branch->id]],
+            ['auditable_type' => Models\Branch::class, 'auditable_id' => $this->branch->id],
+        ] as $index => $attributes) {
+            $action = 'scope.included_'.$index;
+            Models\AuditLog::create([
+                'company_id' => $this->company->id, 'action' => $action,
+                'auditable_type' => Models\LeaveRequest::class, 'auditable_id' => 999,
+                ...$attributes,
+            ]);
+            $expected[] = $action;
+        }
+        foreach ([
+            ['before_json' => ['employee_id' => $this->employees[1]->id]],
+            ['after_json' => ['employee_id' => $this->employees[2]->id]],
+            ['company_id' => $this->otherCompany->id, 'after_json' => ['employee_id' => $employee->id]],
+            ['after_json' => ['employee_id' => 'not-an-id']],
+            ['before_json' => ['employee_id' => null]],
+            ['after_json' => []],
+        ] as $attributes) {
+            Models\AuditLog::create([
+                'company_id' => $this->company->id, 'action' => 'scope.excluded',
+                'auditable_type' => Models\LeaveRequest::class, 'auditable_id' => 999,
+                ...$attributes,
+            ]);
+        }
+        // Historical audit entries remain visible after an employee is soft-deleted.
+        $employee->delete();
+        $dashboard = $this->getJson($this->url('/dashboard'))->assertOk();
+        $this->assertEqualsCanonicalizing($expected, array_column($dashboard->json('data.dashboard.recent_audit_logs'), 'action'));
+        $this->getJson($this->url('/audit-logs'))->assertOk()->assertJsonCount(7, 'data.audit_logs');
+    }
+
     private function user(string $role, ?Models\Company $company = null): Models\User
     {
         $user = Models\User::factory()->create();

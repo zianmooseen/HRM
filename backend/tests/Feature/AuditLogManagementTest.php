@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
+use App\Models\JobTitle;
+use App\Models\LeaveRequest;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\LegalRuleSeeder;
@@ -72,6 +75,8 @@ class AuditLogManagementTest extends TestCase
         $this->getJson("/api/audit-logs/{$log->id}")
             ->assertOk()
             ->assertJsonPath('data.audit_log.snapshots_visible', false)
+            ->assertJsonPath('data.audit_log.employees', [])
+            ->assertJsonPath('data.audit_log.reference_labels', [])
             ->assertJsonPath('data.audit_log.before', null)
             ->assertJsonPath('data.audit_log.after', null);
     }
@@ -85,6 +90,85 @@ class AuditLogManagementTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->getJson('/api/audit-logs')->assertForbidden();
+    }
+
+    public function test_audit_details_include_employee_name_and_current_branch_without_cross_company_enrichment(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+        [$company, $user] = $this->userWithRole('company_admin');
+        $branch = $company->branches()->create(['name' => 'Dubai', 'code' => 'DXB']);
+        $employee = Employee::create([
+            'company_id' => $company->id, 'branch_id' => $branch->id, 'employee_code' => 'AUD-009',
+            'first_name' => 'Alex', 'last_name' => 'Morgan', 'display_name' => 'Alex Morgan', 'status' => 'active',
+        ]);
+        $foreignCompany = Company::create(['name' => 'Other Company']);
+        $foreign = Employee::create([
+            'company_id' => $foreignCompany->id, 'employee_code' => 'FOREIGN',
+            'first_name' => 'Private', 'last_name' => 'Employee', 'display_name' => 'Private Employee', 'status' => 'active',
+        ]);
+        $log = $this->audit($company, $user, 'leave_request.updated', LeaveRequest::class, 41,
+            ['employee_id' => $foreign->id], ['employee_id' => (string) $employee->id]);
+        $direct = $this->audit($company, $user, 'employee.deleted', Employee::class, $employee->id);
+        $employee->delete();
+        $branch->delete();
+        Sanctum::actingAs($user);
+
+        foreach ([$log, $direct] as $event) {
+            $this->getJson('/api/audit-logs/'.$event->id)->assertOk()
+                ->assertJsonCount(1, 'data.audit_log.employees')
+                ->assertJsonPath('data.audit_log.employees.0.name', 'Alex Morgan')
+                ->assertJsonPath('data.audit_log.employees.0.employee_code', 'AUD-009')
+                ->assertJsonPath('data.audit_log.employees.0.branch_name', 'Dubai')
+                ->assertJsonMissing(['name' => 'Private Employee']);
+        }
+        // Listing events must not enrich redacted snapshots or add per-row employee lookups.
+        $this->getJson('/api/audit-logs')->assertOk()->assertJsonPath('data.audit_logs.0.employees', []);
+    }
+
+    public function test_audit_details_handle_missing_employees_and_malformed_snapshot_ids(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+        [$company, $user] = $this->userWithRole('company_admin');
+        Sanctum::actingAs($user);
+        foreach ([null, 'invalid', ['nested' => 1], 999999, '999999999999999999999999999999'] as $id) {
+            $log = $this->audit($company, $user, 'leave_request.created', LeaveRequest::class, 41,
+                null, ['employee_id' => $id]);
+            $this->getJson('/api/audit-logs/'.$log->id)->assertOk()->assertJsonPath('data.audit_log.employees', []);
+        }
+    }
+
+    public function test_audit_reference_names_resolve_old_new_nested_and_list_ids_with_tenant_isolation(): void
+    {
+        $this->seed([RoleAndPermissionSeeder::class, LegalRuleSeeder::class]);
+        [$company, $user] = $this->userWithRole('company_admin');
+        $oldRole = Role::where('slug', 'employee')->firstOrFail();
+        $newRole = Role::where('slug', 'hr_manager')->firstOrFail();
+        $branch = $company->branches()->create(['name' => 'Dubai', 'code' => 'DXB']);
+        $department = Department::create(['company_id' => $company->id, 'name' => 'Finance', 'code' => 'FIN']);
+        $job = JobTitle::create(['company_id' => $company->id, 'title' => 'Accountant', 'code' => 'ACC']);
+        $foreignCompany = Company::create(['name' => 'Private Company']);
+        $foreignRole = Role::create(['company_id' => $foreignCompany->id, 'name' => 'Private Role', 'slug' => 'private_role']);
+        $foreignUser = User::factory()->create();
+        $foreignUser->roles()->attach($oldRole->id, ['company_id' => $foreignCompany->id, 'scope' => 'company']);
+        $log = $this->audit($company, $user, 'employee.updated', Employee::class, 999,
+            ['role_id' => $oldRole->id],
+            ['role_id' => $newRole->id, 'role_ids' => [$newRole->id, $foreignRole->id],
+                'assignment' => ['department_id' => $department->id, 'job_title_id' => $job->id],
+                'branch_id' => $branch->id, 'updated_by' => $foreignUser->id, 'total_days' => 7]);
+        $department->delete();
+        Sanctum::actingAs($user);
+        $response = $this->getJson('/api/audit-logs/'.$log->id)->assertOk();
+        $labels = $response->json('data.audit_log.reference_labels');
+        $this->assertSame($oldRole->name, $labels['role_id'][$oldRole->id]);
+        $this->assertSame($newRole->name, $labels['role_id'][$newRole->id]);
+        $this->assertSame('Finance', $labels['department_id'][$department->id]);
+        $this->assertSame('Accountant', $labels['job_title_id'][$job->id]);
+        $this->assertSame('Dubai', $labels['branch_id'][$branch->id]);
+        $this->assertSame($user->name, $labels['actor_user_id'][$user->id]);
+        $this->assertArrayNotHasKey($foreignRole->id, $labels['role_ids']);
+        $this->assertSame([], $labels['updated_by']);
+        $this->assertArrayNotHasKey('total_days', $labels);
+        $response->assertJsonPath('data.audit_log.after.role_id', $newRole->id);
     }
 
     private function userWithRole(string $roleSlug): array

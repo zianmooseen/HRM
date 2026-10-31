@@ -281,17 +281,17 @@ function label(value: string) {
 </script>
 
 <style scoped>
-.muted { color: #5d6a72; }
+.muted { color: var(--color-muted); }
 .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: 16px; }
-.summary-grid article { display: grid; gap: 8px; padding: 18px; border: 1px solid #d8dee4; border-radius: 8px; background: #fff; }
-.summary-grid span { color: #5d6a72; }
+.summary-grid article { display: grid; gap: 8px; padding: 18px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; }
+.summary-grid span { color: var(--color-muted); }
 .summary-grid strong { font-size: 1.4rem; }
 .operations-grid { display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 20px; }
 .operations-grid > section { grid-column: 1 / -1; }
 .proof-list { display: grid; gap: 10px; padding: 0; list-style: none; }
-.proof-list li { display: flex; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #d8dee4; border-radius: 8px; }
+.proof-list li { display: flex; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; }
 .proof-list li div:first-child { display: grid; gap: 4px; }
-.secondary-link { color: #176b54; font-weight: 700; text-decoration: none; }
+.secondary-link { color: var(--color-accent); font-weight: 700; text-decoration: none; }
 @media (max-width: 900px) {
   .summary-grid, .operations-grid { grid-template-columns: 1fr; }
 }

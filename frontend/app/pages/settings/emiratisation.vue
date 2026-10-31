@@ -293,7 +293,7 @@ function money(value: string | number) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .metrics-grid {
@@ -305,18 +305,18 @@ function money(value: string | number) {
 .metrics-grid article {
   display: grid;
   gap: 6px;
-  border: 1px solid #d7dee4;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
 }
 
 .metrics-grid span {
-  color: #5d6a72;
+  color: var(--color-muted);
   font-size: 13px;
 }
 
 .metrics-grid strong {
-  color: #102027;
+  color: var(--color-text);
   font-size: 24px;
 }
 </style>

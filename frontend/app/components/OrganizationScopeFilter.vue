@@ -60,11 +60,11 @@ async function retry() {
 </script>
 
 <style scoped>
-.organization-filter { margin-bottom: 24px; padding: 16px 20px; border: 1px solid #dce3e0; border-radius: 10px; background: white; }
+.organization-filter { margin-bottom: 24px; padding: 16px 20px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: white; }
 .filter-fields { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; }
 label { display: grid; gap: 6px; font-size: 0.8rem; font-weight: 600; flex: 1; max-width: 360px; min-width: 180px; }
-select { width: 100%; min-height: 40px; border: 1px solid #cbd5d0; border-radius: 6px; padding: 8px; background: white; color: inherit; font: inherit; }
+select { width: 100%; min-height: 40px; border: 1px solid var(--color-input-border); border-radius: 8px; padding: 8px; background: white; color: inherit; font: inherit; }
 .filter-arrow { padding-bottom: 12px; color: #65766e; }
-.filter-summary { margin: 10px 0 0; color: #5f6c72; font-size: 0.8rem; line-height: 1.5; }
+.filter-summary { margin: 10px 0 0; color: var(--color-muted); font-size: 0.8rem; line-height: 1.5; }
 @media (max-width: 600px) { .filter-arrow { display: none; } label { max-width: none; } }
 </style>

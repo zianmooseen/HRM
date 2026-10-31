@@ -118,7 +118,7 @@ function setSettings(nextSettings: ComplianceSettings) {
 <style scoped>
 .muted {
   margin: 6px 0 0;
-  color: #5d6a72;
+  color: var(--color-muted);
 }
 
 .policy-preview {
@@ -129,6 +129,6 @@ function setSettings(nextSettings: ComplianceSettings) {
 }
 
 .policy-preview strong {
-  color: #102027;
+  color: var(--color-text);
 }
 </style>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Api\Concerns\RespondsWithApiEnvelope;
 use App\Models\AuditLog;
 use App\Models\Employee;
+use App\Services\Audit\AuditReferenceLabels;
 use App\Services\Auth\CompanyAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,9 +15,7 @@ class AuditLogController extends Controller
 {
     use RespondsWithApiEnvelope;
 
-    public function __construct(private readonly CompanyAccess $access)
-    {
-    }
+    public function __construct(private readonly CompanyAccess $access) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -88,13 +87,49 @@ class AuditLogController extends Controller
             'user_agent' => $log->user_agent,
             'created_at' => optional($log->created_at)->toIso8601String(),
             'snapshots_visible' => $canViewSnapshots,
+            'reference_labels' => $canViewSnapshots ? app(AuditReferenceLabels::class)->forLog($log, $user) : [],
+            'employees' => $canViewSnapshots ? $this->employeeContext($log) : [],
             'before' => $canViewSnapshots ? $log->before_json : null,
             'after' => $canViewSnapshots ? $log->after_json : null,
         ];
     }
 
+    private function employeeContext(AuditLog $log): array
+    {
+        // Resolve both snapshots without crossing the event's company or active branch scope.
+        $ids = collect([
+            $log->auditable_type === Employee::class ? $log->auditable_id : null,
+            data_get($log->before_json, 'employee_id'),
+            data_get($log->after_json, 'employee_id'),
+        ])->filter(fn ($id) => (is_int($id) || is_string($id))
+            && filter_var($id, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false)
+            ->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        return Employee::withTrashed()
+            ->where('company_id', $log->company_id)
+            ->whereIn('id', $ids)
+            ->with(['branch' => fn ($query) => $query->withTrashed()
+                ->where('company_id', $log->company_id)->select('id', 'name')])
+            ->get(['id', 'employee_code', 'display_name', 'branch_id'])
+            ->map(fn (Employee $employee) => [
+                'id' => $employee->id,
+                'name' => $employee->display_name,
+                'employee_code' => $employee->employee_code,
+                // This is current directory information, not a historical snapshot of the branch.
+                'branch_name' => $employee->branch?->name,
+            ])->all();
+    }
+
     private function canViewSnapshots(AuditLog $log, $user): bool
     {
+        if (str_starts_with($log->action, 'temporary_worker')) {
+            return $user->hasPermission('temporary_workers.view');
+        }
+
         if (str_starts_with($log->action, 'payroll_') || str_starts_with($log->action, 'employee_salary_component.') || str_starts_with($log->action, 'salary_component.')) {
             return $user->hasPermission('payroll.view');
         }

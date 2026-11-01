@@ -5,73 +5,13 @@
         <h1>Attendance</h1>
         <p class="muted">Manual daily records for employees in the current company.</p>
       </div>
-      <button type="button" class="secondary" @click="resetForm">New record</button>
     </header>
 
-    <form class="form-grid" @submit.prevent="submit">
-      <label>
-        Employee
-        <select v-model.number="form.employee_id" required>
-          <option disabled :value="0">Select employee</option>
-          <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-            {{ employee.display_name }} ({{ employee.employee_code }})
-          </option>
-        </select>
-      </label>
-      <label>
-        Date
-        <input v-model="form.date" type="date" required>
-      </label>
-      <label>
-        Check in
-        <input v-model="form.check_in" type="time">
-      </label>
-      <label>
-        Check out
-        <input v-model="form.check_out" type="time">
-      </label>
-      <label>
-        Break minutes
-        <input v-model.number="form.break_minutes" type="number" min="0">
-      </label>
-      <label>
-        Status
-        <select v-model="form.status" required>
-          <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
-        </select>
-      </label>
-      <label>
-        Source
-        <select v-model="form.source" required>
-          <option value="manual">Manual</option>
-          <option value="web">Web</option>
-          <option value="mobile">Mobile</option>
-          <option value="biometric">Biometric</option>
-          <option value="import">Import</option>
-        </select>
-      </label>
-      <label class="full">
-        Notes
-        <textarea v-model="form.notes" rows="3" />
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <div class="button-row">
-        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : submitLabel }}</button>
-        <button v-if="editingId" type="button" class="secondary" @click="resetForm">Cancel edit</button>
-      </div>
-    </form>
-
-    <section class="panel">
-      <header>
-        <div>
-          <h2>Correction Request</h2>
-          <p class="muted">Submit a missed punch or time correction for manager/HR approval.</p>
-        </div>
-      </header>
-      <form class="form-grid" @submit.prevent="submitCorrection">
+    <ActionFormPanel v-model:open="forms.attendance" action-label="New attendance record" :busy="saving" :title="editingId ? 'Edit attendance' : 'New attendance record'" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="submit">
         <label>
           Employee
-          <select v-model.number="correctionForm.employee_id" required>
+          <select v-model.number="form.employee_id" required>
             <option disabled :value="0">Select employee</option>
             <option v-for="employee in employees" :key="employee.id" :value="employee.id">
               {{ employee.display_name }} ({{ employee.employee_code }})
@@ -80,46 +20,108 @@
         </label>
         <label>
           Date
-          <input v-model="correctionForm.date" type="date" required>
+          <input v-model="form.date" type="date" required>
         </label>
         <label>
-          Type
-          <select v-model="correctionForm.correction_type" required>
-            <option value="missed_check_in">Missed check in</option>
-            <option value="missed_check_out">Missed check out</option>
-            <option value="wrong_time">Wrong time</option>
-            <option value="absence_status">Absence status</option>
-            <option value="other">Other</option>
-          </select>
+          Check in
+          <input v-model="form.check_in" type="time">
         </label>
         <label>
-          Requested check in
-          <input v-model="correctionForm.requested_check_in" type="time">
-        </label>
-        <label>
-          Requested check out
-          <input v-model="correctionForm.requested_check_out" type="time">
+          Check out
+          <input v-model="form.check_out" type="time">
         </label>
         <label>
           Break minutes
-          <input v-model.number="correctionForm.requested_break_minutes" type="number" min="0">
+          <input v-model.number="form.break_minutes" type="number" min="0">
         </label>
         <label>
-          Requested status
-          <select v-model="correctionForm.requested_status" required>
+          Status
+          <select v-model="form.status" required>
             <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
           </select>
         </label>
-        <label class="full">
-          Reason
-          <textarea v-model="correctionForm.reason" rows="3" required />
+        <label>
+          Source
+          <select v-model="form.source" required>
+            <option value="manual">Manual</option>
+            <option value="web">Web</option>
+            <option value="mobile">Mobile</option>
+            <option value="biometric">Biometric</option>
+            <option value="import">Import</option>
+          </select>
         </label>
-        <p v-if="correctionError" class="error">{{ correctionError }}</p>
-        <p v-if="correctionSaved" class="muted">Correction request submitted.</p>
+        <label class="full">
+          Notes
+          <textarea v-model="form.notes" rows="3" />
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
         <div class="button-row">
-          <button type="submit" :disabled="savingCorrection">{{ savingCorrection ? 'Submitting...' : 'Submit correction' }}</button>
+          <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : submitLabel }}</button>
         </div>
       </form>
+    </ActionFormPanel>
+
+    <section class="panel">
+      <header>
+        <div>
+          <h2>Correction Request</h2>
+          <p class="muted">Submit a missed punch or time correction for manager/HR approval.</p>
+        </div>
+      </header>
+      <ActionFormPanel v-model:open="forms.correction" action-label="Request attendance correction" :busy="savingCorrection" @create="resetCorrectionForm" @cancel="resetCorrectionForm">
+        <form class="form-grid" @submit.prevent="submitCorrection">
+          <label>
+            Employee
+            <select v-model.number="correctionForm.employee_id" required>
+              <option disabled :value="0">Select employee</option>
+              <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                {{ employee.display_name }} ({{ employee.employee_code }})
+              </option>
+            </select>
+          </label>
+          <label>
+            Date
+            <input v-model="correctionForm.date" type="date" required>
+          </label>
+          <label>
+            Type
+            <select v-model="correctionForm.correction_type" required>
+              <option value="missed_check_in">Missed check in</option>
+              <option value="missed_check_out">Missed check out</option>
+              <option value="wrong_time">Wrong time</option>
+              <option value="absence_status">Absence status</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Requested check in
+            <input v-model="correctionForm.requested_check_in" type="time">
+          </label>
+          <label>
+            Requested check out
+            <input v-model="correctionForm.requested_check_out" type="time">
+          </label>
+          <label>
+            Break minutes
+            <input v-model.number="correctionForm.requested_break_minutes" type="number" min="0">
+          </label>
+          <label>
+            Requested status
+            <select v-model="correctionForm.requested_status" required>
+              <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
+            </select>
+          </label>
+          <label class="full">
+            Reason
+            <textarea v-model="correctionForm.reason" rows="3" required />
+          </label>
+          <p v-if="correctionError" class="error">{{ correctionError }}</p>
+          <div class="button-row">
+            <button type="submit" :disabled="savingCorrection">{{ savingCorrection ? 'Submitting...' : 'Submit correction' }}</button>
+          </div>
+        </form>
+      </ActionFormPanel>
+      <p v-if="correctionSaved" class="muted">Correction request submitted.</p>
     </section>
 
     <section class="filters">
@@ -268,6 +270,7 @@ interface AttendanceCorrectionRequest {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const statuses = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'remote']
 const employees = ref<EmployeeOption[]>([])
 const records = ref<AttendanceRecord[]>([])
@@ -387,6 +390,7 @@ async function submitCorrection() {
     resetCorrectionForm()
     correctionSaved.value = true
     await loadCorrections()
+    forms.correction = false
   } catch (err) {
     correctionError.value = apiErrorMessage(err, 'Unable to submit correction request.')
   } finally {
@@ -440,6 +444,7 @@ async function submit() {
 
     resetForm()
     await loadRecords()
+    forms.attendance = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to save attendance record.')
   } finally {
@@ -448,6 +453,9 @@ async function submit() {
 }
 
 function resetCorrectionForm() {
+  forms.correction = false
+  correctionError.value = ''
+  correctionSaved.value = false
   correctionForm.employee_id = 0
   correctionForm.date = new Date().toISOString().slice(0, 10)
   correctionForm.correction_type = 'wrong_time'
@@ -459,6 +467,7 @@ function resetCorrectionForm() {
 }
 
 function edit(record: AttendanceRecord) {
+  forms.attendance = true
   editingId.value = record.id
   form.employee_id = record.employee_id
   form.date = record.date
@@ -480,6 +489,7 @@ async function remove(record: AttendanceRecord) {
 }
 
 function resetForm() {
+  forms.attendance = false
   editingId.value = null
   form.employee_id = 0
   form.date = new Date().toISOString().slice(0, 10)

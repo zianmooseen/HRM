@@ -10,25 +10,27 @@
         <article><span>Paid</span><h2>{{ money(totals.paid) }}</h2><p>Balance: {{ money(totals.balance) }}</p></article>
       </div>
       <div class="panel-grid">
-        <form v-if="auth.hasPermission('temporary_workers.manage')" class="form-grid" @submit.prevent="record('work')">
-          <h2 class="wide">Record work</h2>
-          <p v-if="worker.status === 'inactive'" class="wide">This worker is inactive. Reactivate their profile to record new work.</p>
-          <label>Date worked<input v-model="work.date" type="date" :max="today" required></label>
-          <label>{{ worker.wage_basis === 'daily' ? 'Days (up to 1)' : 'Hours (up to 24)' }}<input v-model="work.quantity" type="number" min="0.01" :max="worker.wage_basis === 'daily' ? 1 : 24" step="0.01" required></label>
-          <label class="wide">Notes (optional)<textarea v-model="work.notes" maxlength="2000" /></label>
-          <p class="muted wide">Uses the current {{ worker.wage_basis }} rate of {{ money(worker.rate) }}. One work entry per date; partial days are supported.</p>
-          <button class="wide" :disabled="saving || worker.status !== 'active'">Record work</button>
-        </form>
-        <form v-if="auth.hasPermission('temporary_workers.pay')" class="form-grid" @submit.prevent="record('payment')">
-          <h2 class="wide">Record a payment</h2>
-          <label>Payment date<input v-model="payment.date" type="date" :max="today" required></label>
-          <label>Amount ({{ worker.currency }})<input v-model="payment.amount" type="number" min="0.01" :max="totals.balance" step="0.01" required></label>
-          <label>Method<select v-model="payment.method"><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="cheque">Cheque</option><option value="other">Other</option></select></label>
-          <label>Reference (optional)<input v-model="payment.reference" maxlength="255"></label>
-          <label class="wide">Notes (optional)<textarea v-model="payment.notes" maxlength="2000" /></label>
-          <p class="muted wide">Record money already paid. Maximum {{ money(totals.balance) }}. This does not initiate a bank transfer or recurring payroll.</p>
-          <button class="wide" :disabled="saving || Number(totals.balance) <= 0">Record payment</button>
-        </form>
+        <ActionFormPanel v-if="auth.hasPermission('temporary_workers.manage')" v-model:open="forms.work" action-label="Record work" :busy="saving">
+          <form class="form-grid" @submit.prevent="record('work')">
+            <p v-if="worker.status === 'inactive'" class="wide">This worker is inactive. Reactivate their profile to record new work.</p>
+            <label>Date worked<input v-model="work.date" type="date" :max="today" required></label>
+            <label>{{ worker.wage_basis === 'daily' ? 'Days (up to 1)' : 'Hours (up to 24)' }}<input v-model="work.quantity" type="number" min="0.01" :max="worker.wage_basis === 'daily' ? 1 : 24" step="0.01" required></label>
+            <label class="wide">Notes (optional)<textarea v-model="work.notes" maxlength="2000" /></label>
+            <p class="muted wide">Uses the current {{ worker.wage_basis }} rate of {{ money(worker.rate) }}. One work entry per date; partial days are supported.</p>
+            <button class="wide" :disabled="saving || worker.status !== 'active'">Record work</button>
+          </form>
+        </ActionFormPanel>
+        <ActionFormPanel v-if="auth.hasPermission('temporary_workers.pay')" v-model:open="forms.payment" action-label="Record payment" :busy="saving">
+          <form class="form-grid" @submit.prevent="record('payment')">
+            <label>Payment date<input v-model="payment.date" type="date" :max="today" required></label>
+            <label>Amount ({{ worker.currency }})<input v-model="payment.amount" type="number" min="0.01" :max="totals.balance" step="0.01" required></label>
+            <label>Method<select v-model="payment.method"><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="cheque">Cheque</option><option value="other">Other</option></select></label>
+            <label>Reference (optional)<input v-model="payment.reference" maxlength="255"></label>
+            <label class="wide">Notes (optional)<textarea v-model="payment.notes" maxlength="2000" /></label>
+            <p class="muted wide">Record money already paid. Maximum {{ money(totals.balance) }}. This does not initiate a bank transfer or recurring payroll.</p>
+            <button class="wide" :disabled="saving || Number(totals.balance) <= 0">Record payment</button>
+          </form>
+        </ActionFormPanel>
       </div>
       <section class="panel">
         <h2>Work &amp; payment history</h2>
@@ -58,6 +60,7 @@
 import type { TemporaryWorker, TemporaryWorkerEntry, TemporaryWorkerTotals } from '../../../../shared/types/temporary-workers'
 definePageMeta({ middleware: ['auth'] })
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const auth = useAuthStore()
 const route = useRoute()
 const worker = ref<TemporaryWorker | null>(null)
@@ -102,6 +105,7 @@ async function record(kind: 'work' | 'payment') {
     notice.value = kind === 'work' ? 'Work recorded.' : 'Payment recorded.'
     page.value = 1
     await load()
+    forms[kind] = false
   } catch (cause) { error.value = apiErrorMessage(cause, 'Unable to record entry.') }
   finally { saving.value = false }
 }

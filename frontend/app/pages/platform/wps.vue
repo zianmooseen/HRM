@@ -8,46 +8,46 @@
     </header>
 
     <section class="panel-grid">
-      <form class="form-grid" @submit.prevent="saveProvider">
-        <h2>{{ providerForm.id ? 'Edit provider' : 'Add provider' }}</h2>
-        <label>Name<input v-model="providerForm.name" required></label>
-        <label>Code<input v-model="providerForm.code" required></label>
-        <label>
-          Type
-          <select v-model="providerForm.provider_type">
-            <option value="bank">Bank</option>
-            <option value="exchange_house">Exchange house</option>
-            <option value="financial_institution">Financial institution</option>
-            <option value="digital_wallet">Digital wallet</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Integration
-          <select v-model="providerForm.integration_type">
-            <option value="manual_upload">Manual upload</option>
-            <option value="file_export">File export</option>
-            <option value="api">API</option>
-          </select>
-        </label>
-        <label>
-          Export profile
-          <select v-model="providerForm.export_profile">
-            <option value="generic">Generic SIF</option>
-            <option value="fab">FAB</option>
-            <option value="emirates_nbd">Emirates NBD</option>
-          </select>
-        </label>
-        <label>Website<input v-model="providerForm.website" type="url"></label>
-        <label>Contact email<input v-model="providerForm.contact_email" type="email"></label>
-        <label>Contact phone<input v-model="providerForm.contact_phone"></label>
-        <label>Status<select v-model="providerForm.status"><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
-        <p v-if="providerError" class="error">{{ providerError }}</p>
-        <div class="actions">
-          <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save provider' }}</button>
-          <button v-if="providerForm.id" type="button" class="secondary" @click="resetProvider">Cancel</button>
-        </div>
-      </form>
+      <ActionFormPanel v-model:open="forms.provider" action-label="Add provider" :busy="saving" :title="providerForm.id ? 'Edit provider' : 'Add provider'" @create="resetProvider" @cancel="resetProvider">
+        <form class="form-grid" @submit.prevent="saveProvider">
+          <label>Name<input v-model="providerForm.name" required></label>
+          <label>Code<input v-model="providerForm.code" required></label>
+          <label>
+            Type
+            <select v-model="providerForm.provider_type">
+              <option value="bank">Bank</option>
+              <option value="exchange_house">Exchange house</option>
+              <option value="financial_institution">Financial institution</option>
+              <option value="digital_wallet">Digital wallet</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Integration
+            <select v-model="providerForm.integration_type">
+              <option value="manual_upload">Manual upload</option>
+              <option value="file_export">File export</option>
+              <option value="api">API</option>
+            </select>
+          </label>
+          <label>
+            Export profile
+            <select v-model="providerForm.export_profile">
+              <option value="generic">Generic SIF</option>
+              <option value="fab">FAB</option>
+              <option value="emirates_nbd">Emirates NBD</option>
+            </select>
+          </label>
+          <label>Website<input v-model="providerForm.website" type="url"></label>
+          <label>Contact email<input v-model="providerForm.contact_email" type="email"></label>
+          <label>Contact phone<input v-model="providerForm.contact_phone"></label>
+          <label>Status<select v-model="providerForm.status"><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+          <p v-if="providerError" class="error">{{ providerError }}</p>
+          <div class="actions">
+            <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save provider' }}</button>
+          </div>
+        </form>
+      </ActionFormPanel>
 
       <section>
         <h2>Providers</h2>
@@ -111,6 +111,7 @@ interface RiskCompany {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const providers = ref<Provider[]>([])
 const companies = ref<RiskCompany[]>([])
 const loading = ref(true)
@@ -156,6 +157,7 @@ async function saveProvider() {
     else await api.post('/platform/wps-providers', payload)
     resetProvider()
     await load()
+    forms.provider = false
   } catch (cause) {
     providerError.value = apiErrorMessage(cause, 'Unable to save WPS provider.')
   } finally {
@@ -163,11 +165,15 @@ async function saveProvider() {
   }
 }
 function editProvider(provider: Provider) {
+  forms.provider = true
+  providerError.value = ''
   Object.assign(providerForm, provider, {
     website: provider.website || '', contact_email: provider.contact_email || '', contact_phone: provider.contact_phone || '',
   })
 }
 function resetProvider() {
+  forms.provider = false
+  providerError.value = ''
   Object.assign(providerForm, emptyProvider())
 }
 function label(value: string) {

@@ -7,26 +7,33 @@
       </div>
     </header>
 
-    <form v-if="settings" class="form-grid" @submit.prevent="save">
-      <label>
-        Daily wage divisor
-        <select v-model="form.payroll_day_divisor" required>
-          <option value="calendar_30">30-day calendar</option>
-          <option value="actual_calendar_days">Actual calendar days</option>
-          <option value="working_days">Working days in month</option>
-        </select>
-      </label>
-      <section class="policy-preview">
-        <strong>{{ divisorLabel }}</strong>
-        <span>{{ divisorDescription }}</span>
-      </section>
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-if="saved" class="muted">Payroll policy saved.</p>
-      <button v-if="auth.hasPermission('settings.update')" type="submit" :disabled="saving">
-        {{ saving ? 'Saving...' : 'Save payroll policy' }}
-      </button>
-    </form>
+    <ActionFormPanel v-if="settings" v-model:open="forms.payrollPolicy" action-label="Edit payroll policy" :busy="saving" :disabled="!auth.hasPermission('settings.update')" @create="resetPolicy" @cancel="resetPolicy">
+      <form class="form-grid" @submit.prevent="save">
+        <label>
+          Daily wage divisor
+          <select v-model="form.payroll_day_divisor" required>
+            <option value="calendar_30">30-day calendar</option>
+            <option value="actual_calendar_days">Actual calendar days</option>
+            <option value="working_days">Working days in month</option>
+          </select>
+        </label>
+        <section class="policy-preview">
+          <strong>{{ divisorLabel }}</strong>
+          <span>{{ divisorDescription }}</span>
+        </section>
+        <p v-if="error" class="error">{{ error }}</p>
+        <p v-if="saved" class="muted">Payroll policy saved.</p>
+        <button v-if="auth.hasPermission('settings.update')" type="submit" :disabled="saving">
+          {{ saving ? 'Saving...' : 'Save payroll policy' }}
+        </button>
+      </form>
+    </ActionFormPanel>
     <p v-else-if="loading">Loading payroll policy...</p>
+    <p v-if="saved" role="status">Payroll policy saved.</p>
+    <section v-if="settings && !forms.payrollPolicy" class="policy-preview">
+      <strong>{{ divisorLabels[settings.payroll_day_divisor] }}</strong>
+      <span>{{ divisorDescriptions[settings.payroll_day_divisor] }}</span>
+    </section>
   </section>
 </template>
 
@@ -45,6 +52,7 @@ interface ComplianceSettings {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const auth = useAuthStore()
 const loading = ref(true)
 const saving = ref(false)
@@ -102,6 +110,7 @@ async function save() {
     })
     setSettings(response.data.compliance_settings)
     saved.value = true
+    forms.payrollPolicy = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to save payroll policy.')
   } finally {
@@ -112,6 +121,12 @@ async function save() {
 function setSettings(nextSettings: ComplianceSettings) {
   settings.value = nextSettings
   form.payroll_day_divisor = nextSettings.payroll_day_divisor
+}
+
+function resetPolicy() {
+  if (settings.value) setSettings(settings.value)
+  error.value = ''
+  saved.value = false
 }
 </script>
 

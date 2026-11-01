@@ -7,62 +7,64 @@
       </div>
     </header>
 
-    <form v-if="auth.hasPermission('leave.create')" class="form-grid" @submit.prevent="submit">
-      <label>
-        Employee
-        <select v-model.number="form.employee_id" required>
-          <option disabled :value="0">Select employee</option>
-          <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-            {{ employee.display_name }} ({{ employee.employee_code }})
-          </option>
-        </select>
-      </label>
-      <label>
-        Leave type
-        <select v-model.number="form.leave_type_id" required>
-          <option disabled :value="0">Select leave type</option>
-          <option v-for="leaveType in leaveTypes" :key="leaveType.id" :value="leaveType.id">
-            {{ leaveType.name }}
-          </option>
-        </select>
-      </label>
-      <label>
-        Start date
-        <input v-model="form.start_date" type="date" required>
-      </label>
-      <label>
-        End date
-        <input v-model="form.end_date" type="date" required>
-      </label>
-      <section v-if="dayCalculation" class="day-preview">
-        <strong>{{ dayCalculation.working_days }} balance days</strong>
-        <span>{{ dayCalculation.total_days }} calendar days</span>
-        <span v-if="dayCalculation.public_holidays_count > 0">
-          {{ dayCalculation.public_holidays_count }} public holiday{{ dayCalculation.public_holidays_count === 1 ? '' : 's' }} excluded
-        </span>
-      </section>
-      <p v-if="dayCalculationError" class="error full">{{ dayCalculationError }}</p>
-      <ul v-if="excludedPublicHolidays.length > 0" class="holiday-list full">
-        <li v-for="holiday in excludedPublicHolidays" :key="holiday.date">
-          {{ holiday.date }} · {{ holiday.name }}
-        </li>
-      </ul>
-      <label v-if="selectedLeaveType?.code === 'sick_leave' || selectedLeaveType?.requires_document">
-        Medical certificate
-        <select v-model="form.medical_certificate_document_id">
-          <option value="">Select uploaded certificate</option>
-          <option v-for="document in medicalCertificates" :key="document.id" :value="String(document.id)">
-            {{ document.title }} · {{ document.original_file_name }}
-          </option>
-        </select>
-      </label>
-      <label class="full">
-        Reason
-        <textarea v-model="form.reason" rows="3" />
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="saving">{{ saving ? 'Submitting...' : 'Submit leave request' }}</button>
-    </form>
+    <ActionFormPanel v-if="auth.hasPermission('leave.create')" v-model:open="forms.leave" action-label="New leave request" :busy="saving" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="submit">
+        <label>
+          Employee
+          <select v-model.number="form.employee_id" required>
+            <option disabled :value="0">Select employee</option>
+            <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+              {{ employee.display_name }} ({{ employee.employee_code }})
+            </option>
+          </select>
+        </label>
+        <label>
+          Leave type
+          <select v-model.number="form.leave_type_id" required>
+            <option disabled :value="0">Select leave type</option>
+            <option v-for="leaveType in leaveTypes" :key="leaveType.id" :value="leaveType.id">
+              {{ leaveType.name }}
+            </option>
+          </select>
+        </label>
+        <label>
+          Start date
+          <input v-model="form.start_date" type="date" required>
+        </label>
+        <label>
+          End date
+          <input v-model="form.end_date" type="date" required>
+        </label>
+        <section v-if="dayCalculation" class="day-preview">
+          <strong>{{ dayCalculation.working_days }} balance days</strong>
+          <span>{{ dayCalculation.total_days }} calendar days</span>
+          <span v-if="dayCalculation.public_holidays_count > 0">
+            {{ dayCalculation.public_holidays_count }} public holiday{{ dayCalculation.public_holidays_count === 1 ? '' : 's' }} excluded
+          </span>
+        </section>
+        <p v-if="dayCalculationError" class="error full">{{ dayCalculationError }}</p>
+        <ul v-if="excludedPublicHolidays.length > 0" class="holiday-list full">
+          <li v-for="holiday in excludedPublicHolidays" :key="holiday.date">
+            {{ holiday.date }} · {{ holiday.name }}
+          </li>
+        </ul>
+        <label v-if="selectedLeaveType?.code === 'sick_leave' || selectedLeaveType?.requires_document">
+          Medical certificate
+          <select v-model="form.medical_certificate_document_id">
+            <option value="">Select uploaded certificate</option>
+            <option v-for="document in medicalCertificates" :key="document.id" :value="String(document.id)">
+              {{ document.title }} · {{ document.original_file_name }}
+            </option>
+          </select>
+        </label>
+        <label class="full">
+          Reason
+          <textarea v-model="form.reason" rows="3" />
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <button type="submit" :disabled="saving">{{ saving ? 'Submitting...' : 'Submit leave request' }}</button>
+      </form>
+    </ActionFormPanel>
 
     <section>
       <h2>Pending approvals</h2>
@@ -391,6 +393,7 @@ interface LeaveBalance {
 
 const auth = useAuthStore()
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const employees = ref<EmployeeOption[]>([])
 const leaveTypes = ref<LeaveType[]>([])
 const requests = ref<LeaveRequestRow[]>([])
@@ -566,6 +569,7 @@ async function submit() {
     })
     resetForm()
     await Promise.all([loadRequests(), loadBalances()])
+    forms.leave = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to submit leave request.')
   } finally {
@@ -616,6 +620,8 @@ async function previewSickPay(request: LeaveRequestRow) {
 }
 
 function resetForm() {
+  forms.leave = false
+  error.value = ''
   form.employee_id = 0
   form.leave_type_id = 0
   form.start_date = new Date().toISOString().slice(0, 10)

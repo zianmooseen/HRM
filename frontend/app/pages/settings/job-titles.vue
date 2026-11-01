@@ -1,32 +1,33 @@
 <template>
   <section class="page">
     <h1>Job titles</h1>
-    <form class="form-grid" @submit.prevent="saveJobTitle">
-      <label>
-        Title
-        <input v-model="form.title" required>
-      </label>
-      <label>
-        Code
-        <input v-model="form.code" required>
-      </label>
-      <label>
-        Description
-        <textarea v-model="form.description" />
-      </label>
-      <label>
-        Status
-        <select v-model="form.status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <div class="button-row">
-        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : editingId ? 'Save job title' : 'Create job title' }}</button>
-        <button v-if="editingId" type="button" class="secondary" @click="resetForm">Cancel</button>
-      </div>
-    </form>
+    <ActionFormPanel v-model:open="forms.jobTitle" action-label="Add job title" :title="editingId ? 'Edit job title' : 'Add job title'" :busy="saving" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="saveJobTitle">
+        <label>
+          Title
+          <input v-model="form.title" required>
+        </label>
+        <label>
+          Code
+          <input v-model="form.code" required>
+        </label>
+        <label>
+          Description
+          <textarea v-model="form.description" />
+        </label>
+        <label>
+          Status
+          <select v-model="form.status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <div class="button-row">
+          <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : editingId ? 'Save job title' : 'Create job title' }}</button>
+        </div>
+      </form>
+    </ActionFormPanel>
     <table>
       <thead>
         <tr><th>Title</th><th>Code</th><th>Status</th><th></th></tr>
@@ -56,6 +57,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const jobTitles = ref<any[]>([])
 const { filters: columnFilters, filteredRows: filteredJobTitles } = useTableColumnFilters(
   jobTitles,
@@ -76,6 +78,7 @@ async function load() {
 }
 
 function resetForm() {
+  forms.jobTitle = false
   Object.assign(form, { title: '', code: '', description: '', status: 'active' })
   editingId.value = null
   error.value = ''
@@ -88,6 +91,8 @@ function editJobTitle(jobTitle: any) {
     description: jobTitle.description || '',
     status: jobTitle.status,
   })
+  error.value = ''
+  forms.jobTitle = true
   editingId.value = jobTitle.id
 }
 
@@ -112,6 +117,7 @@ async function saveJobTitle() {
 
 async function deleteJobTitle(id: number) {
   await api.delete(`/job-titles/${id}`)
+  if (editingId.value === id) resetForm()
   await load()
 }
 

@@ -1,35 +1,36 @@
 <template>
   <section class="page">
     <h1>Departments</h1>
-    <form class="form-grid" @submit.prevent="saveDepartment">
-      <label>
-        Name
-        <input v-model="form.name" required>
-      </label>
-      <label>
-        Code
-        <input v-model="form.code" required>
-      </label>
-      <label>
-        Branch
-        <select v-model="form.branch_id">
-          <option :value="null">No branch</option>
-          <option v-for="branch in branches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-        </select>
-      </label>
-      <label>
-        Status
-        <select v-model="form.status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <div class="button-row">
-        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : editingId ? 'Save department' : 'Create department' }}</button>
-        <button v-if="editingId" type="button" class="secondary" @click="resetForm">Cancel</button>
-      </div>
-    </form>
+    <ActionFormPanel v-model:open="forms.department" action-label="Add department" :title="editingId ? 'Edit department' : 'Add department'" :busy="saving" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="saveDepartment">
+        <label>
+          Name
+          <input v-model="form.name" required>
+        </label>
+        <label>
+          Code
+          <input v-model="form.code" required>
+        </label>
+        <label>
+          Branch
+          <select v-model="form.branch_id">
+            <option :value="null">No branch</option>
+            <option v-for="branch in branches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
+          </select>
+        </label>
+        <label>
+          Status
+          <select v-model="form.status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <div class="button-row">
+          <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : editingId ? 'Save department' : 'Create department' }}</button>
+        </div>
+      </form>
+    </ActionFormPanel>
     <table>
       <thead>
         <tr><th>Name</th><th>Code</th><th>Status</th><th></th></tr>
@@ -59,6 +60,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const departments = ref<any[]>([])
 const { filters: columnFilters, filteredRows: filteredDepartments } = useTableColumnFilters(
   departments,
@@ -84,6 +86,7 @@ async function load() {
 }
 
 function resetForm() {
+  forms.department = false
   Object.assign(form, { name: '', code: '', branch_id: null, status: 'active' })
   editingId.value = null
   error.value = ''
@@ -96,6 +99,8 @@ function editDepartment(department: any) {
     branch_id: department.branch_id,
     status: department.status,
   })
+  error.value = ''
+  forms.department = true
   editingId.value = department.id
 }
 
@@ -120,6 +125,7 @@ async function saveDepartment() {
 
 async function deleteDepartment(id: number) {
   await api.delete(`/departments/${id}`)
+  if (editingId.value === id) resetForm()
   await load()
 }
 

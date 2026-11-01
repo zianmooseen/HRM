@@ -84,22 +84,24 @@
 
     <section v-if="employee && auth.hasPermission('employees.update') && !employee.user_id" class="account-panel">
       <h2>Employee login</h2>
-      <form class="form-grid" @submit.prevent="createEmployeeAccount">
-        <label>
-          Username
-          <input v-model="accountForm.username" required>
-        </label>
-        <label>
-          Email
-          <input v-model="accountForm.email" type="email" required>
-        </label>
-        <label>
-          Password
-          <input v-model="accountForm.password" type="password" required minlength="6">
-        </label>
-        <p v-if="accountError" class="error">{{ accountError }}</p>
-        <button type="submit" :disabled="creatingAccount">{{ creatingAccount ? 'Creating...' : 'Create employee login' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.account" action-label="Create login account" :busy="creatingAccount" @create="resetAccount" @cancel="resetAccount">
+        <form class="form-grid" @submit.prevent="createEmployeeAccount">
+          <label>
+            Username
+            <input v-model="accountForm.username" required>
+          </label>
+          <label>
+            Email
+            <input v-model="accountForm.email" type="email" required>
+          </label>
+          <label>
+            Password
+            <input v-model="accountForm.password" type="password" required minlength="6">
+          </label>
+          <p v-if="accountError" class="error">{{ accountError }}</p>
+          <button type="submit" :disabled="creatingAccount">{{ creatingAccount ? 'Creating...' : 'Create employee login' }}</button>
+        </form>
+      </ActionFormPanel>
     </section>
 
     <section v-if="employee && auth.hasPermission('employees.view')" class="service-period-panel">
@@ -110,47 +112,51 @@
         </div>
       </header>
 
-      <form v-if="employee.status !== 'terminated' && activeServicePeriod && auth.hasPermission('employees.update')" class="form-grid" @submit.prevent="extendContract">
-        <label>
-          New contract end date
-          <input v-model="extensionForm.end_date" type="date" required>
-        </label>
-        <label class="full">
-          Extension reason
-          <textarea v-model="extensionForm.change_reason" rows="3" />
-        </label>
-        <p v-if="servicePeriodError" class="error">{{ servicePeriodError }}</p>
-        <button type="submit" :disabled="extendingContract">{{ extendingContract ? 'Extending...' : 'Extend contract' }}</button>
-      </form>
+      <ActionFormPanel v-if="employee.status !== 'terminated' && activeServicePeriod && auth.hasPermission('employees.update')" v-model:open="forms.extension" action-label="Extend contract" :busy="extendingContract">
+        <form class="form-grid" @submit.prevent="extendContract">
+          <label>
+            New contract end date
+            <input v-model="extensionForm.end_date" type="date" required>
+          </label>
+          <label class="full">
+            Extension reason
+            <textarea v-model="extensionForm.change_reason" rows="3" />
+          </label>
+          <p v-if="servicePeriodError" class="error">{{ servicePeriodError }}</p>
+          <button type="submit" :disabled="extendingContract">{{ extendingContract ? 'Extending...' : 'Extend contract' }}</button>
+        </form>
+      </ActionFormPanel>
 
-      <form v-if="employee.status === 'terminated' && auth.hasPermission('employees.update')" class="form-grid" @submit.prevent="rehireEmployee">
-        <label>
-          Rehire start date
-          <input v-model="rehireForm.start_date" type="date" required>
-        </label>
-        <label>
-          Contract end date
-          <input v-model="rehireForm.end_date" type="date">
-        </label>
-        <label>
-          Employment type
-          <input v-model="rehireForm.employment_type">
-        </label>
-        <label>
-          Contract type
-          <input v-model="rehireForm.contract_type">
-        </label>
-        <label>
-          Basic salary
-          <input v-model.number="rehireForm.basic_salary" type="number" min="0">
-        </label>
-        <label class="full">
-          Rehire reason
-          <textarea v-model="rehireForm.change_reason" rows="3" />
-        </label>
-        <p v-if="servicePeriodError" class="error">{{ servicePeriodError }}</p>
-        <button type="submit" :disabled="rehiring">{{ rehiring ? 'Rehiring...' : 'Rehire employee' }}</button>
-      </form>
+      <ActionFormPanel v-if="employee.status === 'terminated' && auth.hasPermission('employees.update')" v-model:open="forms.rehire" action-label="Rehire employee" :busy="rehiring">
+        <form class="form-grid" @submit.prevent="rehireEmployee">
+          <label>
+            Rehire start date
+            <input v-model="rehireForm.start_date" type="date" required>
+          </label>
+          <label>
+            Contract end date
+            <input v-model="rehireForm.end_date" type="date">
+          </label>
+          <label>
+            Employment type
+            <input v-model="rehireForm.employment_type">
+          </label>
+          <label>
+            Contract type
+            <input v-model="rehireForm.contract_type">
+          </label>
+          <label>
+            Basic salary
+            <input v-model.number="rehireForm.basic_salary" type="number" min="0">
+          </label>
+          <label class="full">
+            Rehire reason
+            <textarea v-model="rehireForm.change_reason" rows="3" />
+          </label>
+          <p v-if="servicePeriodError" class="error">{{ servicePeriodError }}</p>
+          <button type="submit" :disabled="rehiring">{{ rehiring ? 'Rehiring...' : 'Rehire employee' }}</button>
+        </form>
+      </ActionFormPanel>
 
       <p v-if="servicePeriodsLoading">Loading service periods...</p>
       <table v-else-if="servicePeriods.length > 0">
@@ -193,56 +199,58 @@
         </div>
       </header>
 
-      <form v-if="employee.status !== 'terminated'" class="form-grid" @submit.prevent="createTermination">
-        <label>
-          Termination date
-          <input v-model="terminationForm.termination_date" type="date" required>
-        </label>
-        <label>
-          Last working date
-          <input v-model="terminationForm.last_working_date" type="date">
-        </label>
-        <label>
-          Type
-          <select v-model="terminationForm.termination_type" required>
-            <option value="company_initiated">Company initiated</option>
-            <option value="employee_resignation">Employee resignation</option>
-            <option value="mutual">Mutual</option>
-            <option value="contract_end">Contract end</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Basic salary override
-          <input v-model.number="terminationForm.basic_salary" type="number" min="0">
-        </label>
-        <label>
-          Unpaid leave days
-          <input v-model.number="terminationForm.unpaid_leave_days" type="number" min="0" step="0.5">
-        </label>
-        <label>
-          Leave encashment
-          <input v-model.number="terminationForm.leave_encashment_amount" type="number" min="0" step="0.01">
-        </label>
-        <label>
-          Notice paid
-          <input v-model.number="terminationForm.notice_paid_amount" type="number" min="0" step="0.01">
-        </label>
-        <label>
-          Other earnings
-          <input v-model.number="terminationForm.other_earnings_amount" type="number" min="0" step="0.01">
-        </label>
-        <label>
-          Deductions
-          <input v-model.number="terminationForm.deductions_amount" type="number" min="0" step="0.01">
-        </label>
-        <label class="full">
-          Reason
-          <textarea v-model="terminationForm.termination_reason" rows="3" />
-        </label>
-        <p v-if="terminationError" class="error">{{ terminationError }}</p>
-        <button type="submit" :disabled="terminating">{{ terminating ? 'Creating...' : 'Create termination settlement' }}</button>
-      </form>
+      <ActionFormPanel v-if="employee.status !== 'terminated'" v-model:open="forms.termination" action-label="Create termination" :busy="terminating">
+        <form class="form-grid" @submit.prevent="createTermination">
+          <label>
+            Termination date
+            <input v-model="terminationForm.termination_date" type="date" required>
+          </label>
+          <label>
+            Last working date
+            <input v-model="terminationForm.last_working_date" type="date">
+          </label>
+          <label>
+            Type
+            <select v-model="terminationForm.termination_type" required>
+              <option value="company_initiated">Company initiated</option>
+              <option value="employee_resignation">Employee resignation</option>
+              <option value="mutual">Mutual</option>
+              <option value="contract_end">Contract end</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Basic salary override
+            <input v-model.number="terminationForm.basic_salary" type="number" min="0">
+          </label>
+          <label>
+            Unpaid leave days
+            <input v-model.number="terminationForm.unpaid_leave_days" type="number" min="0" step="0.5">
+          </label>
+          <label>
+            Leave encashment
+            <input v-model.number="terminationForm.leave_encashment_amount" type="number" min="0" step="0.01">
+          </label>
+          <label>
+            Notice paid
+            <input v-model.number="terminationForm.notice_paid_amount" type="number" min="0" step="0.01">
+          </label>
+          <label>
+            Other earnings
+            <input v-model.number="terminationForm.other_earnings_amount" type="number" min="0" step="0.01">
+          </label>
+          <label>
+            Deductions
+            <input v-model.number="terminationForm.deductions_amount" type="number" min="0" step="0.01">
+          </label>
+          <label class="full">
+            Reason
+            <textarea v-model="terminationForm.termination_reason" rows="3" />
+          </label>
+          <p v-if="terminationError" class="error">{{ terminationError }}</p>
+          <button type="submit" :disabled="terminating">{{ terminating ? 'Creating...' : 'Create termination settlement' }}</button>
+        </form>
+      </ActionFormPanel>
 
       <p v-if="terminationsLoading">Loading termination records...</p>
       <table v-else-if="terminations.length > 0">
@@ -294,20 +302,22 @@
         </div>
       </header>
 
-      <form v-if="!activeOnboardingCase && auth.hasPermission('employees.update')" class="start-onboarding" @submit.prevent="startOnboarding">
-        <label>
-          Template
-          <select v-model.number="selectedTemplateId" required>
-            <option :value="0">Select template</option>
-            <option v-for="template in onboardingTemplates" :key="template.id" :value="template.id">
-              {{ template.name }}
-            </option>
-          </select>
-        </label>
-        <button type="submit" :disabled="startingOnboarding">
-          {{ startingOnboarding ? 'Starting...' : 'Start onboarding' }}
-        </button>
-      </form>
+      <ActionFormPanel v-if="!activeOnboardingCase && auth.hasPermission('employees.update')" v-model:open="forms.onboarding" action-label="Start onboarding" :busy="startingOnboarding">
+        <form class="start-onboarding" @submit.prevent="startOnboarding">
+          <label>
+            Template
+            <select v-model.number="selectedTemplateId" required>
+              <option :value="0">Select template</option>
+              <option v-for="template in onboardingTemplates" :key="template.id" :value="template.id">
+                {{ template.name }}
+              </option>
+            </select>
+          </label>
+          <button type="submit" :disabled="startingOnboarding">
+            {{ startingOnboarding ? 'Starting...' : 'Start onboarding' }}
+          </button>
+        </form>
+      </ActionFormPanel>
 
       <p v-if="onboardingError" class="error">{{ onboardingError }}</p>
       <p v-if="onboardingLoading">Loading onboarding...</p>
@@ -361,38 +371,40 @@
         </div>
       </header>
 
-      <form v-if="auth.hasPermission('documents.upload')" class="form-grid" @submit.prevent="uploadDocument">
-        <label>
-          Document type
-          <select v-model="documentForm.document_type" required>
-            <option value="passport">Passport</option>
-            <option value="visa">Visa</option>
-            <option value="labor_card">Labor card</option>
-            <option value="emirates_id">Emirates ID</option>
-            <option value="medical_certificate">Medical certificate</option>
-            <option value="contract">Contract</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Title
-          <input v-model="documentForm.title" placeholder="Optional">
-        </label>
-        <label>
-          Issue date
-          <input v-model="documentForm.issue_date" type="date">
-        </label>
-        <label>
-          Expiry date
-          <input v-model="documentForm.expiry_date" type="date">
-        </label>
-        <label class="full">
-          File
-          <input ref="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required @change="selectFile">
-        </label>
-        <p v-if="documentError" class="error">{{ documentError }}</p>
-        <button type="submit" :disabled="uploading">{{ uploading ? 'Uploading...' : 'Upload document' }}</button>
-      </form>
+      <ActionFormPanel v-if="auth.hasPermission('documents.upload')" v-model:open="forms.document" action-label="Upload document" :busy="uploading" @create="resetUpload" @cancel="resetUpload">
+        <form class="form-grid" @submit.prevent="uploadDocument">
+          <label>
+            Document type
+            <select v-model="documentForm.document_type" required>
+              <option value="passport">Passport</option>
+              <option value="visa">Visa</option>
+              <option value="labor_card">Labor card</option>
+              <option value="emirates_id">Emirates ID</option>
+              <option value="medical_certificate">Medical certificate</option>
+              <option value="contract">Contract</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Title
+            <input v-model="documentForm.title" placeholder="Optional">
+          </label>
+          <label>
+            Issue date
+            <input v-model="documentForm.issue_date" type="date">
+          </label>
+          <label>
+            Expiry date
+            <input v-model="documentForm.expiry_date" type="date">
+          </label>
+          <label class="full">
+            File
+            <input ref="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required @change="selectFile">
+          </label>
+          <p v-if="documentError" class="error">{{ documentError }}</p>
+          <button type="submit" :disabled="uploading">{{ uploading ? 'Uploading...' : 'Upload document' }}</button>
+        </form>
+      </ActionFormPanel>
 
       <p v-if="documentsLoading">Loading documents...</p>
       <p v-else-if="documents.length === 0" class="muted">No documents uploaded yet.</p>
@@ -446,6 +458,7 @@ definePageMeta({ middleware: ['auth'] })
 
 const route = useRoute()
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const auth = useAuthStore()
 const loading = ref(true)
 const error = ref('')
@@ -632,6 +645,7 @@ async function createEmployeeAccount() {
     })
     employee.value = response.data.employee
     accountForm.password = ''
+    forms.account = false
   } catch (err) {
     accountError.value = apiErrorMessage(err, 'Unable to create employee login.')
   } finally {
@@ -666,6 +680,7 @@ async function extendContract() {
     employee.value = response.data.employee
     extensionForm.change_reason = ''
     await loadServicePeriods()
+    forms.extension = false
   } catch (err) {
     servicePeriodError.value = apiErrorMessage(err, 'Unable to extend contract.')
   } finally {
@@ -688,6 +703,7 @@ async function rehireEmployee() {
     })
     employee.value = response.data.employee
     await loadServicePeriods()
+    forms.rehire = false
   } catch (err) {
     servicePeriodError.value = apiErrorMessage(err, 'Unable to rehire employee.')
   } finally {
@@ -724,6 +740,7 @@ async function createTermination() {
     employee.value = employeeResponse.data.employee
     await loadTerminations()
     await loadServicePeriods()
+    forms.termination = false
   } catch (err) {
     terminationError.value = apiErrorMessage(err, 'Unable to create termination settlement.')
   } finally {
@@ -796,6 +813,7 @@ async function startOnboarding() {
     await loadOnboardingCases()
     const response = await api.get<{ employee: any }>(`/employees/${route.params.id}`)
     employee.value = response.data.employee
+    forms.onboarding = false
   } catch (err) {
     onboardingError.value = apiErrorMessage(err, 'Unable to start onboarding.')
   } finally {
@@ -838,6 +856,19 @@ function selectFile(event: Event) {
   selectedFile.value = (event.target as HTMLInputElement).files?.[0] || null
 }
 
+function resetUpload() {
+  selectedFile.value = null
+  Object.assign(documentForm, { document_type: 'medical_certificate', title: '', issue_date: '', expiry_date: '' })
+  documentError.value = ''
+}
+
+function resetAccount() {
+  accountForm.username = employee.value?.employee_code?.toLowerCase().replace(/[^a-z0-9._-]/g, '.') || ''
+  accountForm.email = employee.value?.work_email || employee.value?.personal_email || ''
+  accountForm.password = ''
+  accountError.value = ''
+}
+
 async function uploadDocument() {
   if (!selectedFile.value) {
     documentError.value = 'Choose a file to upload.'
@@ -863,6 +894,7 @@ async function uploadDocument() {
     selectedFile.value = null
     if (fileInput.value) fileInput.value.value = ''
     await loadDocuments()
+    forms.document = false
   } catch (err) {
     documentError.value = apiErrorMessage(err, 'Unable to upload document.')
   } finally {

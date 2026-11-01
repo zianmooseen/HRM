@@ -81,6 +81,7 @@ Sign in using username/email and password. Platform admins sign in directly; the
 
 ## Implementation Notes
 
+- Inline create/edit forms open from their action buttons, close on Cancel or a successful save, and stay open on validation errors. Settings keep a read-only summary outside the editor. Dedicated employee create/edit routes remain full-page forms, with Cancel controls at the top and beside Create/Save.
 - Backend write operations must use Form Requests, policies, and audit logs.
 - Frontend route access can improve UX, but backend authorization is authoritative.
 - Compliance, leave, and payroll rules must be configurable and versioned instead of hardcoded into controllers.

@@ -9,54 +9,67 @@
 
     <section>
       <h2>Company Compliance Settings</h2>
-      <form v-if="settings" class="form-grid" @submit.prevent="saveSettings">
-        <label>
-          Payroll day divisor
-          <select v-model="settingsForm.payroll_day_divisor" required>
-            <option value="calendar_30">30-day calendar</option>
-            <option value="actual_calendar_days">Actual calendar days</option>
-            <option value="working_days">Working days</option>
-          </select>
-        </label>
-        <label>
-          Annual leave accrual
-          <select v-model="settingsForm.annual_leave_accrual_method" required>
-            <option value="monthly">Monthly</option>
-            <option value="annual">Annual</option>
-            <option value="manual">Manual</option>
-          </select>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="settingsForm.annual_leave_carry_forward_allowed" type="checkbox">
-          Allow annual leave carry-forward
-        </label>
-        <label>
-          Max carry-forward days
-          <input v-model.number="settingsForm.annual_leave_max_carry_forward_days" type="number" min="0" max="365" step="0.5">
-        </label>
-        <label class="checkbox-label">
-          <input v-model="settingsForm.public_holidays_count_as_annual_leave" type="checkbox">
-          Count public holidays as annual leave
-        </label>
-        <label class="checkbox-label">
-          <input v-model="settingsForm.sick_leave_requires_medical_certificate" type="checkbox">
-          Require medical certificate for sick leave
-        </label>
-        <label>
-          Sick leave notification days
-          <input v-model.number="settingsForm.sick_leave_notification_days" type="number" min="0" max="30" required>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="settingsForm.emiratisation_monitoring_enabled" type="checkbox">
-          Enable Emiratisation monitoring
-        </label>
-        <p v-if="settingsError" class="error">{{ settingsError }}</p>
-        <p v-if="settingsSaved" class="muted">Compliance settings saved.</p>
-        <button v-if="auth.hasPermission('settings.update')" type="submit" :disabled="savingSettings">
-          {{ savingSettings ? 'Saving...' : 'Save compliance settings' }}
-        </button>
-      </form>
+      <ActionFormPanel v-if="settings" v-model:open="forms.compliance" action-label="Edit compliance settings" :busy="savingSettings" :disabled="!auth.hasPermission('settings.update')" @create="resetSettings" @cancel="resetSettings">
+        <form class="form-grid" @submit.prevent="saveSettings">
+          <label>
+            Payroll day divisor
+            <select v-model="settingsForm.payroll_day_divisor" required>
+              <option value="calendar_30">30-day calendar</option>
+              <option value="actual_calendar_days">Actual calendar days</option>
+              <option value="working_days">Working days</option>
+            </select>
+          </label>
+          <label>
+            Annual leave accrual
+            <select v-model="settingsForm.annual_leave_accrual_method" required>
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+              <option value="manual">Manual</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input v-model="settingsForm.annual_leave_carry_forward_allowed" type="checkbox">
+            Allow annual leave carry-forward
+          </label>
+          <label>
+            Max carry-forward days
+            <input v-model.number="settingsForm.annual_leave_max_carry_forward_days" type="number" min="0" max="365" step="0.5">
+          </label>
+          <label class="checkbox-label">
+            <input v-model="settingsForm.public_holidays_count_as_annual_leave" type="checkbox">
+            Count public holidays as annual leave
+          </label>
+          <label class="checkbox-label">
+            <input v-model="settingsForm.sick_leave_requires_medical_certificate" type="checkbox">
+            Require medical certificate for sick leave
+          </label>
+          <label>
+            Sick leave notification days
+            <input v-model.number="settingsForm.sick_leave_notification_days" type="number" min="0" max="30" required>
+          </label>
+          <label class="checkbox-label">
+            <input v-model="settingsForm.emiratisation_monitoring_enabled" type="checkbox">
+            Enable Emiratisation monitoring
+          </label>
+          <p v-if="settingsError" class="error">{{ settingsError }}</p>
+          <p v-if="settingsSaved" class="muted">Compliance settings saved.</p>
+          <button v-if="auth.hasPermission('settings.update')" type="submit" :disabled="savingSettings">
+            {{ savingSettings ? 'Saving...' : 'Save compliance settings' }}
+          </button>
+        </form>
+      </ActionFormPanel>
       <p v-else-if="loadingSettings">Loading compliance settings...</p>
+      <p v-if="settingsSaved" role="status">Compliance settings saved.</p>
+      <dl v-if="settings && !forms.compliance" class="detail-list">
+        <dt>Payroll divisor</dt><dd>{{ settings.payroll_day_divisor.replaceAll('_', ' ') }}</dd>
+        <dt>Leave accrual</dt><dd>{{ settings.annual_leave_accrual_method }}</dd>
+        <dt>Carry-forward</dt><dd>{{ settings.annual_leave_carry_forward_allowed ? 'Allowed' : 'Not allowed' }}</dd>
+        <dt>Maximum carry-forward days</dt><dd>{{ settings.annual_leave_max_carry_forward_days ?? '-' }}</dd>
+        <dt>Public holidays count as annual leave</dt><dd>{{ settings.public_holidays_count_as_annual_leave ? 'Yes' : 'No' }}</dd>
+        <dt>Sick leave medical certificate</dt><dd>{{ settings.sick_leave_requires_medical_certificate ? 'Required' : 'Not required' }}</dd>
+        <dt>Sick leave notification days</dt><dd>{{ settings.sick_leave_notification_days }}</dd>
+        <dt>Emiratisation monitoring</dt><dd>{{ settings.emiratisation_monitoring_enabled ? 'Enabled' : 'Disabled' }}</dd>
+      </dl>
     </section>
 
     <section>
@@ -166,6 +179,7 @@ interface GratuityResult {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const auth = useAuthStore()
 const employees = ref<EmployeeOption[]>([])
 const legalRuleSet = ref<LegalRuleSet | null>(null)
@@ -258,6 +272,7 @@ async function saveSettings() {
     })
     setSettings(response.data.compliance_settings)
     settingsSaved.value = true
+    forms.compliance = false
   } catch (err) {
     settingsError.value = apiErrorMessage(err, 'Unable to save compliance settings.')
   } finally {
@@ -277,6 +292,12 @@ function setSettings(nextSettings: ComplianceSettings) {
   settingsForm.sick_leave_requires_medical_certificate = nextSettings.sick_leave_requires_medical_certificate
   settingsForm.sick_leave_notification_days = nextSettings.sick_leave_notification_days
   settingsForm.emiratisation_monitoring_enabled = nextSettings.emiratisation_monitoring_enabled
+}
+
+function resetSettings() {
+  if (settings.value) setSettings(settings.value)
+  settingsError.value = ''
+  settingsSaved.value = false
 }
 </script>
 

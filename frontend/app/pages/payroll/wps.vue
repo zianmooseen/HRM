@@ -57,9 +57,12 @@
           <label v-if="statusForm.status === 'failed'">Failure reason<textarea v-model="statusForm.failure_reason" required rows="3" /></label>
           <label v-if="statusForm.status === 'manual_override'">Override reason<textarea v-model="statusForm.manual_override_reason" required rows="3" /></label>
           <p v-if="statusError" class="error">{{ statusError }}</p>
-          <button type="submit" :disabled="updatingStatus || !statusForm.status || Boolean(organizationScope.branchId)">
-            {{ updatingStatus ? 'Updating...' : 'Update batch status' }}
-          </button>
+          <div class="button-row">
+            <button type="submit" :disabled="updatingStatus || !statusForm.status || Boolean(organizationScope.branchId)">
+              {{ updatingStatus ? 'Updating...' : 'Update batch status' }}
+            </button>
+            <button type="button" class="secondary" :disabled="updatingStatus || uploadingProof" @click="closeBatch">Cancel</button>
+          </div>
         </form>
 
         <form class="form-grid" @submit.prevent="uploadProof">
@@ -80,7 +83,10 @@
           <label>Evidence file<input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx" @change="setProofFile"></label>
           <label>Notes<textarea v-model="proofForm.notes" rows="3" /></label>
           <p v-if="proofError" class="error">{{ proofError }}</p>
-          <button type="submit" :disabled="uploadingProof || Boolean(organizationScope.branchId)">{{ uploadingProof ? 'Uploading...' : 'Save transfer proof' }}</button>
+          <div class="button-row">
+            <button type="submit" :disabled="uploadingProof || Boolean(organizationScope.branchId)">{{ uploadingProof ? 'Uploading...' : 'Save transfer proof' }}</button>
+            <button type="button" class="secondary" :disabled="updatingStatus || uploadingProof" @click="closeBatch">Cancel</button>
+          </div>
         </form>
 
         <section>
@@ -206,6 +212,15 @@ function selectBatch(batch: Batch) {
     bank_reference: batch.bank_reference || '',
     rejection_reason: '', failure_reason: '', manual_override_reason: '',
   })
+}
+
+function closeBatch() {
+  if (updatingStatus.value || uploadingProof.value) return
+  selectedBatch.value = null
+  Object.assign(statusForm, { status: '', provider_reference: '', bank_reference: '', rejection_reason: '', failure_reason: '', manual_override_reason: '' })
+  Object.assign(proofForm, { proof_type: 'provider_receipt', provider_reference: '', transaction_reference: '', notes: '', file: null })
+  statusError.value = ''
+  proofError.value = ''
 }
 async function updateStatus() {
   if (!selectedBatch.value) return

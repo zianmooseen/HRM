@@ -1,6 +1,9 @@
 <template>
   <section class="page">
-    <h1>Edit employee</h1>
+    <header>
+      <h1>Edit employee</h1>
+      <button type="button" class="secondary" :disabled="saving" @click="cancel">Cancel</button>
+    </header>
     <form v-if="loaded" class="form-grid" @submit.prevent="submit">
       <label>
         Employee code
@@ -167,7 +170,10 @@
         <input v-model="form.wps_person_id">
       </label>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save employee' }}</button>
+      <div class="button-row">
+        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save employee' }}</button>
+        <button type="button" class="secondary" :disabled="saving" @click="cancel">Cancel</button>
+      </div>
     </form>
   </section>
 </template>
@@ -186,6 +192,10 @@ const departments = ref<Array<{ id: number, name: string }>>([])
 const jobTitles = ref<Array<{ id: number, title: string }>>([])
 const managers = ref<Array<{ id: number, display_name: string }>>([])
 const form = reactive<any>({})
+
+function cancel() {
+  if (!saving.value) return router.push(`/employees/${route.params.id}`)
+}
 
 function normalizeIban() {
   form.bank_iban = String(form.bank_iban || '').replace(/\s+/g, '').toUpperCase()

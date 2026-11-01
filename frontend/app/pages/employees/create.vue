@@ -1,6 +1,9 @@
 <template>
   <section class="page">
-    <h1>Create employee</h1>
+    <header>
+      <h1>Create employee</h1>
+      <button type="button" class="secondary" :disabled="saving" @click="cancel">Cancel</button>
+    </header>
     <form class="form-grid" @submit.prevent="submit">
       <label>
         Employee code
@@ -163,7 +166,10 @@
         <input v-model="form.wps_person_id">
       </label>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Create employee' }}</button>
+      <div class="button-row">
+        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Create employee' }}</button>
+        <button type="button" class="secondary" :disabled="saving" @click="cancel">Cancel</button>
+      </div>
     </form>
   </section>
 </template>
@@ -213,6 +219,10 @@ const form = reactive({
   bank_routing_code: '',
   wps_person_id: '',
 })
+
+function cancel() {
+  if (!saving.value) return router.push('/employees')
+}
 
 function normalizeIban() {
   form.bank_iban = form.bank_iban.replace(/\s+/g, '').toUpperCase()

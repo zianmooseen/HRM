@@ -4,40 +4,42 @@
       <h1>My leave</h1>
     </header>
 
-    <form v-if="employee" class="form-grid" @submit.prevent="submit">
-      <label>
-        Leave type
-        <select v-model.number="form.leave_type_id" required>
-          <option :value="0">Select leave type</option>
-          <option v-for="leaveType in leaveTypes" :key="leaveType.id" :value="leaveType.id">
-            {{ leaveType.name }}
-          </option>
-        </select>
-      </label>
-      <label>
-        Start date
-        <input v-model="form.start_date" type="date" required>
-      </label>
-      <label>
-        End date
-        <input v-model="form.end_date" type="date" required>
-      </label>
-      <label v-if="selectedLeaveType?.code === 'sick_leave' || selectedLeaveType?.requires_document">
-        Medical certificate
-        <select v-model="form.medical_certificate_document_id">
-          <option value="">Select uploaded certificate</option>
-          <option v-for="document in medicalCertificates" :key="document.id" :value="String(document.id)">
-            {{ document.title }} · {{ document.original_file_name }}
-          </option>
-        </select>
-      </label>
-      <label class="full">
-        Reason
-        <textarea v-model="form.reason" rows="3" />
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="saving">{{ saving ? 'Submitting...' : 'Submit request' }}</button>
-    </form>
+    <ActionFormPanel v-if="employee" v-model:open="forms.leave" action-label="New leave request" :busy="saving" @create="resetLeaveDraft" @cancel="resetLeaveDraft">
+      <form class="form-grid" @submit.prevent="submit">
+        <label>
+          Leave type
+          <select v-model.number="form.leave_type_id" required>
+            <option :value="0">Select leave type</option>
+            <option v-for="leaveType in leaveTypes" :key="leaveType.id" :value="leaveType.id">
+              {{ leaveType.name }}
+            </option>
+          </select>
+        </label>
+        <label>
+          Start date
+          <input v-model="form.start_date" type="date" required>
+        </label>
+        <label>
+          End date
+          <input v-model="form.end_date" type="date" required>
+        </label>
+        <label v-if="selectedLeaveType?.code === 'sick_leave' || selectedLeaveType?.requires_document">
+          Medical certificate
+          <select v-model="form.medical_certificate_document_id">
+            <option value="">Select uploaded certificate</option>
+            <option v-for="document in medicalCertificates" :key="document.id" :value="String(document.id)">
+              {{ document.title }} · {{ document.original_file_name }}
+            </option>
+          </select>
+        </label>
+        <label class="full">
+          Reason
+          <textarea v-model="form.reason" rows="3" />
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <button type="submit" :disabled="saving">{{ saving ? 'Submitting...' : 'Submit request' }}</button>
+      </form>
+    </ActionFormPanel>
 
     <table>
       <thead>
@@ -110,6 +112,7 @@ interface EmployeeDocument {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const employee = ref<any>(null)
 const leaveTypes = ref<LeaveType[]>([])
 const requests = ref<LeaveRequestRow[]>([])
@@ -134,6 +137,8 @@ const form = reactive({
   reason: '',
 })
 const selectedLeaveType = computed(() => leaveTypes.value.find((leaveType) => leaveType.id === form.leave_type_id) || null)
+
+const restoreLeave = createFormReset(form)
 
 onMounted(async () => {
   const [profile, types] = await Promise.all([
@@ -184,6 +189,7 @@ async function submit() {
     form.reason = ''
     form.medical_certificate_document_id = ''
     await loadRequests()
+    forms.leave = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to submit leave request.')
   } finally {
@@ -199,5 +205,10 @@ function latestNote(request: LeaveRequestRow) {
   const eventNote = request.status_events?.slice().reverse().find((event) => event.note)?.note
 
   return eventNote || request.approval_note || request.rejection_reason || '-'
+}
+
+function resetLeaveDraft() {
+  restoreLeave()
+  error.value = ''
 }
 </script>

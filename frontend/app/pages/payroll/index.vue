@@ -8,103 +8,106 @@
     </header>
 
     <section class="panel-grid">
-      <form class="form-grid" @submit.prevent="createComponent">
-        <h2>Allowances & Deductions</h2>
-        <label>
-          Code
-          <input v-model="componentForm.code" required>
-        </label>
-        <label>
-          Name
-          <input v-model="componentForm.name" required>
-        </label>
-        <label>
-          Type
-          <select v-model="componentForm.type" required>
-            <option value="earning">Allowance</option>
-            <option value="deduction">Deduction</option>
-          </select>
-        </label>
-        <label>
-          Status
-          <select v-model="componentForm.status" required>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <p v-if="componentError" class="error">{{ componentError }}</p>
-        <button type="submit" :disabled="savingComponent">{{ savingComponent ? 'Saving...' : 'Create allowance or deduction' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.component" action-label="Add allowance or deduction" :busy="savingComponent" @create="resetComponentDraft" @cancel="resetComponentDraft">
+        <form class="form-grid" @submit.prevent="createComponent">
+          <label>
+            Code
+            <input v-model="componentForm.code" required>
+          </label>
+          <label>
+            Name
+            <input v-model="componentForm.name" required>
+          </label>
+          <label>
+            Type
+            <select v-model="componentForm.type" required>
+              <option value="earning">Allowance</option>
+              <option value="deduction">Deduction</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select v-model="componentForm.status" required>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <p v-if="componentError" class="error">{{ componentError }}</p>
+          <button type="submit" :disabled="savingComponent">{{ savingComponent ? 'Saving...' : 'Create allowance or deduction' }}</button>
+        </form>
+      </ActionFormPanel>
 
-      <form class="form-grid" @submit.prevent="assignComponent">
-        <h2>Assign to Employee</h2>
-        <label>
-          Employee
-          <select v-model.number="assignmentForm.employee_id" required>
-            <option disabled :value="0">Select employee</option>
-            <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-              {{ employee.display_name }} ({{ employee.employee_code }})
-            </option>
-          </select>
-        </label>
-        <label>
-          Allowance or deduction
-          <select v-model.number="assignmentForm.salary_component_id" required>
-            <option disabled :value="0">Select allowance or deduction</option>
-            <option v-for="component in components" :key="component.id" :value="component.id">
-              {{ component.name }} · {{ component.type === 'deduction' ? 'Deduction' : 'Allowance' }}
-            </option>
-          </select>
-        </label>
-        <label>
-          Amount
-          <input v-model.number="assignmentForm.amount" type="number" min="0" required>
-        </label>
-        <label>
-          Effective from
-          <input v-model="assignmentForm.effective_from" type="date" required>
-        </label>
-        <p v-if="assignmentError" class="error">{{ assignmentError }}</p>
-        <button type="submit" :disabled="savingAssignment">{{ savingAssignment ? 'Saving...' : 'Assign pay item' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.assignment" action-label="Assign pay item" :busy="savingAssignment" @create="resetAssignmentDraft" @cancel="resetAssignmentDraft">
+        <form class="form-grid" @submit.prevent="assignComponent">
+          <label>
+            Employee
+            <select v-model.number="assignmentForm.employee_id" required>
+              <option disabled :value="0">Select employee</option>
+              <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                {{ employee.display_name }} ({{ employee.employee_code }})
+              </option>
+            </select>
+          </label>
+          <label>
+            Allowance or deduction
+            <select v-model.number="assignmentForm.salary_component_id" required>
+              <option disabled :value="0">Select allowance or deduction</option>
+              <option v-for="component in components" :key="component.id" :value="component.id">
+                {{ component.name }} · {{ component.type === 'deduction' ? 'Deduction' : 'Allowance' }}
+              </option>
+            </select>
+          </label>
+          <label>
+            Amount
+            <input v-model.number="assignmentForm.amount" type="number" min="0" required>
+          </label>
+          <label>
+            Effective from
+            <input v-model="assignmentForm.effective_from" type="date" required>
+          </label>
+          <p v-if="assignmentError" class="error">{{ assignmentError }}</p>
+          <button type="submit" :disabled="savingAssignment">{{ savingAssignment ? 'Saving...' : 'Assign pay item' }}</button>
+        </form>
+      </ActionFormPanel>
 
-      <form class="form-grid" @submit.prevent="createPeriod">
-        <h2>Payroll Period</h2>
-        <label v-if="canViewWpsSettings">
-          MoHRE establishment
-          <select v-model.number="periodForm.mohre_establishment_id">
-            <option :value="0">Use company default</option>
-            <option v-for="setting in wpsSettings" :key="setting.mohre_establishment_id" :value="setting.mohre_establishment_id">
-              {{ setting.establishment?.establishment_name || `Establishment #${setting.mohre_establishment_id}` }}
-            </option>
-          </select>
-        </label>
-        <label v-if="canViewWpsSettings">
-          WPS provider
-          <select v-model.number="periodForm.wps_provider_id">
-            <option :value="0">Use establishment provider</option>
-            <option v-for="provider in wpsProviders" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
-          </select>
-        </label>
-        <label>
-          Period start
-          <input v-model="periodForm.period_start" type="date" required>
-        </label>
-        <label>
-          Period end
-          <input v-model="periodForm.period_end" type="date" required>
-        </label>
-        <label>
-          Pay date
-          <input v-model="periodForm.pay_date" type="date">
-        </label>
-        <label v-if="canViewWpsSettings">
-          WPS due date
-          <input v-model="periodForm.payroll_due_date" type="date">
-        </label>
-        <p v-if="periodError" class="error">{{ periodError }}</p>
-        <button type="submit" :disabled="savingPeriod || Boolean(organizationScope.branchId)">{{ savingPeriod ? 'Saving...' : 'Create period' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.period" action-label="Create payroll period" :busy="savingPeriod" :disabled="Boolean(organizationScope.branchId)" @create="resetPeriodDraft" @cancel="resetPeriodDraft">
+        <form class="form-grid" @submit.prevent="createPeriod">
+          <label v-if="canViewWpsSettings">
+            MoHRE establishment
+            <select v-model.number="periodForm.mohre_establishment_id">
+              <option :value="0">Use company default</option>
+              <option v-for="setting in wpsSettings" :key="setting.mohre_establishment_id" :value="setting.mohre_establishment_id">
+                {{ setting.establishment?.establishment_name || `Establishment #${setting.mohre_establishment_id}` }}
+              </option>
+            </select>
+          </label>
+          <label v-if="canViewWpsSettings">
+            WPS provider
+            <select v-model.number="periodForm.wps_provider_id">
+              <option :value="0">Use establishment provider</option>
+              <option v-for="provider in wpsProviders" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
+            </select>
+          </label>
+          <label>
+            Period start
+            <input v-model="periodForm.period_start" type="date" required>
+          </label>
+          <label>
+            Period end
+            <input v-model="periodForm.period_end" type="date" required>
+          </label>
+          <label>
+            Pay date
+            <input v-model="periodForm.pay_date" type="date">
+          </label>
+          <label v-if="canViewWpsSettings">
+            WPS due date
+            <input v-model="periodForm.payroll_due_date" type="date">
+          </label>
+          <p v-if="periodError" class="error">{{ periodError }}</p>
+          <button type="submit" :disabled="savingPeriod || Boolean(organizationScope.branchId)">{{ savingPeriod ? 'Saving...' : 'Create period' }}</button>
+        </form>
+      </ActionFormPanel>
     </section>
 
     <section>
@@ -354,6 +357,7 @@ interface PayslipItem {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const auth = useAuthStore()
 const organizationScope = useOrganizationScopeStore()
 const employees = ref<EmployeeOption[]>([])
@@ -433,6 +437,10 @@ const periodForm = reactive({
   payroll_due_date: '',
 })
 
+const restoreComponent = createFormReset(componentForm)
+const restoreAssignment = createFormReset(assignmentForm)
+const restorePeriod = createFormReset(periodForm)
+
 onMounted(async () => {
   await loadAll()
 })
@@ -485,6 +493,7 @@ async function createComponent() {
     componentForm.name = ''
     componentForm.type = 'earning'
     await loadAll()
+    forms.component = false
   } catch (err) {
     componentError.value = apiErrorMessage(err, 'Unable to create allowance or deduction.')
   } finally {
@@ -501,6 +510,7 @@ async function assignComponent() {
     assignmentForm.employee_id = 0
     assignmentForm.salary_component_id = 0
     assignmentForm.amount = 0
+    forms.assignment = false
   } catch (err) {
     assignmentError.value = apiErrorMessage(err, 'Unable to assign pay item.')
   } finally {
@@ -521,6 +531,7 @@ async function createPeriod() {
       payroll_due_date: periodForm.payroll_due_date || null,
     })
     await loadAll()
+    forms.period = false
   } catch (err) {
     periodError.value = apiErrorMessage(err, 'Unable to create payroll period.')
   } finally {
@@ -613,6 +624,21 @@ function apiErrorMessages(error: unknown, fallback: string) {
   }
 
   return [apiErrorMessage(error, fallback)]
+}
+
+function resetComponentDraft() {
+  restoreComponent()
+  componentError.value = ''
+}
+
+function resetAssignmentDraft() {
+  restoreAssignment()
+  assignmentError.value = ''
+}
+
+function resetPeriodDraft() {
+  restorePeriod()
+  periodError.value = ''
 }
 </script>
 

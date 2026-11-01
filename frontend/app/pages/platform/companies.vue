@@ -2,7 +2,7 @@
   <section class="page">
     <div class="client-heading">
       <h1>Clients and companies</h1>
-      <button v-if="auth.hasRole('super_admin')" type="button" @click="showForm = !showForm">{{ showForm ? 'Close form' : 'Add client' }}</button>
+      <button v-if="auth.hasRole('super_admin')" type="button" :class="{ secondary: showForm }" :disabled="saving" @click="toggleCreateClient">{{ showForm ? 'Cancel' : 'Add client' }}</button>
     </div>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     <p v-if="notice" role="status">{{ notice }}</p>
@@ -19,7 +19,10 @@
         <label>Emirate<input v-model="form.emirate" maxlength="100"></label>
         <label>Subscription plan<select v-model="form.subscription_plan_id"><option :value="null">Assign later</option><option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option></select></label>
       </div>
-      <button type="submit" :disabled="saving">{{ saving ? 'Setting up client…' : 'Create client' }}</button>
+      <div class="button-row">
+        <button type="submit" :disabled="saving">{{ saving ? 'Setting up client…' : 'Create client' }}</button>
+        <button type="button" class="secondary" :disabled="saving" @click="cancelCreateClient">Cancel</button>
+      </div>
     </form>
     <p v-if="loading" role="status">Loading clients…</p>
     <table v-if="clients.length">
@@ -83,6 +86,23 @@ const error = ref('')
 const notice = ref('')
 const initialForm = () => ({ company_name: '', client_code: '', admin_name: '', admin_email: '', admin_username: '', admin_password: '', emirate: '', subscription_plan_id: null as number | null })
 const form = reactive(initialForm())
+
+function cancelCreateClient() {
+  if (saving.value) return
+  showForm.value = false
+  Object.assign(form, initialForm())
+  error.value = ''
+}
+
+function toggleCreateClient() {
+  if (saving.value) return
+  if (showForm.value) cancelCreateClient()
+  else {
+    Object.assign(form, initialForm())
+    error.value = ''
+    showForm.value = true
+  }
+}
 const { filters: columnFilters, filteredRows: filteredCompanies } = useTableColumnFilters(companies, [
   { key: 'name', value: company => company.name },
   { key: 'emirate', value: company => company.emirate },

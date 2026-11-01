@@ -3,36 +3,37 @@
     <header>
       <h1>Branches</h1>
     </header>
-    <form class="form-grid" @submit.prevent="saveBranch">
-      <label>
-        Name
-        <input v-model="form.name" required>
-      </label>
-      <label>
-        Code
-        <input v-model="form.code" required>
-      </label>
-      <label>
-        Emirate
-        <input v-model="form.emirate">
-      </label>
-      <label>
-        City
-        <input v-model="form.city">
-      </label>
-      <label>
-        Status
-        <select v-model="form.status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <div class="button-row">
-        <button type="submit" :disabled="saving || (!editingId && Boolean(organizationScope.branchId))">{{ saving ? 'Saving...' : editingId ? 'Save branch' : 'Create branch' }}</button>
-        <button v-if="editingId" type="button" class="secondary" @click="resetForm">Cancel</button>
-      </div>
-    </form>
+    <ActionFormPanel v-model:open="forms.branch" action-label="Add branch" :title="editingId ? 'Edit branch' : 'Add branch'" :busy="saving" :disabled="Boolean(organizationScope.branchId)" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="saveBranch">
+        <label>
+          Name
+          <input v-model="form.name" required>
+        </label>
+        <label>
+          Code
+          <input v-model="form.code" required>
+        </label>
+        <label>
+          Emirate
+          <input v-model="form.emirate">
+        </label>
+        <label>
+          City
+          <input v-model="form.city">
+        </label>
+        <label>
+          Status
+          <select v-model="form.status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <div class="button-row">
+          <button type="submit" :disabled="saving || (!editingId && Boolean(organizationScope.branchId))">{{ saving ? 'Saving...' : editingId ? 'Save branch' : 'Create branch' }}</button>
+        </div>
+      </form>
+    </ActionFormPanel>
     <table>
       <thead>
         <tr><th>Name</th><th>Code</th><th>Emirate</th><th>Status</th><th></th></tr>
@@ -64,6 +65,7 @@
 definePageMeta({ middleware: ['auth'] })
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const organizationScope = useOrganizationScopeStore()
 const branches = ref<any[]>([])
 const { filters: columnFilters, filteredRows: filteredBranches } = useTableColumnFilters(
@@ -86,6 +88,7 @@ async function load() {
 }
 
 function resetForm() {
+  forms.branch = false
   Object.assign(form, { name: '', code: '', emirate: '', city: '', status: 'active' })
   editingId.value = null
   error.value = ''
@@ -99,6 +102,8 @@ function editBranch(branch: any) {
     city: branch.city || '',
     status: branch.status,
   })
+  error.value = ''
+  forms.branch = true
   editingId.value = branch.id
 }
 
@@ -123,6 +128,7 @@ async function saveBranch() {
 
 async function deleteBranch(id: number) {
   await api.delete(`/branches/${id}`)
+  if (editingId.value === id) resetForm()
   await load()
 }
 

@@ -5,7 +5,7 @@
         <h1>Government identifiers</h1>
         <p class="muted">Maintain the employee identifiers used for MoHRE and WPS payroll validation.</p>
       </div>
-      <NuxtLink :to="`/employees/${route.params.id}`">Back to employee</NuxtLink>
+      <button type="button" class="secondary" :disabled="saving" @click="cancel">Cancel</button>
     </header>
 
     <p v-if="loading">Loading government profile...</p>
@@ -27,7 +27,10 @@
       <p class="notice">These identifiers are encrypted at rest. Access and changes are recorded in the audit log.</p>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="saved">Government profile saved.</p>
-      <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save identifiers' }}</button>
+      <div class="button-row">
+        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save identifiers' }}</button>
+        <button type="button" class="secondary" :disabled="saving" @click="cancel">Cancel</button>
+      </div>
     </form>
   </section>
 </template>
@@ -48,6 +51,7 @@ interface GovernmentProfile {
 }
 
 const route = useRoute()
+const router = useRouter()
 const api = useApiClient()
 const loading = ref(true)
 const saving = ref(false)
@@ -64,6 +68,10 @@ const form = reactive({
   passport_number: '',
   wps_employee_identifier: '',
 })
+
+function cancel() {
+  if (!saving.value) return router.push(`/employees/${route.params.id}`)
+}
 
 onMounted(async () => {
   try {

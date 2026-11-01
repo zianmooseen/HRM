@@ -5,29 +5,31 @@
     </header>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <form v-if="employee && auth.hasPermission('documents.upload')" class="form-grid" @submit.prevent="uploadDocument">
-      <label>
-        Document type
-        <select v-model="form.document_type" required>
-          <option value="passport">Passport</option>
-          <option value="visa">Visa</option>
-          <option value="labor_card">Labor card</option>
-          <option value="emirates_id">Emirates ID</option>
-          <option v-if="!identification" value="medical_certificate">Medical certificate</option>
-          <option v-if="!identification" value="contract">Contract</option>
-          <option v-if="!identification" value="other">Other</option>
-        </select>
-      </label>
-      <label>
-        Title
-        <input v-model="form.title" placeholder="Optional">
-      </label>
-      <label class="full">
-        File
-        <input ref="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required @change="selectFile">
-      </label>
-      <button type="submit" :disabled="uploading">{{ uploading ? 'Uploading...' : 'Upload document' }}</button>
-    </form>
+    <ActionFormPanel v-if="employee && auth.hasPermission('documents.upload')" v-model:open="forms.document" action-label="Upload document" :busy="uploading" @create="resetUpload" @cancel="resetUpload">
+      <form class="form-grid" @submit.prevent="uploadDocument">
+        <label>
+          Document type
+          <select v-model="form.document_type" required>
+            <option value="passport">Passport</option>
+            <option value="visa">Visa</option>
+            <option value="labor_card">Labor card</option>
+            <option value="emirates_id">Emirates ID</option>
+            <option v-if="!identification" value="medical_certificate">Medical certificate</option>
+            <option v-if="!identification" value="contract">Contract</option>
+            <option v-if="!identification" value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          Title
+          <input v-model="form.title" placeholder="Optional">
+        </label>
+        <label class="full">
+          File
+          <input ref="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required @change="selectFile">
+        </label>
+        <button type="submit" :disabled="uploading">{{ uploading ? 'Uploading...' : 'Upload document' }}</button>
+      </form>
+    </ActionFormPanel>
 
     <p v-if="loading">Loading documents...</p>
     <table v-else>
@@ -75,6 +77,7 @@ interface EmployeeDocument {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const employee = ref<EmployeeSelfProfile | null>(null)
 const documents = ref<EmployeeDocument[]>([])
 const { filters: columnFilters, filteredRows: filteredDocuments } = useTableColumnFilters(
@@ -117,6 +120,12 @@ function selectFile(event: Event) {
   selectedFile.value = (event.target as HTMLInputElement).files?.[0] || null
 }
 
+function resetUpload() {
+  selectedFile.value = null
+  Object.assign(form, { document_type: 'passport', title: '' })
+  error.value = ''
+}
+
 async function uploadDocument() {
   if (!employee.value || !selectedFile.value) {
     error.value = 'Choose a file to upload.'
@@ -137,6 +146,7 @@ async function uploadDocument() {
     selectedFile.value = null
     if (fileInput.value) fileInput.value.value = ''
     await loadDocuments()
+    forms.document = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to upload document.')
   } finally {

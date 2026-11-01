@@ -7,83 +7,87 @@
       </div>
     </header>
 
-    <form v-if="auth.hasPermission('settings.update')" class="form-grid" @submit.prevent="save">
-      <label>
-        Employee
-        <select v-model.number="form.employee_id" required>
-          <option disabled :value="0">Select employee</option>
-          <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-            {{ employee.display_name }} ({{ employee.employee_code }})
-          </option>
-        </select>
-      </label>
-      <label>
-        Leave type
-        <select v-model.number="form.leave_type_id" required>
-          <option disabled :value="0">Select leave type</option>
-          <option v-for="leaveType in leaveTypes" :key="leaveType.id" :value="leaveType.id">
-            {{ leaveType.name }}
-          </option>
-        </select>
-      </label>
-      <label>
-        Leave year
-        <input v-model.number="form.leave_year" type="number" min="2020" max="2100" required>
-      </label>
-      <label>
-        Opening balance
-        <input v-model.number="form.opening_balance" type="number" min="0" step="0.5" required>
-      </label>
-      <label>
-        Accrued days
-        <input v-model.number="form.accrued_days" type="number" min="0" step="0.5" required>
-      </label>
-      <label>
-        Carry-forward days
-        <input v-model.number="form.carried_forward_days" type="number" min="0" step="0.5" required>
-      </label>
-      <label>
-        Adjustment days
-        <input v-model.number="form.adjusted_days" type="number" min="0" step="0.5" required>
-      </label>
-      <label>
-        Encashed days
-        <input v-model.number="form.encashed_days" type="number" min="0" step="0.5">
-      </label>
-      <label class="full">
-        Note
-        <textarea v-model="form.note" rows="3" />
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save leave balance' }}</button>
-    </form>
-
-    <section v-if="auth.hasPermission('settings.update')">
-      <h2>Annual Accrual</h2>
-      <form class="form-grid" @submit.prevent="runAccrual">
+    <ActionFormPanel v-if="auth.hasPermission('settings.update')" v-model:open="forms.balance" action-label="Set leave balance" :busy="saving" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="save">
         <label>
           Employee
-          <select v-model.number="accrual.employee_id">
-            <option :value="0">All active employees</option>
+          <select v-model.number="form.employee_id" required>
+            <option disabled :value="0">Select employee</option>
             <option v-for="employee in employees" :key="employee.id" :value="employee.id">
-              {{ employee.display_name }}
+              {{ employee.display_name }} ({{ employee.employee_code }})
+            </option>
+          </select>
+        </label>
+        <label>
+          Leave type
+          <select v-model.number="form.leave_type_id" required>
+            <option disabled :value="0">Select leave type</option>
+            <option v-for="leaveType in leaveTypes" :key="leaveType.id" :value="leaveType.id">
+              {{ leaveType.name }}
             </option>
           </select>
         </label>
         <label>
           Leave year
-          <input v-model.number="accrual.leave_year" type="number" min="2020" max="2100" required>
+          <input v-model.number="form.leave_year" type="number" min="2020" max="2100" required>
         </label>
         <label>
-          Accrual date
-          <input v-model="accrual.accrual_date" type="date">
+          Opening balance
+          <input v-model.number="form.opening_balance" type="number" min="0" step="0.5" required>
         </label>
-        <p v-if="accrualError" class="error">{{ accrualError }}</p>
-        <p v-if="accrualResult" class="muted">
-          Accrued {{ accrualResult.processed_count }} employee balance records as of {{ accrualResult.accrual_date }}.
-        </p>
-        <button type="submit" :disabled="accruing">{{ accruing ? 'Running...' : 'Run annual accrual' }}</button>
+        <label>
+          Accrued days
+          <input v-model.number="form.accrued_days" type="number" min="0" step="0.5" required>
+        </label>
+        <label>
+          Carry-forward days
+          <input v-model.number="form.carried_forward_days" type="number" min="0" step="0.5" required>
+        </label>
+        <label>
+          Adjustment days
+          <input v-model.number="form.adjusted_days" type="number" min="0" step="0.5" required>
+        </label>
+        <label>
+          Encashed days
+          <input v-model.number="form.encashed_days" type="number" min="0" step="0.5">
+        </label>
+        <label class="full">
+          Note
+          <textarea v-model="form.note" rows="3" />
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save leave balance' }}</button>
       </form>
+    </ActionFormPanel>
+
+    <section v-if="auth.hasPermission('settings.update')">
+      <h2>Annual Accrual</h2>
+      <ActionFormPanel v-model:open="forms.accrual" action-label="Run annual accrual" :busy="accruing">
+        <form class="form-grid" @submit.prevent="runAccrual">
+          <label>
+            Employee
+            <select v-model.number="accrual.employee_id">
+              <option :value="0">All active employees</option>
+              <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                {{ employee.display_name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            Leave year
+            <input v-model.number="accrual.leave_year" type="number" min="2020" max="2100" required>
+          </label>
+          <label>
+            Accrual date
+            <input v-model="accrual.accrual_date" type="date">
+          </label>
+          <p v-if="accrualError" class="error">{{ accrualError }}</p>
+          <button type="submit" :disabled="accruing">{{ accruing ? 'Running...' : 'Run annual accrual' }}</button>
+        </form>
+      </ActionFormPanel>
+      <p v-if="accrualResult" class="muted">
+            Accrued {{ accrualResult.processed_count }} employee balance records as of {{ accrualResult.accrual_date }}.
+          </p>
     </section>
 
     <section>
@@ -190,6 +194,7 @@ interface LeaveBalance {
 
 const auth = useAuthStore()
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const employees = ref<EmployeeOption[]>([])
 const leaveTypes = ref<LeaveType[]>([])
 const balances = ref<LeaveBalance[]>([])
@@ -279,6 +284,7 @@ async function save() {
     })
     resetForm()
     await loadBalances()
+    forms.balance = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to save leave balance.')
   } finally {
@@ -301,6 +307,7 @@ async function runAccrual() {
     filters.leave_year = accrual.leave_year
     if (accrual.employee_id) filters.employee_id = accrual.employee_id
     await loadBalances()
+    forms.accrual = false
   } catch (err) {
     accrualError.value = apiErrorMessage(err, 'Unable to run annual leave accrual.')
   } finally {
@@ -309,6 +316,8 @@ async function runAccrual() {
 }
 
 function edit(balance: LeaveBalance) {
+  forms.balance = true
+  error.value = ''
   form.employee_id = balance.employee_id
   form.leave_type_id = balance.leave_type_id
   form.leave_year = balance.leave_year
@@ -321,6 +330,8 @@ function edit(balance: LeaveBalance) {
 }
 
 function resetForm() {
+  forms.balance = false
+  error.value = ''
   form.employee_id = 0
   form.leave_type_id = 0
   form.leave_year = currentYear

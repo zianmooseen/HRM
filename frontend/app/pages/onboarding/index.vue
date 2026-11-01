@@ -9,64 +9,66 @@
 
     <section v-if="auth.hasPermission('employees.update')" class="template-builder">
       <h2>New template</h2>
-      <form class="form-grid" @submit.prevent="createTemplate">
-        <label>
-          Name
-          <input v-model="templateForm.name" required>
-        </label>
-        <label>
-          Employment type
-          <input v-model="templateForm.employment_type" placeholder="Optional">
-        </label>
-        <label class="full">
-          Description
-          <textarea v-model="templateForm.description" rows="2" />
-        </label>
-        <label class="checkbox-label">
-          <span>Default template</span>
-          <input v-model="templateForm.is_default" type="checkbox">
-        </label>
+      <ActionFormPanel v-model:open="forms.template" action-label="Create onboarding template" :busy="savingTemplate" @create="resetTemplateDraft" @cancel="resetTemplateDraft">
+        <form class="form-grid" @submit.prevent="createTemplate">
+          <label>
+            Name
+            <input v-model="templateForm.name" required>
+          </label>
+          <label>
+            Employment type
+            <input v-model="templateForm.employment_type" placeholder="Optional">
+          </label>
+          <label class="full">
+            Description
+            <textarea v-model="templateForm.description" rows="2" />
+          </label>
+          <label class="checkbox-label">
+            <span>Default template</span>
+            <input v-model="templateForm.is_default" type="checkbox">
+          </label>
 
-        <section class="full task-editor">
-          <header>
-            <h3>Tasks</h3>
-            <button type="button" class="secondary" @click="addTask">Add task</button>
-          </header>
-          <div v-for="(task, index) in templateForm.tasks" :key="index" class="task-row">
-            <label>
-              Title
-              <input v-model="task.title" required>
-            </label>
-            <label>
-              Type
-              <select v-model="task.task_type" required>
-                <option value="document_upload">Document upload</option>
-                <option value="hr_review">HR review</option>
-                <option value="payroll_setup">Payroll setup</option>
-                <option value="account_creation">Account creation</option>
-                <option value="policy_acknowledgement">Policy acknowledgement</option>
-                <option value="asset_assignment">Asset assignment</option>
-                <option value="training">Training</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-            <label class="task-due-label">
-              Due days
-              <input v-model.number="task.due_days_after_start" type="number" min="0">
-            </label>
-            <label class="checkbox-label task-required-label">
-              <span>Required</span>
-              <input v-model="task.required" type="checkbox">
-            </label>
-            <button v-if="templateForm.tasks.length > 1" type="button" class="danger" @click="removeTask(index)">
-              Remove
-            </button>
-          </div>
-        </section>
+          <section class="full task-editor">
+            <header>
+              <h3>Tasks</h3>
+              <button type="button" class="secondary" @click="addTask">Add task</button>
+            </header>
+            <div v-for="(task, index) in templateForm.tasks" :key="index" class="task-row">
+              <label>
+                Title
+                <input v-model="task.title" required>
+              </label>
+              <label>
+                Type
+                <select v-model="task.task_type" required>
+                  <option value="document_upload">Document upload</option>
+                  <option value="hr_review">HR review</option>
+                  <option value="payroll_setup">Payroll setup</option>
+                  <option value="account_creation">Account creation</option>
+                  <option value="policy_acknowledgement">Policy acknowledgement</option>
+                  <option value="asset_assignment">Asset assignment</option>
+                  <option value="training">Training</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label class="task-due-label">
+                Due days
+                <input v-model.number="task.due_days_after_start" type="number" min="0">
+              </label>
+              <label class="checkbox-label task-required-label">
+                <span>Required</span>
+                <input v-model="task.required" type="checkbox">
+              </label>
+              <button v-if="templateForm.tasks.length > 1" type="button" class="danger" @click="removeTask(index)">
+                Remove
+              </button>
+            </div>
+          </section>
 
-        <p v-if="templateError" class="error">{{ templateError }}</p>
-        <button type="submit" :disabled="savingTemplate">{{ savingTemplate ? 'Creating...' : 'Create template' }}</button>
-      </form>
+          <p v-if="templateError" class="error">{{ templateError }}</p>
+          <button type="submit" :disabled="savingTemplate">{{ savingTemplate ? 'Creating...' : 'Create template' }}</button>
+        </form>
+      </ActionFormPanel>
     </section>
 
     <section>
@@ -164,6 +166,7 @@ interface TemplateTaskForm {
 
 const auth = useAuthStore()
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const templates = ref<OnboardingTemplate[]>([])
 const cases = ref<OnboardingCase[]>([])
 const { filters: templateColumnFilters, filteredRows: filteredTemplates } = useTableColumnFilters(
@@ -199,6 +202,8 @@ const templateForm = reactive({
     { title: 'Payroll setup', task_type: 'payroll_setup', due_days_after_start: 5, required: true },
   ] as TemplateTaskForm[],
 })
+
+const restoreTemplate = createFormReset(templateForm)
 
 onMounted(async () => {
   await Promise.all([loadTemplates(), loadCases()])
@@ -244,6 +249,7 @@ async function createTemplate() {
     templateForm.employment_type = ''
     templateForm.is_default = false
     await loadTemplates()
+    forms.template = false
   } catch (err) {
     templateError.value = apiErrorMessage(err, 'Unable to create onboarding template.')
   } finally {
@@ -261,6 +267,11 @@ function removeTask(index: number) {
 
 function label(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function resetTemplateDraft() {
+  restoreTemplate()
+  templateError.value = ''
 }
 </script>
 

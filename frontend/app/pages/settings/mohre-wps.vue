@@ -11,118 +11,119 @@
     <p v-else-if="loadError" class="error">{{ loadError }}</p>
     <template v-else>
       <section class="panel-grid">
-        <form class="form-grid" @submit.prevent="saveEstablishment">
-          <h2>{{ establishmentForm.id ? 'Edit establishment' : 'Add establishment' }}</h2>
-          <label>
-            Establishment name
-            <input v-model="establishmentForm.establishment_name" required>
-          </label>
-          <label>
-            MoHRE establishment number
-            <input v-model="establishmentForm.mohre_establishment_number" required>
-          </label>
-          <label>
-            Labour file number
-            <input v-model="establishmentForm.labour_file_number">
-          </label>
-          <label>
-            Establishment card number
-            <input v-model="establishmentForm.establishment_card_number">
-          </label>
-          <label>
-            Trade license number
-            <input v-model="establishmentForm.trade_license_number">
-          </label>
-          <label>
-            Emirate
-            <input v-model="establishmentForm.emirate">
-          </label>
-          <label>
-            Issue date
-            <input v-model="establishmentForm.issue_date" type="date">
-          </label>
-          <label>
-            Expiry date
-            <input v-model="establishmentForm.expiry_date" type="date">
-          </label>
-          <label>
-            Status
-            <select v-model="establishmentForm.status">
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="expired">Expired</option>
-              <option value="under_review">Under review</option>
-            </select>
-          </label>
-          <label class="check">
-            <input v-model="establishmentForm.wps_required" type="checkbox">
-            WPS required
-          </label>
-          <label v-if="!establishmentForm.wps_required">
-            Exemption reason
-            <textarea v-model="establishmentForm.wps_exemption_reason" rows="3" required />
-          </label>
-          <p v-if="formError" class="error">{{ formError }}</p>
-          <div class="actions">
-            <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save establishment' }}</button>
-            <button v-if="establishmentForm.id" type="button" class="secondary" @click="resetEstablishment">Cancel</button>
-          </div>
-        </form>
+        <ActionFormPanel v-model:open="forms.establishment" action-label="Add establishment" :busy="saving" :title="establishmentForm.id ? 'Edit establishment' : 'Add establishment'" @create="resetEstablishment" @cancel="resetEstablishment">
+          <form class="form-grid" @submit.prevent="saveEstablishment">
+            <label>
+              Establishment name
+              <input v-model="establishmentForm.establishment_name" required>
+            </label>
+            <label>
+              MoHRE establishment number
+              <input v-model="establishmentForm.mohre_establishment_number" required>
+            </label>
+            <label>
+              Labour file number
+              <input v-model="establishmentForm.labour_file_number">
+            </label>
+            <label>
+              Establishment card number
+              <input v-model="establishmentForm.establishment_card_number">
+            </label>
+            <label>
+              Trade license number
+              <input v-model="establishmentForm.trade_license_number">
+            </label>
+            <label>
+              Emirate
+              <input v-model="establishmentForm.emirate">
+            </label>
+            <label>
+              Issue date
+              <input v-model="establishmentForm.issue_date" type="date">
+            </label>
+            <label>
+              Expiry date
+              <input v-model="establishmentForm.expiry_date" type="date">
+            </label>
+            <label>
+              Status
+              <select v-model="establishmentForm.status">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="expired">Expired</option>
+                <option value="under_review">Under review</option>
+              </select>
+            </label>
+            <label class="check">
+              <input v-model="establishmentForm.wps_required" type="checkbox">
+              WPS required
+            </label>
+            <label v-if="!establishmentForm.wps_required">
+              Exemption reason
+              <textarea v-model="establishmentForm.wps_exemption_reason" rows="3" required />
+            </label>
+            <p v-if="formError" class="error">{{ formError }}</p>
+            <div class="actions">
+              <button type="submit" :disabled="saving">{{ saving ? 'Saving...' : 'Save establishment' }}</button>
+            </div>
+          </form>
+        </ActionFormPanel>
 
-        <form class="form-grid" @submit.prevent="saveSetting">
-          <h2>WPS provider mapping</h2>
-          <label>
-            Establishment
-            <select v-model.number="settingForm.mohre_establishment_id" required>
-              <option disabled :value="0">Select establishment</option>
-              <option v-for="item in establishments" :key="item.id" :value="item.id">{{ item.establishment_name }}</option>
-            </select>
-          </label>
-          <label>
-            WPS provider
-            <select v-model.number="settingForm.wps_provider_id" required>
-              <option disabled :value="0">Select provider</option>
-              <option v-for="provider in providers" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
-            </select>
-          </label>
-          <label>
-            Payroll due day
-            <input v-model.number="settingForm.payroll_due_day" type="number" min="1" max="28" required>
-          </label>
-          <label>
-            Salary period
-            <select v-model="settingForm.salary_period_type">
-              <option value="monthly">Monthly</option>
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Biweekly</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
-          <label>
-            Currency
-            <input v-model="settingForm.payment_currency" maxlength="3" required>
-          </label>
-          <label>
-            Agent code
-            <input v-model="settingForm.agent_code">
-          </label>
-          <label>
-            Sender ID
-            <input v-model="settingForm.sender_id">
-          </label>
-          <label>
-            Provider customer reference
-            <input v-model="settingForm.provider_customer_reference">
-          </label>
-          <label>
-            Provider portal URL
-            <input v-model="settingForm.provider_portal_url" type="url">
-          </label>
-          <label class="check"><input v-model="settingForm.sif_export_enabled" type="checkbox"> SIF export enabled</label>
-          <label class="check"><input v-model="settingForm.auto_mark_paid_allowed" type="checkbox"> Allow automatic paid status</label>
-          <p v-if="settingError" class="error">{{ settingError }}</p>
-          <button type="submit" :disabled="savingSetting">{{ savingSetting ? 'Saving...' : 'Save WPS mapping' }}</button>
-        </form>
+        <ActionFormPanel v-model:open="forms.wpsSetting" action-label="Configure WPS" :busy="savingSetting" @create="resetWpsSettingDraft" @cancel="resetWpsSettingDraft">
+          <form class="form-grid" @submit.prevent="saveSetting">
+            <label>
+              Establishment
+              <select v-model.number="settingForm.mohre_establishment_id" required>
+                <option disabled :value="0">Select establishment</option>
+                <option v-for="item in establishments" :key="item.id" :value="item.id">{{ item.establishment_name }}</option>
+              </select>
+            </label>
+            <label>
+              WPS provider
+              <select v-model.number="settingForm.wps_provider_id" required>
+                <option disabled :value="0">Select provider</option>
+                <option v-for="provider in providers" :key="provider.id" :value="provider.id">{{ provider.name }}</option>
+              </select>
+            </label>
+            <label>
+              Payroll due day
+              <input v-model.number="settingForm.payroll_due_day" type="number" min="1" max="28" required>
+            </label>
+            <label>
+              Salary period
+              <select v-model="settingForm.salary_period_type">
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <label>
+              Currency
+              <input v-model="settingForm.payment_currency" maxlength="3" required>
+            </label>
+            <label>
+              Agent code
+              <input v-model="settingForm.agent_code">
+            </label>
+            <label>
+              Sender ID
+              <input v-model="settingForm.sender_id">
+            </label>
+            <label>
+              Provider customer reference
+              <input v-model="settingForm.provider_customer_reference">
+            </label>
+            <label>
+              Provider portal URL
+              <input v-model="settingForm.provider_portal_url" type="url">
+            </label>
+            <label class="check"><input v-model="settingForm.sif_export_enabled" type="checkbox"> SIF export enabled</label>
+            <label class="check"><input v-model="settingForm.auto_mark_paid_allowed" type="checkbox"> Allow automatic paid status</label>
+            <p v-if="settingError" class="error">{{ settingError }}</p>
+            <button type="submit" :disabled="savingSetting">{{ savingSetting ? 'Saving...' : 'Save WPS mapping' }}</button>
+          </form>
+        </ActionFormPanel>
       </section>
 
       <section>
@@ -186,6 +187,7 @@ interface Establishment {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const loading = ref(true)
 const saving = ref(false)
 const savingSetting = ref(false)
@@ -196,6 +198,8 @@ const establishments = ref<Establishment[]>([])
 const providers = ref<Provider[]>([])
 const establishmentForm = reactive(emptyEstablishment())
 const settingForm = reactive(emptySetting())
+
+const restoreWpsSetting = createFormReset(settingForm)
 
 onMounted(load)
 
@@ -244,6 +248,7 @@ async function saveEstablishment() {
     else await api.post('/mohre-establishments', payload)
     resetEstablishment()
     await load()
+    forms.establishment = false
   } catch (error) {
     formError.value = apiErrorMessage(error, 'Unable to save establishment.')
   } finally {
@@ -262,6 +267,7 @@ async function saveSetting() {
       sender_id: settingForm.sender_id || null,
     })
     await load()
+    forms.wpsSetting = false
   } catch (error) {
     settingError.value = apiErrorMessage(error, 'Unable to save WPS mapping.')
   } finally {
@@ -269,16 +275,27 @@ async function saveSetting() {
   }
 }
 function editEstablishment(item: Establishment) {
+  forms.establishment = true
+  formError.value = ''
   Object.assign(establishmentForm, emptyEstablishment(), item, {
     issue_date: item.issue_date || '', expiry_date: item.expiry_date || '',
     wps_exemption_reason: item.wps_exemption_reason || '', notes: item.notes || '',
   })
 }
 function editSetting(item: Establishment) {
+  forms.wpsSetting = true
+  settingError.value = ''
   Object.assign(settingForm, emptySetting(), item.wps_setting || {}, { mohre_establishment_id: item.id })
 }
 function resetEstablishment() {
+  forms.establishment = false
+  formError.value = ''
   Object.assign(establishmentForm, emptyEstablishment())
+}
+
+function resetWpsSettingDraft() {
+  restoreWpsSetting()
+  settingError.value = ''
 }
 </script>
 

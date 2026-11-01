@@ -7,38 +7,48 @@
       </div>
     </header>
 
-    <form v-if="company && settings" class="form-grid" @submit.prevent="saveSettings">
-      <label class="checkbox-label">
-        <input v-model="companyForm.emiratisation_applicable" type="checkbox">
-        Emiratisation applies to this company
-      </label>
-      <label class="checkbox-label">
-        <input v-model="settingsForm.emiratisation_monitoring_enabled" type="checkbox">
-        Enable monitoring
-      </label>
-      <label>
-        Company category
-        <select v-model="companyForm.emiratisation_category">
-          <option value="not_applicable">Not applicable</option>
-          <option value="large_50_plus">Large company, 50+ workers</option>
-          <option value="selected_20_to_49">Selected 20-49 worker company</option>
-        </select>
-      </label>
-      <label>
-        Economic sector code
-        <input v-model="companyForm.economic_sector_code">
-      </label>
-      <label>
-        MoHRE establishment number
-        <input v-model="companyForm.mohre_establishment_number">
-      </label>
-      <p v-if="settingsError" class="error">{{ settingsError }}</p>
-      <p v-if="settingsSaved" class="muted">Emiratisation settings saved.</p>
-      <button v-if="auth.hasPermission('settings.update')" type="submit" :disabled="savingSettings">
-        {{ savingSettings ? 'Saving...' : 'Save settings' }}
-      </button>
-    </form>
+    <ActionFormPanel v-if="company && settings" v-model:open="forms.emiratisation" action-label="Edit Emiratisation settings" :busy="savingSettings" :disabled="!auth.hasPermission('settings.update')" @create="resetSettings" @cancel="resetSettings">
+      <form class="form-grid" @submit.prevent="saveSettings">
+        <label class="checkbox-label">
+          <input v-model="companyForm.emiratisation_applicable" type="checkbox">
+          Emiratisation applies to this company
+        </label>
+        <label class="checkbox-label">
+          <input v-model="settingsForm.emiratisation_monitoring_enabled" type="checkbox">
+          Enable monitoring
+        </label>
+        <label>
+          Company category
+          <select v-model="companyForm.emiratisation_category">
+            <option value="not_applicable">Not applicable</option>
+            <option value="large_50_plus">Large company, 50+ workers</option>
+            <option value="selected_20_to_49">Selected 20-49 worker company</option>
+          </select>
+        </label>
+        <label>
+          Economic sector code
+          <input v-model="companyForm.economic_sector_code">
+        </label>
+        <label>
+          MoHRE establishment number
+          <input v-model="companyForm.mohre_establishment_number">
+        </label>
+        <p v-if="settingsError" class="error">{{ settingsError }}</p>
+        <p v-if="settingsSaved" class="muted">Emiratisation settings saved.</p>
+        <button v-if="auth.hasPermission('settings.update')" type="submit" :disabled="savingSettings">
+          {{ savingSettings ? 'Saving...' : 'Save settings' }}
+        </button>
+      </form>
+    </ActionFormPanel>
     <p v-else-if="loading">Loading Emiratisation setup...</p>
+    <p v-if="settingsSaved" role="status">Emiratisation settings saved.</p>
+    <dl v-if="company && settings && !forms.emiratisation" class="detail-list">
+      <dt>Applicable</dt><dd>{{ company.emiratisation_applicable ? 'Yes' : 'No' }}</dd>
+      <dt>Monitoring</dt><dd>{{ settings.emiratisation_monitoring_enabled ? 'Enabled' : 'Disabled' }}</dd>
+      <dt>Category</dt><dd>{{ label(company.emiratisation_category) }}</dd>
+      <dt>Economic sector</dt><dd>{{ company.economic_sector_code || '-' }}</dd>
+      <dt>MoHRE establishment</dt><dd>{{ company.mohre_establishment_number || '-' }}</dd>
+    </dl>
 
     <section v-if="snapshot" class="metrics-grid">
       <article>
@@ -146,6 +156,7 @@ interface EmiratisationSnapshot {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const auth = useAuthStore()
 const organizationScope = useOrganizationScopeStore()
 const loading = ref(true)
@@ -234,6 +245,7 @@ async function saveSettings() {
     setSettings(settingsResponse.data.compliance_settings)
     settingsSaved.value = true
     await loadCompliance()
+    forms.emiratisation = false
   } catch (err) {
     settingsError.value = apiErrorMessage(err, 'Unable to save Emiratisation settings.')
   } finally {
@@ -265,6 +277,13 @@ function setCompany(nextCompany: Company) {
 function setSettings(nextSettings: ComplianceSettings) {
   settings.value = nextSettings
   settingsForm.emiratisation_monitoring_enabled = nextSettings.emiratisation_monitoring_enabled
+}
+
+function resetSettings() {
+  if (company.value) setCompany(company.value)
+  if (settings.value) setSettings(settings.value)
+  settingsError.value = ''
+  settingsSaved.value = false
 }
 
 function companyPayload() {

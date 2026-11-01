@@ -7,51 +7,52 @@
       </div>
     </header>
 
-    <form v-if="auth.hasPermission('settings.update')" class="form-grid" @submit.prevent="saveHoliday">
-      <label>
-        Holiday name
-        <input v-model="form.name" required>
-      </label>
-      <label>
-        Date
-        <input v-model="form.holiday_date" type="date" required>
-      </label>
-      <label>
-        Country code
-        <input v-model="form.country_code" maxlength="2" required>
-      </label>
-      <label>
-        Emirate
-        <input v-model="form.emirate" placeholder="All UAE or specific emirate">
-      </label>
-      <label>
-        Source
-        <select v-model="form.source">
-          <option value="company">Company</option>
-          <option value="government">Government</option>
-          <option value="imported">Imported</option>
-          <option value="manual">Manual</option>
-        </select>
-      </label>
-      <label>
-        Status
-        <select v-model="form.status">
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </label>
-      <label class="checkbox-label">
-        <input v-model="form.paid" type="checkbox">
-        Paid public holiday
-      </label>
-      <p v-if="error" class="error">{{ error }}</p>
-      <div class="button-row">
-        <button type="submit" :disabled="saving">
-          {{ saving ? 'Saving...' : editingId ? 'Save holiday' : 'Create holiday' }}
-        </button>
-        <button v-if="editingId" type="button" class="secondary" @click="resetForm">Cancel</button>
-      </div>
-    </form>
+    <ActionFormPanel v-if="auth.hasPermission('settings.update')" v-model:open="forms.holiday" action-label="Add holiday" :busy="saving" :title="editingId ? 'Edit holiday' : 'Add holiday'" @create="resetForm" @cancel="resetForm">
+      <form class="form-grid" @submit.prevent="saveHoliday">
+        <label>
+          Holiday name
+          <input v-model="form.name" required>
+        </label>
+        <label>
+          Date
+          <input v-model="form.holiday_date" type="date" required>
+        </label>
+        <label>
+          Country code
+          <input v-model="form.country_code" maxlength="2" required>
+        </label>
+        <label>
+          Emirate
+          <input v-model="form.emirate" placeholder="All UAE or specific emirate">
+        </label>
+        <label>
+          Source
+          <select v-model="form.source">
+            <option value="company">Company</option>
+            <option value="government">Government</option>
+            <option value="imported">Imported</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+        <label>
+          Status
+          <select v-model="form.status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <label class="checkbox-label">
+          <input v-model="form.paid" type="checkbox">
+          Paid public holiday
+        </label>
+        <p v-if="error" class="error">{{ error }}</p>
+        <div class="button-row">
+          <button type="submit" :disabled="saving">
+            {{ saving ? 'Saving...' : editingId ? 'Save holiday' : 'Create holiday' }}
+          </button>
+        </div>
+      </form>
+    </ActionFormPanel>
 
     <section v-if="auth.hasPermission('settings.update')" class="import-panel">
       <header>
@@ -60,45 +61,47 @@
           <p class="muted">Paste one holiday per line using: date, name, emirate. Use All or leave emirate blank for company-wide holidays.</p>
         </div>
       </header>
-      <form class="form-grid" @submit.prevent="importHolidays">
-        <label class="full">
-          Holiday rows
-          <textarea v-model="importText" rows="6" placeholder="2026-01-01, New Year, All&#10;2026-12-02, UAE National Day, All" />
-        </label>
-        <label>
-          Country code
-          <input v-model="importDefaults.country_code" maxlength="2" required>
-        </label>
-        <label>
-          Source
-          <select v-model="importDefaults.source">
-            <option value="government">Government</option>
-            <option value="company">Company</option>
-            <option value="imported">Imported</option>
-            <option value="manual">Manual</option>
-          </select>
-        </label>
-        <label>
-          Status
-          <select v-model="importDefaults.status">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <label class="checkbox-label">
-          <input v-model="importDefaults.paid" type="checkbox">
-          Paid public holidays
-        </label>
-        <p v-if="importError" class="error">{{ importError }}</p>
-        <p v-if="importSummary" class="muted">
-          Imported {{ importSummary.created_count }} holiday{{ importSummary.created_count === 1 ? '' : 's' }};
-          skipped {{ importSummary.skipped_count }} duplicate{{ importSummary.skipped_count === 1 ? '' : 's' }}.
-        </p>
-        <div class="button-row">
-          <button type="submit" :disabled="importing">{{ importing ? 'Importing...' : 'Import holidays' }}</button>
-          <button type="button" class="secondary" @click="loadTemplate">Use template</button>
-        </div>
-      </form>
+      <ActionFormPanel v-model:open="forms.holidayImport" action-label="Import holidays" :busy="importing">
+        <form class="form-grid" @submit.prevent="importHolidays">
+          <label class="full">
+            Holiday rows
+            <textarea v-model="importText" rows="6" placeholder="2026-01-01, New Year, All&#10;2026-12-02, UAE National Day, All" />
+          </label>
+          <label>
+            Country code
+            <input v-model="importDefaults.country_code" maxlength="2" required>
+          </label>
+          <label>
+            Source
+            <select v-model="importDefaults.source">
+              <option value="government">Government</option>
+              <option value="company">Company</option>
+              <option value="imported">Imported</option>
+              <option value="manual">Manual</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select v-model="importDefaults.status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input v-model="importDefaults.paid" type="checkbox">
+            Paid public holidays
+          </label>
+          <p v-if="importError" class="error">{{ importError }}</p>
+          <div class="button-row">
+            <button type="submit" :disabled="importing">{{ importing ? 'Importing...' : 'Import holidays' }}</button>
+            <button type="button" class="secondary" @click="loadTemplate">Use template</button>
+          </div>
+        </form>
+      </ActionFormPanel>
+      <p v-if="importSummary" class="muted">
+            Imported {{ importSummary.created_count }} holiday{{ importSummary.created_count === 1 ? '' : 's' }};
+            skipped {{ importSummary.skipped_count }} duplicate{{ importSummary.skipped_count === 1 ? '' : 's' }}.
+          </p>
     </section>
 
     <section>
@@ -176,6 +179,7 @@ interface ImportSummary {
 
 const auth = useAuthStore()
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const holidays = ref<PublicHoliday[]>([])
 const { filters: columnFilters, filteredRows: filteredHolidays } = useTableColumnFilters(
   holidays,
@@ -231,6 +235,7 @@ async function loadHolidays() {
 }
 
 function resetForm() {
+  forms.holiday = false
   Object.assign(form, {
     name: '',
     holiday_date: '',
@@ -245,6 +250,8 @@ function resetForm() {
 }
 
 function editHoliday(holiday: PublicHoliday) {
+  forms.holiday = true
+  error.value = ''
   Object.assign(form, {
     name: holiday.name,
     holiday_date: holiday.holiday_date,
@@ -276,6 +283,7 @@ async function saveHoliday() {
     }
     resetForm()
     await loadHolidays()
+    forms.holiday = false
   } catch (err) {
     error.value = apiErrorMessage(err, 'Unable to save public holiday.')
   } finally {
@@ -285,6 +293,7 @@ async function saveHoliday() {
 
 async function deleteHoliday(id: number) {
   await api.delete(`/public-holidays/${id}`)
+  if (editingId.value === id) resetForm()
   await loadHolidays()
 }
 
@@ -308,6 +317,7 @@ async function importHolidays() {
     importSummary.value = response.data.import_summary
     importText.value = ''
     await loadHolidays()
+    forms.holidayImport = false
   } catch (err) {
     importError.value = apiErrorMessage(err, 'Unable to import public holidays.')
   } finally {

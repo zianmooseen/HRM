@@ -11,43 +11,45 @@
           <p class="muted">Submit missed punch or attendance status corrections for approval.</p>
         </div>
       </header>
-      <form class="form-grid" @submit.prevent="submitCorrection">
-        <label>
-          Date
-          <input v-model="correctionForm.date" type="date" required>
-        </label>
-        <label>
-          Type
-          <select v-model="correctionForm.correction_type" required>
-            <option value="missed_check_in">Missed check in</option>
-            <option value="missed_check_out">Missed check out</option>
-            <option value="wrong_time">Wrong time</option>
-            <option value="absence_status">Absence status</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        <label>
-          Check in
-          <input v-model="correctionForm.requested_check_in" type="time">
-        </label>
-        <label>
-          Check out
-          <input v-model="correctionForm.requested_check_out" type="time">
-        </label>
-        <label>
-          Status
-          <select v-model="correctionForm.requested_status" required>
-            <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
-          </select>
-        </label>
-        <label class="full">
-          Reason
-          <textarea v-model="correctionForm.reason" rows="3" required />
-        </label>
-        <p v-if="correctionError" class="error">{{ correctionError }}</p>
-        <p v-if="correctionSaved" class="muted">Correction request submitted.</p>
-        <button type="submit" :disabled="savingCorrection">{{ savingCorrection ? 'Submitting...' : 'Submit correction' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.correction" action-label="Request attendance correction" :busy="savingCorrection" @create="resetCorrectionDraft" @cancel="resetCorrectionDraft">
+        <form class="form-grid" @submit.prevent="submitCorrection">
+          <label>
+            Date
+            <input v-model="correctionForm.date" type="date" required>
+          </label>
+          <label>
+            Type
+            <select v-model="correctionForm.correction_type" required>
+              <option value="missed_check_in">Missed check in</option>
+              <option value="missed_check_out">Missed check out</option>
+              <option value="wrong_time">Wrong time</option>
+              <option value="absence_status">Absence status</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>
+            Check in
+            <input v-model="correctionForm.requested_check_in" type="time">
+          </label>
+          <label>
+            Check out
+            <input v-model="correctionForm.requested_check_out" type="time">
+          </label>
+          <label>
+            Status
+            <select v-model="correctionForm.requested_status" required>
+              <option v-for="status in statuses" :key="status" :value="status">{{ label(status) }}</option>
+            </select>
+          </label>
+          <label class="full">
+            Reason
+            <textarea v-model="correctionForm.reason" rows="3" required />
+          </label>
+          <p v-if="correctionError" class="error">{{ correctionError }}</p>
+          <button type="submit" :disabled="savingCorrection">{{ savingCorrection ? 'Submitting...' : 'Submit correction' }}</button>
+        </form>
+      </ActionFormPanel>
+      <p v-if="correctionSaved" class="muted">Correction request submitted.</p>
     </section>
 
     <p v-if="loading">Loading attendance...</p>
@@ -145,6 +147,7 @@ interface AttendanceCorrectionRequest {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const statuses = ['present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'remote']
 const records = ref<AttendanceRecord[]>([])
 const corrections = ref<AttendanceCorrectionRequest[]>([])
@@ -184,6 +187,8 @@ const correctionForm = reactive({
   requested_status: 'present',
   reason: '',
 })
+
+const restoreCorrection = createFormReset(correctionForm)
 
 onMounted(async () => {
   await Promise.all([loadAttendance(), loadCorrections()])
@@ -234,6 +239,7 @@ async function submitCorrection() {
     correctionForm.reason = ''
     correctionSaved.value = true
     await loadCorrections()
+    forms.correction = false
   } catch (err) {
     correctionError.value = apiErrorMessage(err, 'Unable to submit correction request.')
   } finally {
@@ -243,6 +249,12 @@ async function submitCorrection() {
 
 function label(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function resetCorrectionDraft() {
+  restoreCorrection()
+  correctionError.value = ''
+  correctionSaved.value = false
 }
 </script>
 

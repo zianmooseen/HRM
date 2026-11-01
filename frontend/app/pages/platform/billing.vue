@@ -16,48 +16,50 @@
           <p class="muted">Internal plan catalog used when assigning companies to billing tiers.</p>
         </div>
       </header>
-      <form class="form-grid" @submit.prevent="createPlan">
-        <label>
-          Name
-          <input v-model="planForm.name" required>
-        </label>
-        <label>
-          Code
-          <input v-model="planForm.code" required>
-        </label>
-        <label>
-          Cycle
-          <select v-model="planForm.billing_cycle">
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-          </select>
-        </label>
-        <label>
-          Price
-          <input v-model.number="planForm.price" type="number" min="0" step="0.01" required>
-        </label>
-        <label>
-          Currency
-          <input v-model="planForm.currency" maxlength="3" required>
-        </label>
-        <label>
-          Max employees
-          <input v-model.number="planForm.max_employees" type="number" min="1">
-        </label>
-        <label>
-          Status
-          <select v-model="planForm.status">
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
-        <label class="full">
-          Features
-          <input v-model="planFeaturesText" placeholder="Comma separated features">
-        </label>
-        <p v-if="planError" class="error">{{ planError }}</p>
-        <button type="submit" :disabled="savingPlan">{{ savingPlan ? 'Creating...' : 'Create plan' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.plan" action-label="Create plan" :busy="savingPlan" @create="resetPlanDraft" @cancel="resetPlanDraft">
+        <form class="form-grid" @submit.prevent="createPlan">
+          <label>
+            Name
+            <input v-model="planForm.name" required>
+          </label>
+          <label>
+            Code
+            <input v-model="planForm.code" required>
+          </label>
+          <label>
+            Cycle
+            <select v-model="planForm.billing_cycle">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </label>
+          <label>
+            Price
+            <input v-model.number="planForm.price" type="number" min="0" step="0.01" required>
+          </label>
+          <label>
+            Currency
+            <input v-model="planForm.currency" maxlength="3" required>
+          </label>
+          <label>
+            Max employees
+            <input v-model.number="planForm.max_employees" type="number" min="1">
+          </label>
+          <label>
+            Status
+            <select v-model="planForm.status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <label class="full">
+            Features
+            <input v-model="planFeaturesText" placeholder="Comma separated features">
+          </label>
+          <p v-if="planError" class="error">{{ planError }}</p>
+          <button type="submit" :disabled="savingPlan">{{ savingPlan ? 'Creating...' : 'Create plan' }}</button>
+        </form>
+      </ActionFormPanel>
 
       <table>
         <thead>
@@ -98,53 +100,55 @@
           <p class="muted">Create a subscription record for a company.</p>
         </div>
       </header>
-      <form class="form-grid" @submit.prevent="assignSubscription">
-        <label>
-          Company
-          <select v-model.number="subscriptionForm.company_id" required>
-            <option disabled :value="0">Select company</option>
-            <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
-          </select>
-        </label>
-        <label>
-          Plan
-          <select v-model.number="subscriptionForm.subscription_plan_id" required>
-            <option disabled :value="0">Select plan</option>
-            <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
-          </select>
-        </label>
-        <label>
-          Status
-          <select v-model="subscriptionForm.status">
-            <option value="trialing">Trialing</option>
-            <option value="active">Active</option>
-            <option value="past_due">Past due</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </label>
-        <label>
-          Starts on
-          <input v-model="subscriptionForm.starts_on" type="date" required>
-        </label>
-        <label>
-          Trial ends
-          <input v-model="subscriptionForm.trial_ends_on" type="date">
-        </label>
-        <label>
-          Period starts
-          <input v-model="subscriptionForm.current_period_starts_on" type="date">
-        </label>
-        <label>
-          Period ends
-          <input v-model="subscriptionForm.current_period_ends_on" type="date">
-        </label>
-        <label class="full">
-          Notes
-          <textarea v-model="subscriptionForm.notes" rows="2" />
-        </label>
-        <p v-if="subscriptionError" class="error">{{ subscriptionError }}</p>
-        <button type="submit" :disabled="savingSubscription">{{ savingSubscription ? 'Assigning...' : 'Assign subscription' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.subscription" action-label="Assign subscription" :busy="savingSubscription" @create="resetSubscriptionDraft" @cancel="resetSubscriptionDraft">
+        <form class="form-grid" @submit.prevent="assignSubscription">
+          <label>
+            Company
+            <select v-model.number="subscriptionForm.company_id" required>
+              <option disabled :value="0">Select company</option>
+              <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
+            </select>
+          </label>
+          <label>
+            Plan
+            <select v-model.number="subscriptionForm.subscription_plan_id" required>
+              <option disabled :value="0">Select plan</option>
+              <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select v-model="subscriptionForm.status">
+              <option value="trialing">Trialing</option>
+              <option value="active">Active</option>
+              <option value="past_due">Past due</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label>
+            Starts on
+            <input v-model="subscriptionForm.starts_on" type="date" required>
+          </label>
+          <label>
+            Trial ends
+            <input v-model="subscriptionForm.trial_ends_on" type="date">
+          </label>
+          <label>
+            Period starts
+            <input v-model="subscriptionForm.current_period_starts_on" type="date">
+          </label>
+          <label>
+            Period ends
+            <input v-model="subscriptionForm.current_period_ends_on" type="date">
+          </label>
+          <label class="full">
+            Notes
+            <textarea v-model="subscriptionForm.notes" rows="2" />
+          </label>
+          <p v-if="subscriptionError" class="error">{{ subscriptionError }}</p>
+          <button type="submit" :disabled="savingSubscription">{{ savingSubscription ? 'Assigning...' : 'Assign subscription' }}</button>
+        </form>
+      </ActionFormPanel>
 
       <table>
         <thead>
@@ -182,64 +186,66 @@
           <p class="muted">Create and mark client invoices paid.</p>
         </div>
       </header>
-      <form class="form-grid" @submit.prevent="createInvoice">
-        <label>
-          Company
-          <select v-model.number="invoiceForm.company_id" required>
-            <option disabled :value="0">Select company</option>
-            <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
-          </select>
-        </label>
-        <label>
-          Subscription
-          <select v-model.number="invoiceForm.company_subscription_id">
-            <option :value="null">No subscription link</option>
-            <option v-for="subscription in subscriptionsForInvoice" :key="subscription.id" :value="subscription.id">
-              {{ subscription.plan?.name || subscription.id }} ({{ label(subscription.status) }})
-            </option>
-          </select>
-        </label>
-        <label>
-          Invoice number
-          <input v-model="invoiceForm.invoice_number" required>
-        </label>
-        <label>
-          Issue date
-          <input v-model="invoiceForm.issue_date" type="date" required>
-        </label>
-        <label>
-          Due date
-          <input v-model="invoiceForm.due_date" type="date" required>
-        </label>
-        <label>
-          Subtotal
-          <input v-model.number="invoiceForm.subtotal" type="number" min="0" step="0.01" required>
-        </label>
-        <label>
-          Tax
-          <input v-model.number="invoiceForm.tax_amount" type="number" min="0" step="0.01">
-        </label>
-        <label>
-          Total
-          <input v-model.number="invoiceForm.total_amount" type="number" min="0" step="0.01" required>
-        </label>
-        <label>
-          Currency
-          <input v-model="invoiceForm.currency" maxlength="3" required>
-        </label>
-        <label>
-          Status
-          <select v-model="invoiceForm.status">
-            <option value="draft">Draft</option>
-            <option value="open">Open</option>
-            <option value="paid">Paid</option>
-            <option value="void">Void</option>
-            <option value="uncollectible">Uncollectible</option>
-          </select>
-        </label>
-        <p v-if="invoiceError" class="error">{{ invoiceError }}</p>
-        <button type="submit" :disabled="savingInvoice">{{ savingInvoice ? 'Creating...' : 'Create invoice' }}</button>
-      </form>
+      <ActionFormPanel v-model:open="forms.invoice" action-label="Create invoice" :busy="savingInvoice" @create="resetInvoiceDraft" @cancel="resetInvoiceDraft">
+        <form class="form-grid" @submit.prevent="createInvoice">
+          <label>
+            Company
+            <select v-model.number="invoiceForm.company_id" required>
+              <option disabled :value="0">Select company</option>
+              <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
+            </select>
+          </label>
+          <label>
+            Subscription
+            <select v-model.number="invoiceForm.company_subscription_id">
+              <option :value="null">No subscription link</option>
+              <option v-for="subscription in subscriptionsForInvoice" :key="subscription.id" :value="subscription.id">
+                {{ subscription.plan?.name || subscription.id }} ({{ label(subscription.status) }})
+              </option>
+            </select>
+          </label>
+          <label>
+            Invoice number
+            <input v-model="invoiceForm.invoice_number" required>
+          </label>
+          <label>
+            Issue date
+            <input v-model="invoiceForm.issue_date" type="date" required>
+          </label>
+          <label>
+            Due date
+            <input v-model="invoiceForm.due_date" type="date" required>
+          </label>
+          <label>
+            Subtotal
+            <input v-model.number="invoiceForm.subtotal" type="number" min="0" step="0.01" required>
+          </label>
+          <label>
+            Tax
+            <input v-model.number="invoiceForm.tax_amount" type="number" min="0" step="0.01">
+          </label>
+          <label>
+            Total
+            <input v-model.number="invoiceForm.total_amount" type="number" min="0" step="0.01" required>
+          </label>
+          <label>
+            Currency
+            <input v-model="invoiceForm.currency" maxlength="3" required>
+          </label>
+          <label>
+            Status
+            <select v-model="invoiceForm.status">
+              <option value="draft">Draft</option>
+              <option value="open">Open</option>
+              <option value="paid">Paid</option>
+              <option value="void">Void</option>
+              <option value="uncollectible">Uncollectible</option>
+            </select>
+          </label>
+          <p v-if="invoiceError" class="error">{{ invoiceError }}</p>
+          <button type="submit" :disabled="savingInvoice">{{ savingInvoice ? 'Creating...' : 'Create invoice' }}</button>
+        </form>
+      </ActionFormPanel>
 
       <table>
         <thead>
@@ -323,6 +329,7 @@ interface Invoice {
 }
 
 const api = useApiClient()
+const forms = reactive<Record<string, boolean>>({})
 const companies = ref<Company[]>([])
 const plans = ref<Plan[]>([])
 const subscriptions = ref<Subscription[]>([])
@@ -401,6 +408,10 @@ const subscriptionsForInvoice = computed(() =>
   subscriptions.value.filter((subscription) => subscription.company_id === invoiceForm.company_id),
 )
 
+const restorePlan = createFormReset(planForm)
+const restoreSubscription = createFormReset(subscriptionForm)
+const restoreInvoice = createFormReset(invoiceForm)
+
 onMounted(loadAll)
 
 async function loadAll() {
@@ -436,6 +447,7 @@ async function createPlan() {
     Object.assign(planForm, { name: '', code: '', billing_cycle: 'monthly', price: 0, currency: 'AED', max_employees: null, status: 'active' })
     planFeaturesText.value = ''
     await loadAll()
+    forms.plan = false
   } catch (err) {
     planError.value = apiErrorMessage(err, 'Unable to create subscription plan.')
   } finally {
@@ -456,6 +468,7 @@ async function assignSubscription() {
       notes: subscriptionForm.notes || null,
     })
     await loadAll()
+    forms.subscription = false
   } catch (err) {
     subscriptionError.value = apiErrorMessage(err, 'Unable to assign subscription.')
   } finally {
@@ -475,6 +488,7 @@ async function createInvoice() {
     })
     invoiceForm.invoice_number = ''
     await loadAll()
+    forms.invoice = false
   } catch (err) {
     invoiceError.value = apiErrorMessage(err, 'Unable to create invoice.')
   } finally {
@@ -493,6 +507,22 @@ function money(value: string | number, currency: string) {
 
 function label(value: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function resetPlanDraft() {
+  restorePlan()
+  planError.value = ''
+  planFeaturesText.value = ''
+}
+
+function resetSubscriptionDraft() {
+  restoreSubscription()
+  subscriptionError.value = ''
+}
+
+function resetInvoiceDraft() {
+  restoreInvoice()
+  invoiceError.value = ''
 }
 </script>
 

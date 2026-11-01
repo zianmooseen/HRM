@@ -26,10 +26,10 @@ class SchemaLayout
         return app()->environment('testing') && config('tenancy.legacy_test_schema', false);
     }
 
-    public static function removeLegacyTables(bool $platform): void
+    public static function preflightLegacyTables(bool $platform): array
     {
         if (self::legacyTestSchema()) {
-            return;
+            return [];
         }
         $connection = DB::connection();
         $schema = $connection->getSchemaBuilder();
@@ -47,6 +47,17 @@ class SchemaLayout
             if ($connection->table('user_roles')->whereNotNull('branch_id')->orWhereNotNull('department_id')->exists()) {
                 throw new RuntimeException('Central role assignments still reference HR structures. Resolve them before schema cleanup.');
             }
+        }
+
+        return $tables;
+    }
+
+    public static function removeLegacyTables(bool $platform): void
+    {
+        $tables = self::preflightLegacyTables($platform);
+        $connection = DB::connection();
+        $schema = $connection->getSchemaBuilder();
+        if ($platform && $schema->hasTable('user_roles')) {
             foreach ($schema->getForeignKeys('user_roles') as $key) {
                 if (in_array($key['foreign_table'], $tables, true)) {
                     $schema->table('user_roles', fn ($blueprint) => $blueprint->dropForeign($connection->getDriverName() === 'sqlite' ? $key['columns'] : $key['name']));

@@ -12,6 +12,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -24,7 +25,7 @@ class PlatformSchemaTest extends TestCase
     public function test_default_migrations_and_seeding_only_install_platform_tables(): void
     {
         $this->seed(DatabaseSeeder::class);
-        $tables = array_map(fn ($table) => \Illuminate\Support\Str::afterLast($table, '.'), Schema::getTableListing());
+        $tables = array_map(fn ($table) => Str::afterLast($table, '.'), Schema::getTableListing());
         $this->assertEqualsCanonicalizing(SchemaLayout::PLATFORM_TABLES, $tables);
         $this->assertDatabaseCount('companies', 0);
         $this->assertDatabaseCount('platform_clients', 0);
@@ -61,6 +62,15 @@ class PlatformSchemaTest extends TestCase
             $this->assertStringContainsString('employees still contains records', $exception->getMessage());
         }
         $this->assertDatabaseCount('employees', 1);
+    }
+
+    public function test_deployment_preflight_reports_legacy_data_without_changing_schema(): void
+    {
+        Schema::create('branches', fn (Blueprint $table) => $table->id());
+        DB::table('branches')->insert(['id' => 1]);
+        $this->artisan('schema:preflight')->expectsOutputToContain('branches still contains records')->assertFailed();
+        $this->assertDatabaseCount('branches', 1);
+        $this->assertTrue(Schema::hasTable('users'));
     }
 
     public function test_empty_legacy_tables_are_removed_without_touching_platform_records(): void

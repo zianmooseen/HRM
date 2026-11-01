@@ -5,6 +5,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      reset_test_data:
+        description: 'Archive and replace DISPOSABLE hosted test data with three fresh isolated clients'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: production-deploy
@@ -118,6 +124,7 @@ jobs:
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
       DEPLOY_FRONTEND_SERVICE: ${{ secrets.DEPLOY_FRONTEND_SERVICE }}
       DEPLOY_PHP_FPM_SERVICE: ${{ secrets.DEPLOY_PHP_FPM_SERVICE }}
+      DEPLOY_RESET_TEST_DATA: ${{ github.event_name == 'workflow_dispatch' && inputs.reset_test_data && 'true' || 'false' }}
 
     steps:
       - name: Check out code
@@ -183,4 +190,4 @@ jobs:
       - name: Run remote deploy script
         run: |
           ssh -i ~/.ssh/digitalocean_deploy_key -p "$DROPLET_PORT" "$DROPLET_USER@$DROPLET_HOST" \
-            "cd '$DEPLOY_PATH' && chmod +x scripts/deploy-production.sh && APP_ROOT='$DEPLOY_PATH' DEPLOY_FRONTEND_SERVICE='$DEPLOY_FRONTEND_SERVICE' DEPLOY_PHP_FPM_SERVICE='$DEPLOY_PHP_FPM_SERVICE' scripts/deploy-production.sh"
+            "cd '$DEPLOY_PATH' && chmod +x scripts/deploy-production.sh && APP_ROOT='$DEPLOY_PATH' DEPLOY_FRONTEND_SERVICE='$DEPLOY_FRONTEND_SERVICE' DEPLOY_PHP_FPM_SERVICE='$DEPLOY_PHP_FPM_SERVICE' DEPLOY_RESET_TEST_DATA='$DEPLOY_RESET_TEST_DATA' scripts/deploy-production.sh"

@@ -54,10 +54,20 @@ mkdir -p \
   storage/logs \
   bootstrap/cache
 
-log "Running Laravel database migrations"
-php artisan down
-php artisan migrate --force
-php artisan clients:upgrade --force
+php artisan config:clear
+
+if [[ "${DEPLOY_RESET_TEST_DATA:-false}" == "true" ]]; then
+  log "Archiving and resetting disposable hosted test data"
+  php artisan down
+  php artisan test-data:reset --force --confirm=RESET_DISPOSABLE_HOSTED_TEST_DATA
+else
+  log "Checking database migration blockers"
+  php artisan schema:preflight
+  log "Running Laravel database migrations"
+  php artisan down
+  php artisan migrate --force
+  php artisan clients:upgrade --force
+fi
 php artisan clients:sync-logins
 
 log "Refreshing Laravel caches"

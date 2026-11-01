@@ -17,25 +17,46 @@ use App\Services\Tenancy\ProvisionClient;
 use App\Services\Tenancy\TenantDatabaseManager;
 use Illuminate\Database\Seeder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class IsolatedDemoClientsSeeder extends Seeder
 {
+    private ?string $hostedPassword = null;
+
+    private ?array $hostedAdmin = null;
+
+    public function runForHostedTestReset(?array $administrator, string $password): void
+    {
+        if (! app()->isDownForMaintenance() || strlen($password) < 32) {
+            throw new RuntimeException('Hosted test reset requires maintenance and a generated strong password.');
+        }
+        $this->hostedPassword = $password;
+        $this->hostedAdmin = $administrator;
+        try {
+            $this->run();
+        } finally {
+            $this->hostedPassword = null;
+            $this->hostedAdmin = null;
+        }
+    }
+
     public function run(): void
     {
-        if (! app()->environment(['local', 'testing'])) {
+        if (! app()->environment(['local', 'testing']) && ! $this->hostedPassword) {
             throw new RuntimeException('Isolated demo data is restricted to local/testing environments.');
         }
         if (Company::exists() || PlatformClient::exists() || User::exists()) {
             throw new RuntimeException('Use a fresh central database; existing records will not be overwritten.');
         }
         $this->call([RoleAndPermissionSeeder::class, WpsProviderSeeder::class]);
-        $admin = User::create([
+        $admin = new User;
+        $admin->forceFill($this->hostedAdmin ?? [
             'name' => 'System Admin', 'username' => 'sys.admin', 'email' => 'sys.admin@example.local',
-            'password' => 'sys.admin', 'status' => 'active',
-        ]);
+            'password' => $this->hostedPassword ?? 'sys.admin', 'status' => 'active',
+        ])->save();
         $admin->roles()->attach(Role::where('slug', 'super_admin')->firstOrFail(), ['scope' => 'global']);
         $plan = SubscriptionPlan::create([
             'code' => 'test-growth', 'name' => 'Test Growth', 'billing_cycle' => 'monthly',
@@ -46,7 +67,7 @@ class IsolatedDemoClientsSeeder extends Seeder
             $client = app(ProvisionClient::class)->register([
                 'client_code' => $code, 'company_name' => $name, 'country' => 'AE', 'emirate' => 'Dubai',
                 'admin_name' => 'Company Admin', 'admin_username' => env('SEED_COMPANY_ADMIN_USERNAME', 'com.admin'),
-                'admin_email' => 'com.admin@example.local', 'admin_password' => env('SEED_COMPANY_ADMIN_PASSWORD', 'com.admin'),
+                'admin_email' => 'com.admin@example.local', 'admin_password' => $this->hostedPassword ?? env('SEED_COMPANY_ADMIN_PASSWORD', 'com.admin'),
                 'subscription_plan_id' => $plan->id,
             ], $admin);
             if ($client->provisioning_status !== 'ready') {
@@ -78,6 +99,13 @@ class IsolatedDemoClientsSeeder extends Seeder
                     }
                     $document->update(['path' => $path, 'size_bytes' => strlen($pdf)]);
                 }
+                if ($this->hostedPassword) {
+                    $passwordHash = Hash::make($this->hostedPassword);
+                    foreach (User::where('status', 'active')->get() as $user) {
+                        $user->password = $passwordHash;
+                        $user->save();
+                    }
+                }
             });
             $subscription = CompanySubscription::where('company_id', $client->company_id)->firstOrFail();
             $subscription->update(['status' => $code === 'retail' ? 'trialing' : 'active', 'trial_ends_on' => today()->addDays(14)]);
@@ -97,7 +125,7 @@ class IsolatedDemoClientsSeeder extends Seeder
 
     private function samplePdf(): string
     {
-        $stream = "BT /F1 16 Tf 50 750 Td (SYNTHETIC HRM TEST DOCUMENT - NOT VALID ID) Tj ET";
+        $stream = 'BT /F1 16 Tf 50 750 Td (SYNTHETIC HRM TEST DOCUMENT - NOT VALID ID) Tj ET';
         $objects = [
             '<< /Type /Catalog /Pages 2 0 R >>',
             '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',

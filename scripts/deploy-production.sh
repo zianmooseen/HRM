@@ -18,15 +18,19 @@ run_systemctl() {
   fi
 
   if ! command -v systemctl >/dev/null 2>&1; then
-    log "systemctl is not available; skipping $action for $service"
-    return 0
+    echo "systemctl is unavailable; cannot $action $service." >&2
+    return 1
   fi
 
-  if sudo -n true >/dev/null 2>&1; then
-    sudo systemctl "$action" "$service"
-  else
-    systemctl "$action" "$service" 2>/dev/null || log "Skipping $action for $service; configure sudo permissions or run deploy as a service manager."
+  # Test the exact service command, so a narrow sudoers rule is sufficient.
+  if command -v sudo >/dev/null 2>&1 && sudo -n systemctl "$action" "$service"; then
+    return 0
   fi
+  if systemctl --no-ask-password "$action" "$service"; then
+    return 0
+  fi
+  echo "Could not $action $service. Grant the deploy account passwordless sudo for this specific systemctl command." >&2
+  return 1
 }
 
 require_file() {

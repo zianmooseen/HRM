@@ -144,7 +144,7 @@ Example:
 deploy ALL=(root) NOPASSWD: /bin/systemctl restart hrm-frontend, /bin/systemctl restart php8.5-fpm, /bin/systemctl reload nginx
 ```
 
-Adjust the PHP-FPM service name if your server uses a different PHP version.
+Adjust the PHP-FPM service name if your server uses a different PHP version. Deployment tries each exact service command with non-interactive sudo, so broad permission to run `sudo true` is not required. If sudo and direct service control both fail, deployment stops and leaves maintenance enabled; it does not report a successful deployment with skipped restarts.
 
 ## Writable Laravel cache
 

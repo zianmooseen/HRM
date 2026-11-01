@@ -48,13 +48,14 @@ composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 log "Preparing Laravel storage directories"
 mkdir -p \
   storage/app \
-  storage/framework/cache \
+  storage/framework/cache/data \
   storage/framework/sessions \
   storage/framework/views \
   storage/logs \
   bootstrap/cache
 
 php artisan config:clear
+php artisan cache:preflight
 
 if [[ "${DEPLOY_RESET_TEST_DATA:-false}" == "true" ]]; then
   log "Archiving and resetting disposable hosted test data"

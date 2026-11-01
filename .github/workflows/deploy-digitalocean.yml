@@ -179,12 +179,8 @@ jobs:
             --exclude='backend/vendor/' \
             --exclude='frontend/node_modules/' \
             --exclude='frontend/.nuxt/' \
-            --exclude='backend/storage/app/' \
-            --exclude='backend/storage/framework/cache/' \
-            --exclude='backend/storage/framework/sessions/' \
-            --exclude='backend/storage/framework/testing/' \
-            --exclude='backend/storage/framework/views/' \
-            --exclude='backend/storage/logs/' \
+            --exclude='/backend/storage/' \
+            --exclude='/storage/' \
             ./ "$DROPLET_USER@$DROPLET_HOST:$DEPLOY_PATH/"
 
       - name: Run remote deploy script

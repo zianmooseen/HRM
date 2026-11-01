@@ -9,6 +9,8 @@ The pipeline runs when code is pushed to `main`:
 3. Syncs the repository to the droplet with `rsync`.
 4. Runs `scripts/deploy-production.sh` on the droplet.
 
+Source sync preserves the entire `backend/storage/` directory and any root-level `storage/` directory used for shared runtime files. These directories are excluded from transfer and deletion so documents, reset credentials, recovery files, sessions, cache, and maintenance state survive `rsync --delete`. Laravel runtime directories are prepared by the deployment script rather than copied from GitHub.
+
 ## Droplet Prerequisites
 
 Install the runtime stack on the droplet:

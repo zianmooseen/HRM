@@ -59,6 +59,7 @@ php artisan config:clear
 if [[ "${DEPLOY_RESET_TEST_DATA:-false}" == "true" ]]; then
   log "Archiving and resetting disposable hosted test data"
   php artisan down
+  php artisan clients:prepare-provisioner --force
   php artisan test-data:reset --force --confirm=RESET_DISPOSABLE_HOSTED_TEST_DATA
 else
   log "Checking database migration blockers"

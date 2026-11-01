@@ -148,10 +148,11 @@ Adjust the PHP-FPM service name if your server uses a different PHP version.
 
 Deployment explicitly creates `storage/framework/cache/data` and runs `php artisan cache:preflight` before entering maintenance or archiving any schema. This checks real cache writes and provisioning locks. Both the deploy account and PHP-FPM account need write access; a directory created by one account with restrictive permissions can otherwise stop the other account.
 
-For a file cache on Ubuntu, a server administrator can grant access with inherited ACLs. From the deployed `backend` directory, run the following as root. Install the `acl` package first if `setfacl` is unavailable. Replace `www-data` if PHP-FPM uses another account. `artisan` should be owned by the SSH deploy account that syncs application code.
+For a file cache on Ubuntu, a server administrator can grant access with inherited ACLs. From the deployed `backend` directory, run the following as root. Replace `www-data` if PHP-FPM uses another account. The owner of the newly synced deployment script identifies the SSH deploy account; verify that account if your deployment uses another ownership convention.
 
 ```bash
-deploy_account=$(stat -c '%U' artisan)
+deploy_account=$(stat -c '%U' ../scripts/deploy-production.sh)
+command -v setfacl >/dev/null || apt-get install -y acl
 mkdir -p storage/framework/cache/data
 setfacl -R -m "u:${deploy_account}:rwX,u:www-data:rwX,o::---" storage/framework/cache
 find storage/framework/cache -type d -exec setfacl -d -m "u:${deploy_account}:rwx,u:www-data:rwx,o::---" {} +

@@ -3,10 +3,6 @@
     <form class="login-form" @submit.prevent="submit">
       <h1>Sign in</h1>
       <label>
-        Client code
-        <input v-model="clientCode" autocomplete="organization" placeholder="Leave blank for platform administration">
-      </label>
-      <label>
         Username or email
         <input v-model="login" autocomplete="username" required>
       </label>
@@ -14,31 +10,52 @@
         Password
         <input v-model="password" type="password" autocomplete="current-password" required>
       </label>
+      <label v-if="organizations.length">
+        Company
+        <select v-model="organizationId" required>
+          <option value="" disabled>Choose your company</option>
+          <option v-for="organization in organizations" :key="organization.id" :value="organization.id">{{ organization.name }}</option>
+        </select>
+      </label>
       <p v-if="error" class="error">{{ error }}</p>
-      <button type="submit" :disabled="loading">{{ loading ? 'Signing in...' : 'Sign in' }}</button>
+      <button type="submit" :disabled="loading">{{ loading ? 'Signing in...' : organizations.length ? 'Continue' : 'Sign in' }}</button>
     </form>
   </section>
 </template>
 
 <script setup lang="ts">
+import type { OrganizationOption } from '../../../shared/types/api'
+
 definePageMeta({ layout: false })
 
 const auth = useAuthStore()
 const login = ref('')
-const clientCode = ref('')
+const organizations = ref<OrganizationOption[]>([])
+const organizationId = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
+
+watch([login, password], () => {
+  organizations.value = []
+  organizationId.value = ''
+  error.value = ''
+})
 
 async function submit() {
   loading.value = true
   error.value = ''
 
   try {
-    await auth.login(login.value, password.value, clientCode.value.trim())
+    const options = await auth.login(login.value.trim(), password.value, organizationId.value)
+    if (options) {
+      organizations.value = options
+      organizationId.value = ''
+      return
+    }
     await navigateTo(auth.hasRole('super_admin') && !auth.user?.client_id ? '/platform/companies' : '/')
-  } catch {
-    error.value = 'Check your client code, username and password.'
+  } catch (cause: unknown) {
+    error.value = apiErrorMessage(cause, 'Check your username or email and password.')
   } finally {
     loading.value = false
   }
@@ -69,6 +86,7 @@ label {
 }
 
 input,
+select,
 button {
   min-height: 42px;
   border-radius: 6px;
@@ -77,9 +95,14 @@ button {
 }
 
 button {
-  background: #16765f;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   color: #ffffff;
   cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(.95);
 }
 
 .error {

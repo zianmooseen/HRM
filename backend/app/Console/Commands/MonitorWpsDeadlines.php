@@ -72,6 +72,9 @@ class MonitorWpsDeadlines extends Command
         $failed = false;
         Company::query()->where('status', 'active')->each(function (Company $company) use ($monitor, $clients, &$failed): void {
             $client = $clients->get($company->id);
+            if (! $client && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) {
+                return;
+            }
             if ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
                 return;
             }

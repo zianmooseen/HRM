@@ -40,13 +40,17 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! app(\App\Services\Tenancy\TenantDatabaseManager::class)->current() && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) {
+            throw new \RuntimeException('HR demo data must be seeded inside a client database.');
+        }
         $admin = User::query()->where('username', env('SEED_COMPANY_ADMIN_USERNAME', 'com.admin'))->first();
 
         if (! $admin) {
             return;
         }
 
-        $company = Company::query()->firstOrCreate(
+        $client = app(\App\Services\Tenancy\TenantDatabaseManager::class)->current();
+        $company = $client ? Company::findOrFail($client->company_id) : Company::query()->firstOrCreate(
             ['name' => env('SEED_COMPANY_NAME', 'Demo UAE Company')],
             [
                 'legal_name' => env('SEED_COMPANY_LEGAL_NAME', 'Demo UAE Company LLC'),
@@ -199,7 +203,9 @@ class DemoDataSeeder extends Seeder
         $this->seedPayroll($company, $admin, $employees);
         $this->seedDocuments($company, $admin, $employees);
         $this->seedPublicHolidays($company, $admin);
-        $this->seedBilling($company, $admin);
+        if (! $client) {
+            $this->seedBilling($company, $admin);
+        }
         $this->seedAuditLogs($company, $admin, $employees);
     }
 

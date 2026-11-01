@@ -1,4 +1,4 @@
-import type { AuthPayload, AuthUser } from '../../../shared/types/api'
+import type { AuthPayload, AuthUser, OrganizationSelectionPayload } from '../../../shared/types/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
@@ -16,15 +16,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(login: string, password: string, clientCode = '') {
+  async function login(login: string, password: string, organizationId?: string) {
     // Feature flow step 1: request Sanctum CSRF cookie before posting credentials.
     await api.csrf()
 
     // Feature flow step 2: credentials are exchanged for a secure cookie-backed session.
-    const response = await api.post<AuthPayload>('/login', { login, password, client_code: clientCode || null })
+    const response = await api.post<AuthPayload | OrganizationSelectionPayload>('/login', { login, password, organization_id: organizationId || null })
+    if ('organization_options' in response.data) return response.data.organization_options
     useOrganizationScopeStore().reset()
     user.value = response.data.user
     loaded.value = true
+    return null
   }
 
   async function logout() {

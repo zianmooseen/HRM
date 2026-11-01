@@ -8,6 +8,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CompanySubscription extends Model
 {
+    public function getConnectionName()
+    {
+        return config('tenancy.central_connection');
+    }
+
     protected $fillable = [
         'company_id',
         'subscription_plan_id',

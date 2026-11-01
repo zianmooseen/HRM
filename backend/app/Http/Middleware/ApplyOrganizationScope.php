@@ -26,6 +26,11 @@ class ApplyOrganizationScope
         $user = $request->user()->loadMissing('roles.permissions');
         $companyId = (int) $data['scope_company_id'];
         $branchId = isset($data['scope_branch_id']) ? (int) $data['scope_branch_id'] : null;
+        if (! app(\App\Services\Tenancy\TenantDatabaseManager::class)->current()
+            && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()
+            && $request->is('api/companies', 'api/billing/current')) {
+            $branchId = null; // Directory and billing reads are company-wide.
+        }
 
         // Feature flow step 1: validate selection before any route model is resolved.
         abort_unless($user->hasRole('super_admin') || $user->roles->contains(fn ($role) => $role->slug === 'company_admin'
@@ -33,8 +38,10 @@ class ApplyOrganizationScope
             && $role->pivot->scope === 'company'
         ), 403, 'You cannot select this company.');
         Company::query()->findOrFail($companyId);
-        if ($branchId) {
+        if ($branchId && (app(\App\Services\Tenancy\TenantDatabaseManager::class)->current() || \App\Services\Tenancy\SchemaLayout::legacyTestSchema())) {
             Branch::query()->where('company_id', $companyId)->findOrFail($branchId);
+        } elseif ($branchId) {
+            throw ValidationException::withMessages(['scope_branch_id' => ['Select a client HR context to filter by branch.']]);
         }
 
         $context = new OrganizationContext($companyId, $branchId);

@@ -66,8 +66,12 @@ class DashboardScenarioSeeder extends Seeder
 
     public function run(): void
     {
+        if (! app(\App\Services\Tenancy\TenantDatabaseManager::class)->current() && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) {
+            throw new \RuntimeException('HR scenarios must be seeded inside a client database.');
+        }
         $admin = User::query()->where('username', env('SEED_COMPANY_ADMIN_USERNAME', 'com.admin'))->first();
-        $company = Company::query()->where('name', env('SEED_COMPANY_NAME', 'Demo UAE Company'))->first();
+        $client = app(\App\Services\Tenancy\TenantDatabaseManager::class)->current();
+        $company = $client ? Company::findOrFail($client->company_id) : Company::query()->where('name', env('SEED_COMPANY_NAME', 'Demo UAE Company'))->first();
 
         if (! $admin || ! $company) {
             return;
@@ -86,8 +90,10 @@ class DashboardScenarioSeeder extends Seeder
         $this->seedDocuments($company, $admin, $employees);
         $this->seedTerminations($company, $admin, $employees);
         $this->seedPayrollAndWps($company, $admin, $employees, $establishments);
-        $this->seedBillingScenarios($company, $admin);
-        $this->seedPlatformCompanies($admin);
+        if (! $client) {
+            $this->seedBillingScenarios($company, $admin);
+            $this->seedPlatformCompanies($admin);
+        }
         $this->seedAuditHistory($company, $admin, $employees);
     }
 
@@ -482,9 +488,10 @@ class DashboardScenarioSeeder extends Seeder
 
                 $status = $statuses[($employeeIndex + $day) % count($statuses)];
                 $hasTime = in_array($status, ['present', 'late', 'remote'], true);
-                $record = AttendanceRecord::query()->updateOrCreate(
-                    ['company_id' => $company->id, 'employee_id' => $employee->id, 'date' => $date->toDateString()],
+                $record = AttendanceRecord::query()->whereDate('date', $date->toDateString())->updateOrCreate(
+                    ['company_id' => $company->id, 'employee_id' => $employee->id],
                     [
+                        'date' => $date->toDateString(),
                         'check_in' => $hasTime ? ($status === 'late' ? '09:35:00' : '08:55:00') : null,
                         'check_out' => $hasTime && $day > 0 ? '17:35:00' : null,
                         'break_minutes' => $hasTime ? 45 : 0,
@@ -713,9 +720,10 @@ class DashboardScenarioSeeder extends Seeder
             $end = $start->copy()->endOfMonth();
             $establishment = $establishments[$periodIndex % min(3, $establishments->count())];
             $dueDate = $end->copy()->addDays($periodIndex === 4 ? -10 : 1);
-            $period = PayrollPeriod::query()->updateOrCreate(
-                ['company_id' => $company->id, 'period_start' => $start->toDateString()],
+            $period = PayrollPeriod::query()->whereDate('period_start', $start->toDateString())->updateOrCreate(
+                ['company_id' => $company->id],
                 [
+                    'period_start' => $start->toDateString(),
                     'mohre_establishment_id' => $establishment->id,
                     'wps_provider_id' => $provider?->id,
                     'period_end' => $end,

@@ -55,7 +55,10 @@ mkdir -p \
   bootstrap/cache
 
 log "Running Laravel database migrations"
+php artisan down
 php artisan migrate --force
+php artisan clients:upgrade --force
+php artisan clients:sync-logins
 
 log "Refreshing Laravel caches"
 php artisan optimize:clear
@@ -78,5 +81,8 @@ log "Restarting services"
 run_systemctl restart "${DEPLOY_FRONTEND_SERVICE:-hrm-frontend}"
 run_systemctl restart "${DEPLOY_PHP_FPM_SERVICE:-php8.5-fpm}"
 run_systemctl reload "${DEPLOY_NGINX_SERVICE:-nginx}"
+
+cd "$BACKEND_DIR"
+php artisan up
 
 log "Deployment complete"

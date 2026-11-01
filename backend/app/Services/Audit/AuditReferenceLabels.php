@@ -95,6 +95,10 @@ class AuditReferenceLabels
                 continue;
             }
             $model = new $class;
+            if (! $model->getConnection()->getSchemaBuilder()->hasTable($model->getTable())) {
+                $labels[$key] = [];
+                continue;
+            }
             $query = $class::query()->whereIn($model->qualifyColumn('id'), array_unique($ids));
             if (in_array(SoftDeletes::class, class_uses_recursive($class), true)) {
                 $query->withTrashed();

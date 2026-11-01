@@ -28,3 +28,12 @@ export interface AuthUser {
 export interface AuthPayload {
   user: AuthUser
 }
+
+export interface OrganizationOption {
+  id: string
+  name: string
+}
+
+export interface OrganizationSelectionPayload {
+  organization_options: OrganizationOption[]
+}

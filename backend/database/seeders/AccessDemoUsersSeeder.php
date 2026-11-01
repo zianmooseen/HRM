@@ -16,9 +16,13 @@ class AccessDemoUsersSeeder extends Seeder
 {
     public function run(): void
     {
+        $client = app(\App\Services\Tenancy\TenantDatabaseManager::class)->current();
+        if (! $client && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) {
+            throw new \RuntimeException('Seed isolated local clients with IsolatedDemoClientsSeeder instead.');
+        }
         $this->call(RoleAndPermissionSeeder::class);
 
-        $company = Company::query()->firstOrCreate(
+        $company = $client ? Company::findOrFail($client->company_id) : Company::query()->firstOrCreate(
             ['name' => 'Demo UAE Company'],
             [
                 'legal_name' => 'Demo UAE Company LLC',
@@ -30,11 +34,13 @@ class AccessDemoUsersSeeder extends Seeder
             ],
         );
 
-        $superAdmin = $this->user('System Admin', 'sys.admin', 'sys.admin@example.local', 'sys.admin');
+        if (! $client) {
+            $superAdmin = $this->user('System Admin', 'sys.admin', 'sys.admin@example.local', 'sys.admin');
+            $this->assignRole($superAdmin, 'super_admin', null, 'global');
+        }
         $companyAdmin = $this->user('Company Admin', 'com.admin', 'com.admin@example.local', 'com.admin');
         $employeeUser = $this->user('Employee Demo', 'employee.demo', 'employee.demo@example.local', 'employee.demo');
 
-        $this->assignRole($superAdmin, 'super_admin', null, 'global');
         $this->assignRole($companyAdmin, 'company_admin', $company, 'company');
 
         $branch = Branch::query()->firstOrCreate(

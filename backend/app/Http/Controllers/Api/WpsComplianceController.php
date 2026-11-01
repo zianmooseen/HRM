@@ -45,7 +45,7 @@ class WpsComplianceController extends Controller
                 ->get()
                 ->map(function (Company $company) {
                     $client = PlatformClient::query()->where('company_id', $company->id)->first();
-                    if ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
+                    if ((! $client && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) || ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at))) {
                         return ['company_id' => $company->id, 'company_name' => $company->name, 'risk_status' => 'unavailable', 'open_alerts' => null, 'periods' => []];
                     }
 

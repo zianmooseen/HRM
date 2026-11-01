@@ -96,6 +96,9 @@ class AuditLogController extends Controller
 
     private function employeeContext(AuditLog $log): array
     {
+        if (! (new Employee)->getConnection()->getSchemaBuilder()->hasTable('employees')) {
+            return [];
+        }
         // Resolve both snapshots without crossing the event's company or active branch scope.
         $ids = collect([
             $log->auditable_type === Employee::class ? $log->auditable_id : null,

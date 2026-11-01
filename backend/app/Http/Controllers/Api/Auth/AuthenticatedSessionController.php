@@ -34,6 +34,13 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        if (! app(TenantDatabaseManager::class)->current()
+            && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()
+            && ! Auth::guard('web')->user()->hasRole('super_admin')) {
+            Auth::guard('web')->logout();
+            throw ValidationException::withMessages(['client_code' => ['Enter your company client code to sign in.']]);
+        }
+
         // Feature flow step 2: regenerate browser sessions when Sanctum has attached one.
         if ($request->hasSession()) {
             $request->session()->regenerate();

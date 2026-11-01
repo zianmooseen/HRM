@@ -136,7 +136,7 @@ class ProvisionClient
                 $migrator->getRepository()->createRepository();
             }
             // Platform migrations live in a separate directory and are never installed in a client DB.
-            $migrator->run([database_path('migrations')], ['force' => true]);
+            $migrator->run([database_path('migrations/client')], ['force' => true]);
         });
     }
 

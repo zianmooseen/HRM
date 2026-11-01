@@ -29,6 +29,8 @@ class ClientTenancyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected bool $legacySchema = false;
+
     private string $directory;
 
     private User $platformAdmin;
@@ -73,7 +75,7 @@ class ClientTenancyTest extends TestCase
         $this->assertStringNotContainsString('database_name', $response->getContent());
         $this->assertStringNotContainsString('admin_password', $response->getContent());
         $this->assertDatabaseCount('users', 1);
-        $this->assertDatabaseCount('branches', 0);
+        $this->assertFalse(Schema::hasTable('branches'));
         $this->assertDatabaseHas('tenant_provisioning_runs', ['status' => 'completed', 'platform_client_id' => $client->id]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'client.provisioned', 'company_id' => $client->company_id]);
         app(TenantDatabaseManager::class)->run($client, function () use ($client) {
@@ -132,7 +134,7 @@ class ClientTenancyTest extends TestCase
         $this->getJson('/api/branches?scope_company_id='.$alpha->company_id)->assertOk()->assertJsonCount(2, 'data.branches');
         $this->getJson('/api/me')->assertOk()->assertJsonPath('data.user.id', $this->platformAdmin->id)->assertJsonPath('data.user.client_id', null);
         $this->assertDatabaseHas('audit_logs', ['action' => 'client.support_access', 'company_id' => $alpha->company_id]);
-        $this->assertDatabaseCount('branches', 0);
+        $this->assertFalse(Schema::hasTable('branches'));
         app(TenantDatabaseManager::class)->run($alpha, function () {
             $support = User::whereNotNull('platform_user_id')->firstOrFail();
             $this->assertSame('support', $support->status);
@@ -250,6 +252,137 @@ class ClientTenancyTest extends TestCase
         $betaKey = $manager->run($beta, fn () => $limiter($request)->key);
         $this->assertNotSame($alphaKey, $betaKey);
         $this->assertNotSame($alphaKey, $limiter($request)->key);
+    }
+
+    public function test_client_upgrade_preserves_preexisting_maintenance_and_requires_application_maintenance(): void
+    {
+        $alpha = $this->client('alpha');
+        $beta = $this->client('beta');
+        $beta->update(['maintenance_at' => now()]);
+        $this->artisan('clients:upgrade', ['--force' => true])->assertFailed();
+        $this->mock(\Illuminate\Contracts\Foundation\MaintenanceMode::class, function ($mock) {
+            $mock->shouldReceive('active')->andReturn(true);
+        });
+        $this->artisan('clients:upgrade', ['--force' => true])->assertSuccessful();
+        $this->assertNull($alpha->refresh()->maintenance_at);
+        $this->assertNotNull($beta->refresh()->maintenance_at);
+        $this->assertSame(2, $alpha->session_version);
+    }
+
+    public function test_login_without_client_code_uses_the_account_whose_password_matches(): void
+    {
+        $alpha = $this->client('alpha');
+        $beta = $this->client('beta');
+        app(TenantDatabaseManager::class)->run($beta, fn () => User::first()->update(['password' => 'Different-beta-password-123']));
+        $this->withHeader('Origin', 'http://localhost:3000');
+        $this->postJson('/api/login', ['login' => 'client.admin', 'password' => 'Strong-test-password-123'])
+            ->assertOk()->assertJsonPath('data.user.client_id', $alpha->id);
+        $this->getJson('/api/me')->assertOk()->assertJsonPath('data.user.client_id', $alpha->id);
+        $this->postJson('/api/login', ['email' => 'admin@example.test', 'password' => 'Different-beta-password-123'])
+            ->assertOk()->assertJsonPath('data.user.client_id', $beta->id);
+        $this->getJson('/api/branches?organization_id='.$alpha->uuid)->assertOk()->assertJsonCount(1, 'data.branches');
+        $this->getJson('/api/me')->assertOk()->assertJsonPath('data.user.client_id', $beta->id);
+    }
+
+    public function test_shared_credentials_require_company_selection_after_password_verification(): void
+    {
+        $alpha = $this->client('alpha');
+        $beta = $this->client('beta');
+        $this->withHeader('Origin', 'http://localhost:3000');
+        $credentials = ['login' => 'client.admin', 'password' => 'Strong-test-password-123'];
+        $this->postJson('/api/login', ['login' => 'client.admin', 'password' => 'wrong'])
+            ->assertUnprocessable()->assertJsonMissingPath('data.organization_options');
+        $response = $this->postJson('/api/login', $credentials)->assertOk()->assertJsonCount(2, 'data.organization_options')
+            ->assertJsonMissingPath('data.user');
+        $this->assertEqualsCanonicalizing([$alpha->uuid, $beta->uuid], array_column($response->json('data.organization_options'), 'id'));
+        $this->assertStringNotContainsString($alpha->database_name, $response->getContent());
+        $this->getJson('/api/me')->assertUnauthorized();
+        $this->postJson('/api/login', $credentials + ['organization_id' => (string) \Illuminate\Support\Str::uuid()])->assertUnprocessable();
+        $this->postJson('/api/login', $credentials + ['organization_id' => 'not-a-uuid'])->assertUnprocessable();
+        $this->postJson('/api/login', $credentials + ['organization_id' => $beta->uuid])
+            ->assertOk()->assertJsonPath('data.user.client_id', $beta->id);
+        $this->getJson('/api/me')->assertOk()->assertJsonPath('data.user.client_id', $beta->id);
+        $this->getJson('/api/platform/clients')->assertForbidden();
+    }
+
+    public function test_account_edits_update_lookup_and_stale_rows_never_authenticate(): void
+    {
+        $client = $this->client('alpha');
+        $manager = app(TenantDatabaseManager::class);
+        $manager->run($client, fn () => User::first()->update(['username' => 'changed.admin', 'email' => 'changed@example.test']));
+        $this->withHeader('Origin', 'http://localhost:3000');
+        $this->postJson('/api/login', ['login' => 'client.admin', 'password' => 'Strong-test-password-123'])->assertUnprocessable();
+        $this->postJson('/api/login', ['login' => 'changed.admin', 'password' => 'Strong-test-password-123'])->assertOk();
+        $this->postJson('/api/logout')->assertOk();
+        $manager->run($client, fn () => User::first()->update(['status' => 'suspended']));
+        $this->assertDatabaseCount('client_login_identifiers', 0);
+        DB::table('client_login_identifiers')->insert([
+            'platform_client_id' => $client->id, 'user_id' => 1,
+            'identifier_hash' => app(\App\Services\Tenancy\ClientLoginDirectory::class)->fingerprint('changed.admin'),
+        ]);
+        $this->postJson('/api/login', ['login' => 'changed.admin', 'password' => 'Strong-test-password-123'])->assertUnprocessable();
+        $this->getJson('/api/me')->assertUnauthorized();
+        $manager->run($client, fn () => User::first()->delete());
+        $this->assertDatabaseCount('client_login_identifiers', 0);
+    }
+
+    public function test_reindex_restores_lookup_without_storing_identifiers_or_passwords(): void
+    {
+        $client = $this->client('alpha');
+        DB::table('client_login_identifiers')->delete();
+        $this->artisan('clients:sync-logins', ['--client' => 'alpha'])->assertSuccessful();
+        $this->assertDatabaseCount('client_login_identifiers', 2);
+        $this->assertEqualsCanonicalizing(['id', 'platform_client_id', 'user_id', 'identifier_hash'], Schema::getColumnListing('client_login_identifiers'));
+        $this->assertSame(64, strlen(DB::table('client_login_identifiers')->value('identifier_hash')));
+        $this->withHeader('Origin', 'http://localhost:3000')->postJson('/api/login', ['login' => 'client.admin', 'password' => 'Strong-test-password-123'])
+            ->assertOk()->assertJsonPath('data.user.client_id', $client->id);
+    }
+
+    public function test_paused_clients_and_support_accounts_are_not_discovered(): void
+    {
+        $client = $this->client('alpha');
+        $client->update(['maintenance_at' => now()]);
+        $this->withHeader('Origin', 'http://localhost:3000');
+        $credentials = ['login' => 'client.admin', 'password' => 'Strong-test-password-123'];
+        $this->postJson('/api/login', $credentials)->assertUnprocessable();
+        $client->update(['maintenance_at' => null]);
+        app(TenantDatabaseManager::class)->run($client, fn () => User::first()->forceFill(['platform_user_id' => $this->platformAdmin->id])->save());
+        $this->assertDatabaseCount('client_login_identifiers', 0);
+        $this->postJson('/api/login', $credentials)->assertUnprocessable();
+    }
+
+    public function test_platform_and_client_credentials_are_never_silently_confused(): void
+    {
+        $client = $this->client('alpha');
+        $this->platformAdmin->update(['username' => 'client.admin', 'password' => 'Strong-test-password-123']);
+        $this->withHeader('Origin', 'http://localhost:3000');
+        $credentials = ['login' => 'client.admin', 'password' => 'Strong-test-password-123'];
+        $this->postJson('/api/login', $credentials)->assertOk()->assertJsonCount(2, 'data.organization_options');
+        $this->postJson('/api/login', $credentials + ['organization_id' => 'platform'])
+            ->assertOk()->assertJsonPath('data.user.client_id', null);
+        $this->getJson('/api/platform/clients')->assertOk();
+        $this->postJson('/api/login', $credentials + ['organization_id' => $client->uuid])
+            ->assertOk()->assertJsonPath('data.user.client_id', $client->id);
+        $this->getJson('/api/platform/clients')->assertForbidden();
+    }
+
+    public function test_discovery_is_rate_limited_before_password_matching(): void
+    {
+        for ($attempt = 0; $attempt < 20; $attempt++) {
+            $this->postJson('/api/login', ['login' => 'missing.user', 'password' => 'wrong'])->assertUnprocessable();
+        }
+        $this->postJson('/api/login', ['login' => 'missing.user', 'password' => 'wrong'])->assertStatus(429);
+    }
+
+    public function test_discovery_never_falls_back_when_an_indexed_client_has_the_wrong_database_identity(): void
+    {
+        $this->client('alpha');
+        $beta = $this->client('beta');
+        app(TenantDatabaseManager::class)->run($beta, fn () => DB::table('tenant_identity')->update(['uuid' => 'unrelated-client']));
+        $this->withHeader('Origin', 'http://localhost:3000')->postJson('/api/login', ['login' => 'client.admin', 'password' => 'Strong-test-password-123'])
+            ->assertStatus(503)->assertJsonMissingPath('data.user');
+        $this->assertSame($this->centralConnection, DB::getDefaultConnection());
+        $this->getJson('/api/me')->assertUnauthorized();
     }
 
     private function client(string $code): PlatformClient

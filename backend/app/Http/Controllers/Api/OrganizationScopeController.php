@@ -23,7 +23,7 @@ class OrganizationScopeController extends Controller
             $clients = PlatformClient::query()->get()->keyBy('company_id');
             $companies = Company::query()->orderBy('name')->get()->flatMap(function (Company $company) use ($clients, $databases) {
                 $client = $clients->get($company->id);
-                if ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
+                if ((! $client && ! \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) || ($client && ($client->provisioning_status !== 'ready' || $client->maintenance_at))) {
                     return [];
                 }
                 $read = fn () => Branch::query()->where('company_id', $company->id)

@@ -29,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \App\Models\User::observe(\App\Observers\UserObserver::class);
         $this->loadMigrationsFrom(database_path('migrations/platform'));
         // Session storage must never follow the client's business-data connection.
         if (config('session.driver') === 'database' && ! config('session.connection')) {

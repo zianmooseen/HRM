@@ -2,6 +2,10 @@
 
 All API responses use a stable envelope.
 
+## Database context
+
+All users sign in with username/email and password; the server discovers the matching account. Shared credentials return verified company choices before a session is established. HR endpoints always execute inside that client's database; platform support users must select a provisioned company with `scope_company_id`. Missing/unregistered client selection returns a validation error (422), and central non-platform users cannot access HR endpoints (403). Organization filter options only include ready, unpaused clients; WPS platform reports mark unprovisioned/unavailable companies as unavailable without querying central HR tables. Company directory and billing reads remain company-wide and ignore saved HR branch selections. Billing storage is always central, including when accessed through a client session.
+
 ## Success
 
 ```json
@@ -824,7 +828,7 @@ Platform-only (central `super_admin` session):
 - `POST /api/platform/clients`: `client_code`, `company_name`, `admin_name`, `admin_username`, `admin_email`, `admin_password` (12–72 characters); optional `country`, `emirate`, `timezone`, `subscription_plan_id`. Returns HTTP 201 with `data.client`. Inspect `provisioning_status`: `ready` permits login, `failed` requires repair/retry. Database names and bootstrap credentials are never returned.
 - `POST /api/platform/clients/{client}/retry`: retries the existing client's setup; completed setup is idempotent. Returns `data.client`; an active provisioning lock returns 409.
 
-`POST /api/login` accepts optional `client_code`. Supply it for client accounts; omit it for platform accounts. Client login requires a stateful browser session. `/api/me` and login include `data.user.client_id` (null for platform). The server-side session chooses the database on later requests. Tenant sessions cannot access `/api/platform/*`, even with a tenant-local super-admin role. Client maintenance revokes sessions; sign in again after resume.
+`POST /api/login` normally receives `login` (or legacy `email`) and `password`, without a client code. A unique verified match returns the existing `data.user` response. Multiple verified matches return HTTP 200 with `data.organization_options: [{ "id": "<opaque client UUID or platform>", "name": "Company name" }]` and no `data.user`; this response does not authenticate a session. Resubmit the credentials with the selected `organization_id` to complete sign-in. The selection is revalidated and cannot switch a later authenticated request's database. Incorrect credentials return the generic 422 validation response without company choices. Inactive/paused/support accounts are not offered. Discovery is throttled (429); an unavailable indexed database returns a generic 503 rather than guessing a company. The optional `client_code` parameter remains supported for existing API callers. Client login requires a stateful browser session. `/api/me` and login include `data.user.client_id` (null for platform). The server-side session chooses the database on later requests. Tenant sessions cannot access `/api/platform/*`, even with a tenant-local super-admin role. Client maintenance revokes sessions; sign in again after resume.
 
 Platform admins use the existing `scope_company_id` to open a provisioned client's HR records. Client accounts cannot use that selector to change databases. Platform billing remains in the central database and accepts company-level filters; client creation/listing is independent of the selected company. See [client database operations](client-databases.md).
 

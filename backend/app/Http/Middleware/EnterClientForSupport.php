@@ -15,21 +15,22 @@ class EnterClientForSupport
 
     public function handle(Request $request, Closure $next)
     {
-        if ($this->databases->current() || $request->is('api/companies') || ! $request->user()->hasRole('super_admin')) {
+        if ($this->databases->current() || \App\Services\Tenancy\SchemaLayout::legacyTestSchema()) {
             return $next($request);
         }
+        // Platform endpoints may use the directory and billing tables without entering HR storage.
+        if ($request->is('api/companies', 'api/billing/current')) {
+            return $next($request);
+        }
+        abort_unless($request->user()->hasRole('super_admin'), 403, 'Sign in with your client code to access HR records.');
         // 1. Support selection is available only to an authenticated platform administrator.
         $request->validate(['scope_company_id' => ['nullable', 'integer', 'min:1']]);
         $companyId = $request->integer('scope_company_id');
         if (! $companyId) {
-            abort_if(PlatformClient::query()->exists(), 422, 'Select a client company before opening HR records.');
-
-            return $next($request);
+            abort(422, 'Select a client company before opening HR records.');
         }
         $client = PlatformClient::query()->where('company_id', $companyId)->first();
-        if (! $client) {
-            return $next($request); // Existing local sample companies.
-        }
+        abort_unless($client, 422, 'This company has no provisioned client database.');
         $actor = $request->user();
         $resolver = $request->getUserResolver();
         // 2. Record support access outside the tenant's rollback boundary.

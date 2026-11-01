@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BillingInvoice extends Model
 {
+    public function getConnectionName()
+    {
+        return config('tenancy.central_connection');
+    }
+
     protected $fillable = [
         'company_id',
         'company_subscription_id',

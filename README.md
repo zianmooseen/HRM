@@ -54,14 +54,17 @@ php artisan serve
 
 ## Scenario Data
 
-Reset the local database and generate the complete dashboard test dataset:
+Reset a disposable local database and generate three isolated test clients (this deletes central data; see [test data setup](docs/local-test-data.md) before repeating a reset with existing client databases):
 
 ```bash
 cd backend
-php artisan migrate:fresh --seed
+php artisan down
+php artisan migrate:fresh --force
+php artisan db:seed --class=IsolatedDemoClientsSeeder --force
+php artisan up
 ```
 
-The seed creates 160 employees and scenario records for organization setup, onboarding, attendance, corrections, leave, documents, payroll, WPS, compliance, terminations, audit logs, and billing.
+The seed creates `demo`, `retail`, and `logistics`, each with its own database and 160 employees. Scenario records cover organization setup, onboarding, attendance, corrections, leave, downloadable synthetic documents, payroll, WPS, compliance, terminations, temporary workers, and audit logs. Billing stays central.
 
 Local seeded accounts use the username as the password:
 
@@ -74,7 +77,7 @@ Local seeded accounts use the username as the password:
 | Department manager | `department.manager` |
 | Employee | `employee.demo` |
 
-These credentials are for local development only and can be overridden with the `SEED_*` environment variables.
+Sign in using username/email and password. Platform admins sign in directly; the shared client accounts prompt you to choose Demo, Retail or Logistics. These credentials are for local development only. Company-admin credentials can be overridden with `SEED_COMPANY_ADMIN_USERNAME` and `SEED_COMPANY_ADMIN_PASSWORD`.
 
 ## Implementation Notes
 

@@ -16,6 +16,11 @@ trait CreatesApplication
 
         $app->make(Kernel::class)->bootstrap();
 
+        if ($this->legacySchema) {
+            $app['config']->set('tenancy.legacy_test_schema', true);
+            $app->make('migrator')->path(database_path('migrations/client'));
+        }
+
         return $app;
     }
 }

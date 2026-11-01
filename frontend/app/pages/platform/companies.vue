@@ -11,7 +11,7 @@
       <p>The client will be ready to sign in after setup completes.</p>
       <div class="client-fields">
         <label>Company name<input v-model="form.company_name" required maxlength="255"></label>
-        <label>Client code<input v-model="form.client_code" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="50" placeholder="example-company"><small>Used when signing in. Lowercase letters, numbers and hyphens.</small></label>
+        <label>Client code<input v-model="form.client_code" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="50" placeholder="example-company"><small>Unique company reference. Lowercase letters, numbers and hyphens.</small></label>
         <label>Admin name<input v-model="form.admin_name" required maxlength="255" autocomplete="name"></label>
         <label>Admin email<input v-model="form.admin_email" type="email" required maxlength="255" autocomplete="email"></label>
         <label>Admin username<input v-model="form.admin_username" required maxlength="100" pattern="[a-zA-Z0-9._-]+" autocomplete="off"></label>
@@ -117,7 +117,7 @@ async function createClient() {
     const response = await api.post<{ client: Client }>('/platform/clients', form)
     const client = response.data.client
     notice.value = client.provisioning_status === 'ready'
-      ? `${client.company_name} is ready. The admin can sign in with client code ${client.client_code}.`
+      ? `${client.company_name} is ready. The admin can sign in with their username or email and password.`
       : 'Client saved, but setup needs attention. Use Retry setup after resolving the reported issue.'
     Object.assign(form, initialForm())
     showForm.value = false

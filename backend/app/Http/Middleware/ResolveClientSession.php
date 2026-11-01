@@ -19,13 +19,29 @@ class ResolveClientSession
         $login = $request->is('api/login');
         $client = null;
         if ($login) {
-            $request->validate(['client_code' => ['nullable', 'string', 'max:50']]);
+            $request->validate((new \App\Http\Requests\Auth\LoginRequest)->rules());
             if ($request->filled('client_code')) {
                 $client = PlatformClient::query()->where('client_code', $request->input('client_code'))->first();
                 if (! $client || ($client->provisioning_status !== 'ready' || $client->maintenance_at)) {
                     throw ValidationException::withMessages(['login' => ['The provided credentials are incorrect.']]);
                 }
                 abort_unless($request->hasSession(), 422, 'Client login requires a browser session.');
+            } else {
+                $request->merge(['login' => trim($request->input('login') ?: $request->input('email'))]);
+                $matches = app(\App\Services\Tenancy\DiscoverLogin::class)->matches($request);
+                if (! $matches) {
+                    throw ValidationException::withMessages(['login' => ['The provided credentials are incorrect.']]);
+                }
+                if (count($matches) > 1) {
+                    return response()->json([
+                        'success' => true, 'message' => 'Choose a company to continue.',
+                        'data' => ['organization_options' => array_map(fn ($match) => ['id' => $match['id'], 'name' => $match['name']], $matches)],
+                    ]);
+                }
+                $client = $matches[0]['client'];
+                if ($client) {
+                    abort_unless($request->hasSession(), 422, 'Client login requires a browser session.');
+                }
             }
         } elseif ($request->hasSession() && $request->session()->has('auth_client_id')) {
             $client = PlatformClient::query()->find($request->session()->get('auth_client_id'));

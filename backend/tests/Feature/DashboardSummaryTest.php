@@ -161,7 +161,7 @@ class DashboardSummaryTest extends TestCase
             'bank_iban' => 'AE070331234567890123456',
         ]);
 
-        $migration = require database_path('migrations/0001_01_01_000019_encrypt_legacy_wps_bank_ibans.php');
+        $migration = require database_path('migrations/client/0001_01_01_000019_encrypt_legacy_wps_bank_ibans.php');
         $migration->up();
 
         Sanctum::actingAs($user);

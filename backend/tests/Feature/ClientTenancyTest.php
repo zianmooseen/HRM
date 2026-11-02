@@ -8,10 +8,12 @@ use App\Models\PlatformClient;
 use App\Models\Role;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Services\Tenancy\ClientLoginDirectory;
 use App\Services\Tenancy\CreateTenantDatabase;
 use App\Services\Tenancy\ProvisionClient;
 use App\Services\Tenancy\TenantDatabaseManager;
 use Database\Seeders\RoleAndPermissionSeeder;
+use Illuminate\Contracts\Foundation\MaintenanceMode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
 use RuntimeException;
@@ -176,6 +179,48 @@ class ClientTenancyTest extends TestCase
         $this->assertCount(1, glob($this->directory.'/*.sqlite'));
     }
 
+    public function test_client_creation_generates_unique_references_for_omitted_or_blank_codes_and_repeated_company_names(): void
+    {
+        Sanctum::actingAs($this->platformAdmin);
+        $payload = $this->payload('unused');
+        $payload['company_name'] = 'Gulf Retail LLC';
+        unset($payload['client_code']);
+        $codes = [];
+        $databases = [];
+        foreach ([$payload, [...$payload, 'client_code' => null], [...$payload, 'client_code' => '']] as $request) {
+            $response = $this->postJson('/api/platform/clients', $request)
+                ->assertCreated()->assertJsonPath('data.client.provisioning_status', 'ready');
+            $code = $response->json('data.client.client_code');
+            $this->assertMatchesRegularExpression('/\Agulf-retail-llc-[a-z0-9]{12}\z/', $code);
+            $client = PlatformClient::findOrFail($response->json('data.client.id'));
+            $this->assertSame($code, $client->client_code);
+            $this->assertFileExists($this->directory.'/'.$client->database_name.'.sqlite');
+            $codes[] = $code;
+            $databases[] = $client->database_name;
+        }
+        $this->assertCount(3, array_unique($codes));
+        $this->assertCount(3, array_unique($databases));
+        $this->assertDatabaseCount('platform_clients', 3);
+    }
+
+    public function test_generated_references_fit_the_column_and_handle_names_without_slug_characters(): void
+    {
+        Sanctum::actingAs($this->platformAdmin);
+        foreach ([str_repeat('A', 255), '!!!'] as $name) {
+            $payload = $this->payload('unused');
+            unset($payload['client_code']);
+            $payload['company_name'] = $name;
+            $response = $this->postJson('/api/platform/clients', $payload)
+                ->assertCreated()->assertJsonPath('data.client.provisioning_status', 'ready');
+            $code = $response->json('data.client.client_code');
+            $this->assertLessThanOrEqual(50, strlen($code));
+            $this->assertMatchesRegularExpression('/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/', $code);
+            if ($name === '!!!') {
+                $this->assertStringStartsWith('client-', $code);
+            }
+        }
+    }
+
     public function test_failure_restores_connection_and_wrong_database_identity_fails_closed(): void
     {
         $client = $this->client('alpha');
@@ -260,7 +305,7 @@ class ClientTenancyTest extends TestCase
         $beta = $this->client('beta');
         $beta->update(['maintenance_at' => now()]);
         $this->artisan('clients:upgrade', ['--force' => true])->assertFailed();
-        $this->mock(\Illuminate\Contracts\Foundation\MaintenanceMode::class, function ($mock) {
+        $this->mock(MaintenanceMode::class, function ($mock) {
             $mock->shouldReceive('active')->andReturn(true);
         });
         $this->artisan('clients:upgrade', ['--force' => true])->assertSuccessful();
@@ -297,7 +342,7 @@ class ClientTenancyTest extends TestCase
         $this->assertEqualsCanonicalizing([$alpha->uuid, $beta->uuid], array_column($response->json('data.organization_options'), 'id'));
         $this->assertStringNotContainsString($alpha->database_name, $response->getContent());
         $this->getJson('/api/me')->assertUnauthorized();
-        $this->postJson('/api/login', $credentials + ['organization_id' => (string) \Illuminate\Support\Str::uuid()])->assertUnprocessable();
+        $this->postJson('/api/login', $credentials + ['organization_id' => (string) Str::uuid()])->assertUnprocessable();
         $this->postJson('/api/login', $credentials + ['organization_id' => 'not-a-uuid'])->assertUnprocessable();
         $this->postJson('/api/login', $credentials + ['organization_id' => $beta->uuid])
             ->assertOk()->assertJsonPath('data.user.client_id', $beta->id);
@@ -318,7 +363,7 @@ class ClientTenancyTest extends TestCase
         $this->assertDatabaseCount('client_login_identifiers', 0);
         DB::table('client_login_identifiers')->insert([
             'platform_client_id' => $client->id, 'user_id' => 1,
-            'identifier_hash' => app(\App\Services\Tenancy\ClientLoginDirectory::class)->fingerprint('changed.admin'),
+            'identifier_hash' => app(ClientLoginDirectory::class)->fingerprint('changed.admin'),
         ]);
         $this->postJson('/api/login', ['login' => 'changed.admin', 'password' => 'Strong-test-password-123'])->assertUnprocessable();
         $this->getJson('/api/me')->assertUnauthorized();

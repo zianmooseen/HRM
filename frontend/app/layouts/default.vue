@@ -67,7 +67,8 @@
       </div>
     </aside>
     <main id="main-content" class="content" tabindex="-1" data-tour="page-content" :inert="isMobile && navigationOpen">
-      <OrganizationScopeFilter v-if="route.path !== '/platform/companies'" />
+      <OrganizationScopeFilter v-if="showOrganizationScopeFilter" />
+      <p v-else-if="scope.error" role="alert" class="error">{{ scope.error }}</p>
       <slot v-if="isPlatformAdministration || !scope.enabled || (scope.ready && scope.companyId)" />
       <p v-else-if="!scope.error" role="status">{{ scope.ready ? 'No company is assigned to this account.' : 'Loading company filters…' }}</p>
     </main>
@@ -79,6 +80,7 @@ const auth = useAuthStore()
 const scope = useOrganizationScopeStore()
 const { startTour, hasTour } = useFeatureTour()
 const route = useRoute()
+const showOrganizationScopeFilter = computed(() => !['/platform/companies', '/settings/job-titles'].includes(route.path.replace(/\/+$/, '')))
 const isPlatformAdministration = computed(() => auth.hasRole('super_admin') && !auth.user?.client_id && route.path.startsWith('/platform/'))
 const loggingOut = ref(false)
 const expandedSections = ref<Record<string, boolean>>({})

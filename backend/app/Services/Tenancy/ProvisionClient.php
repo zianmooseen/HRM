@@ -41,7 +41,7 @@ class ProvisionClient
             ]);
             $uuid = (string) Str::uuid();
             $client = PlatformClient::query()->create([
-                'uuid' => $uuid, 'client_code' => $data['client_code'],
+                'uuid' => $uuid, 'client_code' => $data['client_code'] ?? $this->generateClientCode($data['company_name']),
                 'company_id' => $company->id, 'database_name' => 'hrm_client_'.str_replace('-', '', $uuid),
                 'created_by' => $actor->id,
                 'setup_payload' => [
@@ -66,6 +66,17 @@ class ProvisionClient
         });
 
         return $this->provision($client, $actor);
+    }
+
+    private function generateClientCode(string $companyName): string
+    {
+        $prefix = rtrim(Str::substr(Str::slug($companyName) ?: 'client', 0, 37), '-');
+        // Random suffixes let companies share names without competing for the same slug.
+        do {
+            $code = $prefix.'-'.Str::lower(Str::random(12));
+        } while (PlatformClient::where('client_code', $code)->exists());
+
+        return $code;
     }
 
     public function provision(PlatformClient $client, User $actor): PlatformClient

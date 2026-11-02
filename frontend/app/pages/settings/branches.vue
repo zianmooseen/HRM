@@ -14,7 +14,7 @@
           <input v-model="form.code" required>
         </label>
         <label>
-          Emirate
+          UAE location
           <input v-model="form.emirate">
         </label>
         <label>
@@ -36,11 +36,11 @@
     </ActionFormPanel>
     <table>
       <thead>
-        <tr><th>Name</th><th>Code</th><th>Emirate</th><th>Status</th><th></th></tr>
+        <tr><th>Name</th><th>Code</th><th>UAE location</th><th>Status</th><th></th></tr>
         <tr class="column-filter-row">
           <th><TableColumnFilter v-model="columnFilters.name" label="Filter branch name" /></th>
           <th><TableColumnFilter v-model="columnFilters.code" label="Filter branch code" /></th>
-          <th><TableColumnFilter v-model="columnFilters.emirate" label="Filter branch emirate" /></th>
+          <th><TableColumnFilter v-model="columnFilters.emirate" label="Filter branch UAE location" /></th>
           <th><TableColumnFilter v-model="columnFilters.status" label="Filter branch status" /></th>
           <th></th>
         </tr>

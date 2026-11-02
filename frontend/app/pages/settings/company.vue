@@ -64,7 +64,7 @@
           <input v-model="form.country" maxlength="2" required>
         </label>
         <label>
-          Emirate
+          UAE location
           <input v-model="form.emirate">
         </label>
         <label>
@@ -94,7 +94,7 @@
       <dt>Legal name</dt><dd>{{ savedCompany.legal_name || '-' }}</dd>
       <dt>Trade license</dt><dd>{{ savedCompany.trade_license_number || '-' }}</dd>
       <dt>Tax registration</dt><dd>{{ savedCompany.tax_registration_number || '-' }}</dd>
-      <dt>Country / emirate</dt><dd>{{ savedCompany.country }} {{ savedCompany.emirate }}</dd>
+      <dt>Country / UAE location</dt><dd>{{ savedCompany.country }} {{ savedCompany.emirate }}</dd>
       <dt>Currency</dt><dd>{{ savedCompany.default_currency }}</dd>
       <dt>Timezone</dt><dd>{{ savedCompany.timezone }}</dd>
       <dt>Status</dt><dd>{{ savedCompany.status }}</dd>

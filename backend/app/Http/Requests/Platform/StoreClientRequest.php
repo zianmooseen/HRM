@@ -14,7 +14,7 @@ class StoreClientRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_code' => ['required', 'string', 'max:50', 'regex:/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/', 'unique:platform_clients,client_code'],
+            'client_code' => ['nullable', 'string', 'max:50', 'regex:/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/', 'unique:platform_clients,client_code'],
             'company_name' => ['required', 'string', 'max:255'],
             'country' => ['sometimes', 'string', 'size:2'],
             'emirate' => ['nullable', 'string', 'max:100'],

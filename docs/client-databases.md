@@ -3,8 +3,8 @@
 ## Client creation flow
 
 1. A platform administrator opens **Clients & companies → Add client**.
-2. They enter a unique company reference code, company name, initial admin credentials and optionally a subscription plan.
-3. The platform reserves its client record and company directory entry, with an optional trial subscription, in the central database.
+2. They enter the company name, initial admin credentials and optionally a subscription plan. No client code is entered in the form.
+3. The platform generates a unique reference from the company name and a random suffix, then reserves its client record and company directory entry, with an optional trial subscription, in the central database. Company names can repeat; references are limited to 50 lowercase letters, numbers and hyphens. Names without usable slug characters use a `client-` prefix. Existing API integrations may still supply a validated unique `client_code` explicitly.
 4. The provisioner creates a database named `hrm_client_<generated UUID without hyphens>`. Request input cannot choose a database name or connection.
 5. It writes an ownership marker, runs the HRM migrations, and seeds roles, legal reference rules, leave types and WPS provider reference data. Demo seeders are never run.
 6. It creates the company admin, main branch, compliance settings, basic salary component and an empty default onboarding template. Customer-specific payroll/WPS setup still needs completion before use.

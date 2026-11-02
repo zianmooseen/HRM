@@ -11,12 +11,11 @@
       <p>The client will be ready to sign in after setup completes.</p>
       <div class="client-fields">
         <label>Company name<input v-model="form.company_name" required maxlength="255"></label>
-        <label>Client code<input v-model="form.client_code" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="50" placeholder="example-company"><small>Unique company reference. Lowercase letters, numbers and hyphens.</small></label>
         <label>Admin name<input v-model="form.admin_name" required maxlength="255" autocomplete="name"></label>
         <label>Admin email<input v-model="form.admin_email" type="email" required maxlength="255" autocomplete="email"></label>
         <label>Admin username<input v-model="form.admin_username" required maxlength="100" pattern="[a-zA-Z0-9._-]+" autocomplete="off"></label>
         <label>Initial password<input v-model="form.admin_password" type="password" required minlength="12" maxlength="72" autocomplete="new-password"><small>At least 12 characters. Share securely with the client admin.</small></label>
-        <label>Emirate<input v-model="form.emirate" maxlength="100"></label>
+        <label>UAE location<input v-model="form.emirate" maxlength="100"></label>
         <label>Subscription plan<select v-model="form.subscription_plan_id"><option :value="null">Assign later</option><option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.name }}</option></select></label>
       </div>
       <div class="button-row">
@@ -27,7 +26,7 @@
     <p v-if="loading" role="status">Loading clients…</p>
     <table v-if="clients.length">
       <caption>Client setup</caption>
-      <thead><tr><th>Client</th><th>Sign-in code</th><th>Setup status</th><th>Action</th></tr></thead>
+      <thead><tr><th>Client</th><th>Client reference</th><th>Setup status</th><th>Action</th></tr></thead>
       <tbody>
         <tr v-for="client in clients" :key="client.id">
           <td>{{ client.company_name }}</td>
@@ -41,10 +40,10 @@
     <table v-else-if="companies.length">
       <caption>Companies</caption>
       <thead>
-        <tr><th>Name</th><th>Emirate</th><th>Status</th><th>Billing</th></tr>
+        <tr><th>Name</th><th>UAE location</th><th>Status</th><th>Billing</th></tr>
         <tr class="column-filter-row">
           <th><TableColumnFilter v-model="columnFilters.name" label="Filter company name" /></th>
-          <th><TableColumnFilter v-model="columnFilters.emirate" label="Filter company emirate" /></th>
+          <th><TableColumnFilter v-model="columnFilters.emirate" label="Filter company UAE location" /></th>
           <th><TableColumnFilter v-model="columnFilters.status" label="Filter company status" /></th>
           <th><TableColumnFilter v-model="columnFilters.billing" label="Filter company billing" /></th>
         </tr>
@@ -84,7 +83,7 @@ const retrying = ref<number | null>(null)
 const showForm = ref(false)
 const error = ref('')
 const notice = ref('')
-const initialForm = () => ({ company_name: '', client_code: '', admin_name: '', admin_email: '', admin_username: '', admin_password: '', emirate: '', subscription_plan_id: null as number | null })
+const initialForm = () => ({ company_name: '', admin_name: '', admin_email: '', admin_username: '', admin_password: '', emirate: '', subscription_plan_id: null as number | null })
 const form = reactive(initialForm())
 
 function cancelCreateClient() {
